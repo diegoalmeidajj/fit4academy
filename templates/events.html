@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_events') }}{% endblock %}
+
+{% block extra_css %}
+.event-card { border-radius: 14px; overflow: hidden; transition: all .2s; border: 1px solid var(--border); background: var(--card-bg); }
+.event-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.event-photo { height: 160px; background: linear-gradient(135deg,#6366f1,#a855f7); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+.event-photo img { width: 100%; height: 100%; object-fit: cover; }
+.event-photo .event-type-badge { position: absolute; top: 10px; right: 10px; }
+.event-card-body { padding: 16px; }
+.event-title { font-family: 'Space Grotesk'; font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.event-meta { font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+.event-meta i { width: 16px; text-align: center; margin-right: 4px; }
+
+.toggle-pills { display: flex; gap: 0; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; display: inline-flex; }
+.toggle-pill { padding: 8px 20px; font-size: 13px; font-weight: 600; background: transparent; color: var(--text-muted); border: none; cursor: pointer; transition: all .2s; }
+.toggle-pill.active { background: #6366f1; color: #fff; }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-trophy" style="color:var(--primary);"></i> {{ t('events_title') }}</h1>
+    <div class="topbar-actions">
+        <a href="/events/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('events_add') }}</a>
+    </div>
+</div>
+
+<!-- Toggle: Upcoming / Past -->
+<div class="toggle-pills">
+    <button class="toggle-pill active" onclick="toggleEvents('upcoming', this)">{{ t('events_upcoming') }}</button>
+    <button class="toggle-pill" onclick="toggleEvents('past', this)">{{ t('events_past') }}</button>
+</div>
+
+<!-- Events grid -->
+<div class="grid-3" id="eventsGrid">
+    {% for event in events|default([]) %}
+    <a href="/events/{{ event.id }}/edit" class="event-card" data-time="{{ 'upcoming' if event.is_upcoming else 'past' }}" style="text-decoration:none;color:inherit;">
+        <div class="event-photo">
+            {% if event.photo %}<img src="{{ event.photo }}">{% else %}<i class="bi bi-trophy" style="font-size:40px;color:rgba(255,255,255,.3);"></i>{% endif %}
+            <span class="event-type-badge badge-pill badge-{{ event.type|lower|default('gi') }}">{{ event.type }}</span>
+        </div>
+        <div class="event-card-body">
+            <div class="event-title">{{ event.title }}</div>
+            <div class="event-meta">
+                <div><i class="bi bi-calendar"></i> {{ event.date }}</div>
+                <div><i class="bi bi-geo-alt"></i> {{ event.location|default(t('events_tba')) }}</div>
+                <div><i class="bi bi-people"></i> {{ event.participants|default(0) }} {{ t('events_participants') }}</div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+{% if not events %}
+<div class="card"><div class="card-body empty-state"><i class="bi bi-trophy"></i><p>{{ t('events_empty') }}</p></div></div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleEvents(show, btn) {
+    document.querySelectorAll('.toggle-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('#eventsGrid .event-card').forEach(card => {
+        card.style.display = (card.dataset.time === show) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

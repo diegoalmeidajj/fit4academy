@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_dashboard') }}{% endblock %}
+
+{% block extra_css %}
+.welcome-card { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); border-radius: 16px; padding: 28px; color: #fff; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; position: relative; overflow: hidden; }
+.welcome-card::before { content:''; position:absolute; right:-40px; top:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.06); }
+.welcome-card::after { content:''; position:absolute; right:60px; bottom:-60px; width:160px; height:160px; border-radius:50%; background:rgba(255,255,255,.04); }
+.welcome-logo { width: 64px; height: 64px; border-radius: 16px; background: rgba(255,255,255,.15); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+.welcome-text h2 { font-family: 'Space Grotesk'; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+.welcome-text p { font-size: 14px; opacity: .7; margin: 0; }
+
+.section-title { font-family: 'Space Grotesk'; font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.section-title i { font-size: 18px; color: var(--primary); }
+
+.class-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; transition: all .2s; }
+.class-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.class-time { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; color: var(--primary); }
+.class-name { font-weight: 600; font-size: 14px; margin: 4px 0; }
+.class-meta { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+
+.checkin-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.checkin-item:last-child { border-bottom: none; }
+.checkin-info { flex: 1; }
+.checkin-info .name { font-weight: 600; font-size: 13px; }
+.checkin-info .detail { font-size: 11px; color: var(--text-muted); }
+.checkin-time { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+.birthday-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.birthday-item .bday-date { font-size: 11px; color: var(--warning); font-weight: 600; }
+
+.payment-alert { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
+.payment-alert.alert-overdue { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.15); }
+.payment-alert.alert-failed { background: rgba(249,115,22,.08); border: 1px solid rgba(249,115,22,.15); }
+.payment-alert i { font-size: 16px; }
+
+.belt-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.belt-bar-label { width: 70px; font-size: 12px; font-weight: 600; text-align: right; }
+.belt-bar-track { flex: 1; height: 24px; background: var(--border); border-radius: 6px; overflow: hidden; position: relative; }
+.belt-bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 700; color: #fff; min-width: 30px; transition: width .6s ease; }
+.belt-bar-fill.white-bar { background: #cbd5e1; color: #334155; }
+.belt-bar-fill.blue-bar { background: #1d4ed8; }
+.belt-bar-fill.purple-bar { background: #7c3aed; }
+.belt-bar-fill.brown-bar { background: #78350f; }
+.belt-bar-fill.black-bar { background: #0f172a; }
+
+@media (max-width: 768px) {
+    .welcome-card { flex-direction: column; text-align: center; padding: 20px; }
+    .welcome-logo { width: 52px; height: 52px; font-size: 22px; }
+}
+{% endblock %}
+
+{% block content %}
+<!-- Welcome -->
+<div class="welcome-card">
+    <div class="welcome-logo">
+        {% if academy and academy.logo %}
+        <img src="{{ academy.logo }}" style="width:48px;height:48px;border-radius:12px;">
+        {% else %}
+        <i class="bi bi-trophy"></i>
+        {% endif %}
+    </div>
+    <div class="welcome-text">
+        <h2>{{ t('dash_welcome') }}, {{ session.get('display_name', 'Professor') }}!</h2>
+        <p>{{ t('dash_welcome_sub') }}</p>
+    </div>
+</div>
+
+<!-- Stat cards -->
+<div class="grid-4 mb-24">
+    <div class="stat-card stat-blue">
+        <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+        <div class="stat-value">{{ stats.active_members|default(0) }}</div>
+        <div class="stat-label">{{ t('dash_active_members') }}</div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="bi bi-qr-code-scan"></i></div>
+        <div class="stat-value">{{ stats.today_checkins|default(0) }}</div>
+        <div class="stat-label">{{ t('dash_today_checkins') }}</div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
+        <div class="stat-label">{{ t('dash_monthly_revenue') }}</div>
+    </div>
+    <div class="stat-card stat-orange">
+        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-value">{{ stats.expiring_soon|default(0) }}</div>
+        <div class="stat-label">{{ t('dash_expiring_soon') }}</div>
+    </div>
+</div>
+
+<!-- Today's Classes + Recent Check-ins -->
+<div class="grid-2 mb-24">
+    <div>
+        <div class="section-title"><i class="bi bi-calendar-event"></i> {{ t('dash_todays_classes') }}</div>
+        {% if today_classes %}
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            {% for cls in today_classes %}
+            <div class="class-card">
+                <div style="display:flex;justify-content:space-between;align-items:start;">
+                    <div>
+                        <div class="class-time">{{ cls.start_time }}</div>
+                        <div class="class-name">{{ cls.name }}</div>
+                        <div class="class-meta">
+                            <i class="bi bi-person"></i> {{ cls.instructor }}
+                            <span style="margin:0 4px;">·</span>
+                            <i class="bi bi-people"></i> {{ cls.enrolled }}/{{ cls.capacity }}
+                        </div>
+                    </div>
+                    <span class="badge-pill badge-{{ cls.type|lower|default('gi') }}">{{ cls.type }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card"><div class="card-body empty-state"><i class="bi bi-calendar-x"></i><p>{{ t('dash_no_classes') }}</p></div></div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="section-title"><i class="bi bi-clock-history"></i> {{ t('dash_recent_checkins') }}</div>
+        <div class="card">
+            <div class="card-body" style="padding:12px 18px;">
+                {% if recent_checkins %}
+                {% for ci in recent_checkins %}
+                <div class="checkin-item">
+                    <div class="member-photo">
+                        {% if ci.photo %}<img src="{{ ci.photo }}">{% else %}{{ ci.initials }}{% endif %}
+                    </div>
+                    <div class="checkin-info">
+                        <div class="name">{{ ci.member_name }}</div>
+                        <div class="detail">{{ ci.class_name }}</div>
+                    </div>
+                    <div class="checkin-time">{{ ci.time }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state" style="padding:30px 10px;"><i class="bi bi-inbox"></i><p>{{ t('dash_no_checkins') }}</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Birthdays + Payment Alerts -->
+<div class="grid-2 mb-24">
+    <div>
+        <div class="section-title"><i class="bi bi-cake2"></i> {{ t('dash_upcoming_birthdays') }}</div>
+        <div class="card">
+            <div class="card-body" style="padding:12px 18px;">
+                {% if upcoming_birthdays %}
+                {% for bday in upcoming_birthdays %}
+                <div class="birthday-item">
+                    <div class="member-photo" style="width:32px;height:32px;font-size:11px;">
+                        {% if bday.photo %}<img src="{{ bday.photo }}">{% else %}{{ bday.initials }}{% endif %}
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;font-size:13px;">{{ bday.name }}</div>
+                    </div>
+                    <div class="bday-date"><i class="bi bi-gift" style="color:var(--warning);"></i> {{ bday.date }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state" style="padding:20px 10px;"><i class="bi bi-cake2"></i><p>{{ t('dash_no_birthdays') }}</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="section-title"><i class="bi bi-exclamation-circle"></i> {{ t('dash_payment_alerts') }}</div>
+        {% if payment_alerts %}
+        {% for alert in payment_alerts %}
+        <div class="payment-alert alert-{{ alert.type }}">
+            <i class="bi bi-{% if alert.type == 'overdue' %}exclamation-triangle{% else %}x-circle{% endif %}" style="color:var(--{% if alert.type == 'overdue' %}danger{% else %}warning{% endif %});"></i>
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:13px;">{{ alert.member_name }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">{{ currency_symbol }}{{ alert.amount }} — {{ alert.message }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="card"><div class="card-body empty-state" style="padding:20px;"><i class="bi bi-check-circle"></i><p>{{ t('dash_no_alerts') }}</p></div></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Belt Distribution -->
+<div class="mb-24">
+    <div class="section-title"><i class="bi bi-award"></i> {{ t('dash_belt_distribution') }}</div>
+    <div class="card">
+        <div class="card-body">
+            {% set max_count = belt_distribution.values()|max if belt_distribution else 1 %}
+            {% for belt_name, count in (belt_distribution or {}).items() %}
+            <div class="belt-bar-row">
+                <div class="belt-bar-label">{{ belt_name }}</div>
+                <div class="belt-bar-track">
+                    <div class="belt-bar-fill {{ belt_name|lower }}-bar" style="width:{{ (count / max_count * 100)|int }}%;">{{ count }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not belt_distribution %}
+            <div class="empty-state" style="padding:20px;"><i class="bi bi-award"></i><p>{{ t('dash_no_belt_data') }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

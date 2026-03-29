@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_attendance') }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-clock-history" style="color:var(--primary);"></i> {{ t('attendance_title') }}</h1>
+</div>
+
+<!-- Stats -->
+<div class="grid-3 mb-24">
+    <div class="stat-card stat-blue">
+        <div class="stat-icon"><i class="bi bi-check2-all"></i></div>
+        <div class="stat-value">{{ stats.month_total|default(0) }}</div>
+        <div class="stat-label">{{ t('attendance_month_total') }}</div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="bi bi-graph-up"></i></div>
+        <div class="stat-value">{{ stats.avg_per_day|default(0) }}</div>
+        <div class="stat-label">{{ t('attendance_avg_day') }}</div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
+        <div class="stat-value">{{ stats.today_total|default(0) }}</div>
+        <div class="stat-label">{{ t('attendance_today') }}</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+    <div>
+        <label>{{ t('attendance_date_from') }}</label>
+        <input type="date" class="form-control" name="date_from" id="dateFrom" value="{{ date_from|default('') }}">
+    </div>
+    <div>
+        <label>{{ t('attendance_date_to') }}</label>
+        <input type="date" class="form-control" name="date_to" id="dateTo" value="{{ date_to|default('') }}">
+    </div>
+    <div>
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" onclick="applyDateFilter()"><i class="bi bi-funnel"></i> {{ t('filter') }}</button>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>{{ t('attendance_date') }}</th>
+                    <th>{{ t('attendance_time') }}</th>
+                    <th>{{ t('attendance_member') }}</th>
+                    <th>{{ t('attendance_class') }}</th>
+                    <th>{{ t('attendance_method') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ci in checkins|default([]) %}
+                <tr>
+                    <td>{{ ci.date }}</td>
+                    <td>{{ ci.time }}</td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="member-photo" style="width:32px;height:32px;font-size:11px;">
+                                {% if ci.member_photo %}<img src="{{ ci.member_photo }}">{% else %}{{ ci.member_initials }}{% endif %}
+                            </div>
+                            <a href="/members/{{ ci.member_id }}" style="font-weight:600;font-size:13px;">{{ ci.member_name }}</a>
+                        </div>
+                    </td>
+                    <td>{{ ci.class_name|default('—') }}</td>
+                    <td>
+                        <span class="badge-pill" style="background:{% if ci.method == 'QR' %}#dbeafe;color:#1d4ed8{% else %}#f1f5f9;color:#475569{% endif %};">
+                            <i class="bi bi-{% if ci.method == 'QR' %}qr-code{% else %}hand-index{% endif %}"></i> {{ ci.method }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if not checkins %}
+    <div class="card-body empty-state"><i class="bi bi-inbox"></i><p>{{ t('attendance_empty') }}</p></div>
+    {% endif %}
+</div>
+
+{% if total_pages|default(0) > 1 %}
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">&laquo;</a>{% endif %}
+    {% for p in range(1, total_pages + 1) %}
+    <a href="?page={{ p }}" class="{{ 'active' if p == page }}">{{ p }}</a>
+    {% endfor %}
+    {% if page < total_pages %}<a href="?page={{ page + 1 }}">&raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applyDateFilter() {
+    const from = document.getElementById('dateFrom').value;
+    const to = document.getElementById('dateTo').value;
+    let url = '/checkin/history?';
+    if (from) url += 'date_from=' + from + '&';
+    if (to) url += 'date_to=' + to;
+    window.location.href = url;
+}
+</script>
+{% endblock %}

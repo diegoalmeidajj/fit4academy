@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_prospects') }}{% endblock %}
+
+{% block extra_css %}
+.pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.pipeline-col { min-height: 300px; }
+.pipeline-header { font-family: 'Space Grotesk'; font-size: 13px; font-weight: 700; padding: 10px 14px; border-radius: 10px 10px 0 0; text-align: center; }
+.pipeline-header .count { background: rgba(255,255,255,.2); padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; }
+.pipeline-body { background: var(--card-bg); border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; padding: 8px; min-height: 250px; }
+.pipeline-new .pipeline-header { background: #6366f1; color: #fff; }
+.pipeline-contacted .pipeline-header { background: #06b6d4; color: #fff; }
+.pipeline-trial .pipeline-header { background: #f59e0b; color: #1e293b; }
+.pipeline-converted .pipeline-header { background: #10b981; color: #fff; }
+.pipeline-lost .pipeline-header { background: #6b7280; color: #fff; }
+
+.prospect-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all .2s; }
+.prospect-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); border-color: var(--primary); }
+.prospect-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.prospect-meta { font-size: 11px; color: var(--text-muted); }
+.prospect-meta i { margin-right: 3px; }
+.prospect-source { display: inline-block; font-size: 10px; background: rgba(99,102,241,.08); color: var(--primary); padding: 2px 6px; border-radius: 6px; font-weight: 600; margin-top: 6px; }
+.prospect-followup { font-size: 10px; color: var(--warning); font-weight: 600; margin-top: 4px; }
+
+@media (max-width: 768px) {
+    .pipeline { grid-template-columns: 1fr; }
+    .pipeline-col { min-height: auto; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-funnel" style="color:var(--primary);"></i> {{ t('prospects_title') }}</h1>
+    <div class="topbar-actions">
+        <a href="/prospects/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('prospects_add') }}</a>
+    </div>
+</div>
+
+<!-- Pipeline view -->
+<div class="pipeline">
+    {% set stages = [
+        ('new', 'pipeline-new'),
+        ('contacted', 'pipeline-contacted'),
+        ('trial', 'pipeline-trial'),
+        ('converted', 'pipeline-converted')
+    ] %}
+    {% for stage, css_class in stages %}
+    <div class="pipeline-col {{ css_class }}">
+        <div class="pipeline-header">
+            {{ t('stage_' + stage) }}
+            <span class="count">{{ prospects_by_stage.get(stage, [])|length }}</span>
+        </div>
+        <div class="pipeline-body">
+            {% for prospect in prospects_by_stage.get(stage, []) %}
+            <a href="/prospects/{{ prospect.id }}/edit" class="prospect-card" style="display:block;text-decoration:none;color:inherit;">
+                <div class="prospect-name">{{ prospect.name }}</div>
+                <div class="prospect-meta">
+                    {% if prospect.phone %}<i class="bi bi-telephone"></i> {{ prospect.phone }}{% endif %}
+                    {% if prospect.email %}<br><i class="bi bi-envelope"></i> {{ prospect.email }}{% endif %}
+                </div>
+                {% if prospect.interested_in %}
+                <div class="prospect-meta" style="margin-top:4px;"><i class="bi bi-bookmark"></i> {{ prospect.interested_in }}</div>
+                {% endif %}
+                {% if prospect.source %}
+                <div class="prospect-source">{{ prospect.source }}</div>
+                {% endif %}
+                {% if prospect.follow_up_date %}
+                <div class="prospect-followup"><i class="bi bi-clock"></i> {{ t('prospects_followup') }}: {{ prospect.follow_up_date }}</div>
+                {% endif %}
+                {% if stage != 'converted' and stage != 'lost' %}
+                <div style="margin-top:8px;">
+                    {% if stage == 'trial' %}
+                    <form method="post" action="/prospects/{{ prospect.id }}/convert" style="display:inline;" onclick="event.stopPropagation();">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-person-check"></i> {{ t('prospects_convert') }}</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </a>
+            {% endfor %}
+            {% if not prospects_by_stage.get(stage) %}
+            <div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:12px;">{{ t('prospects_empty_stage') }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Lost column (smaller) -->
+{% if prospects_by_stage.get('lost') %}
+<div style="margin-top:24px;">
+    <div style="font-family:'Space Grotesk';font-size:14px;font-weight:600;color:var(--text-muted);margin-bottom:10px;"><i class="bi bi-x-circle"></i> {{ t('stage_lost') }} ({{ prospects_by_stage.get('lost', [])|length }})</div>
+    <div class="card">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>{{ t('prospect_name') }}</th>
+                        <th>{{ t('prospect_source') }}</th>
+                        <th>{{ t('prospect_notes') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prospect in prospects_by_stage.get('lost', []) %}
+                    <tr>
+                        <td style="font-weight:600;">{{ prospect.name }}</td>
+                        <td>{{ prospect.source|default('—') }}</td>
+                        <td style="font-size:12px;color:var(--text-muted);">{{ prospect.notes|default('—')|truncate(60) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

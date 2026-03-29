@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_members') }}{% endblock %}
+
+{% block extra_css %}
+.member-row { display: flex; align-items: center; gap: 12px; }
+.member-name { font-weight: 600; font-size: 14px; }
+.member-sub { font-size: 11px; color: var(--text-muted); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.status-dot.active { background: var(--success); }
+.status-dot.inactive { background: var(--text-muted); }
+.status-dot.expired { background: var(--danger); }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-people" style="color:var(--primary);"></i> {{ t('members_title') }}</h1>
+    <div class="topbar-actions">
+        <a href="/members/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('members_add') }}</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+    <div style="flex:1;min-width:200px;">
+        <label>{{ t('members_search') }}</label>
+        <input type="text" class="form-control" placeholder="{{ t('members_search_ph') }}" id="memberSearch" onkeyup="filterMembers()">
+    </div>
+    <div>
+        <label>{{ t('members_filter_belt') }}</label>
+        <select class="form-select" id="filterBelt" onchange="filterMembers()">
+            <option value="">{{ t('all') }}</option>
+            <option value="white">{{ t('belt_white') }}</option>
+            <option value="blue">{{ t('belt_blue') }}</option>
+            <option value="purple">{{ t('belt_purple') }}</option>
+            <option value="brown">{{ t('belt_brown') }}</option>
+            <option value="black">{{ t('belt_black') }}</option>
+        </select>
+    </div>
+    <div>
+        <label>{{ t('members_filter_status') }}</label>
+        <select class="form-select" id="filterStatus" onchange="filterMembers()">
+            <option value="">{{ t('all') }}</option>
+            <option value="active">{{ t('status_active') }}</option>
+            <option value="inactive">{{ t('status_inactive') }}</option>
+            <option value="expired">{{ t('status_expired') }}</option>
+        </select>
+    </div>
+    <div>
+        <label>{{ t('members_filter_membership') }}</label>
+        <select class="form-select" id="filterMembership" onchange="filterMembers()">
+            <option value="">{{ t('all') }}</option>
+            {% for plan in membership_plans|default([]) %}
+            <option value="{{ plan.id }}">{{ plan.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- Members table -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="data-table" id="membersTable">
+            <thead>
+                <tr>
+                    <th>{{ t('members_col_member') }}</th>
+                    <th>{{ t('members_col_belt') }}</th>
+                    <th>{{ t('members_col_status') }}</th>
+                    <th>{{ t('members_col_membership') }}</th>
+                    <th>{{ t('members_col_phone') }}</th>
+                    <th>{{ t('members_col_last_checkin') }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members|default([]) %}
+                <tr data-belt="{{ member.belt|lower }}" data-status="{{ member.status|lower }}" data-membership="{{ member.membership_id }}" data-name="{{ member.first_name }} {{ member.last_name }}">
+                    <td>
+                        <div class="member-row">
+                            <div class="member-photo">
+                                {% if member.photo %}<img src="{{ member.photo }}">{% else %}{{ member.first_name[0] }}{{ member.last_name[0] }}{% endif %}
+                            </div>
+                            <div>
+                                <div class="member-name">{{ member.first_name }} {{ member.last_name }}</div>
+                                <div class="member-sub">{{ member.email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="belt-badge belt-{{ member.belt|lower }}"><i class="bi bi-award-fill"></i> {{ member.belt }}{% if member.stripes %} ({{ member.stripes }}{{ t('stripes_abbr') }}){% endif %}</span></td>
+                    <td><span class="badge-pill badge-{{ member.status|lower }}"><span class="status-dot {{ member.status|lower }}"></span> {{ t('status_' + member.status|lower) }}</span></td>
+                    <td>{{ member.membership_name|default('—') }}</td>
+                    <td>{{ member.phone|default('—') }}</td>
+                    <td>{{ member.last_checkin|default('—') }}</td>
+                    <td>
+                        <a href="/members/{{ member.id }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                        <a href="/members/{{ member.id }}/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if not members %}
+    <div class="card-body empty-state">
+        <i class="bi bi-people"></i>
+        <p>{{ t('members_empty') }}</p>
+        <a href="/members/new" class="btn btn-primary" style="margin-top:12px;"><i class="bi bi-plus-lg"></i> {{ t('members_add') }}</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages|default(0) > 1 %}
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">&laquo;</a>{% endif %}
+    {% for p in range(1, total_pages + 1) %}
+    <a href="?page={{ p }}" class="{{ 'active' if p == page }}">{{ p }}</a>
+    {% endfor %}
+    {% if page < total_pages %}<a href="?page={{ page + 1 }}">&raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterMembers() {
+    const search = document.getElementById('memberSearch').value.toLowerCase();
+    const belt = document.getElementById('filterBelt').value;
+    const status = document.getElementById('filterStatus').value;
+    const membership = document.getElementById('filterMembership').value;
+    document.querySelectorAll('#membersTable tbody tr').forEach(row => {
+        const name = row.dataset.name.toLowerCase();
+        const matchSearch = !search || name.includes(search);
+        const matchBelt = !belt || row.dataset.belt === belt;
+        const matchStatus = !status || row.dataset.status === status;
+        const matchMembership = !membership || row.dataset.membership === membership;
+        row.style.display = (matchSearch && matchBelt && matchStatus && matchMembership) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

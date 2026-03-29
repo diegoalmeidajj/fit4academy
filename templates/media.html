@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_media') }}{% endblock %}
+
+{% block extra_css %}
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.media-item { border-radius: 12px; overflow: hidden; position: relative; cursor: pointer; transition: all .2s; aspect-ratio: 4/3; border: 1px solid var(--border); background: var(--card-bg); }
+.media-item:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+.media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; }
+.media-item .media-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 8px 10px; background: linear-gradient(transparent, rgba(0,0,0,.7)); color: #fff; }
+.media-item .media-overlay .title { font-size: 12px; font-weight: 600; }
+.media-item .media-overlay .meta { font-size: 10px; opacity: .7; }
+.media-item .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 40px; color: rgba(255,255,255,.8); text-shadow: 0 2px 8px rgba(0,0,0,.3); }
+
+.upload-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 40px; text-align: center; cursor: pointer; transition: all .2s; color: var(--text-muted); margin-bottom: 20px; }
+.upload-zone:hover { border-color: var(--primary); color: var(--primary); }
+.upload-zone.dragover { border-color: var(--primary); background: rgba(99,102,241,.04); }
+.upload-zone i { font-size: 36px; display: block; margin-bottom: 8px; }
+
+.lightbox { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,.9); display: none; align-items: center; justify-content: center; cursor: pointer; }
+.lightbox.show { display: flex; }
+.lightbox img, .lightbox video { max-width: 90%; max-height: 90%; border-radius: 12px; }
+.lightbox-close { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 28px; cursor: pointer; z-index: 10001; }
+
+.filter-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-pill { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all .2s; }
+.filter-pill:hover { border-color: var(--primary); color: var(--primary); }
+.filter-pill.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+@media (max-width: 768px) {
+    .media-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-camera-video" style="color:var(--primary);"></i> {{ t('media_title') }}</h1>
+    <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()"><i class="bi bi-upload"></i> {{ t('media_upload') }}</button>
+    </div>
+</div>
+
+<!-- Upload zone -->
+<div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <i class="bi bi-cloud-arrow-up"></i>
+    <div style="font-weight:600;">{{ t('media_drag_drop') }}</div>
+    <div style="font-size:12px;margin-top:4px;">{{ t('media_formats') }}</div>
+    <form method="post" action="/media/upload" enctype="multipart/form-data" id="uploadForm" style="display:none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="files" id="fileInput" multiple accept="image/*,video/*" onchange="document.getElementById('uploadForm').submit();">
+    </form>
+</div>
+
+<!-- Filters -->
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+    <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">{{ t('media_category') }}</div>
+        <div class="filter-pills">
+            <button class="filter-pill active" onclick="filterMedia('all','category',this)">{{ t('all') }}</button>
+            <button class="filter-pill" onclick="filterMedia('general','category',this)">{{ t('media_general') }}</button>
+            <button class="filter-pill" onclick="filterMedia('technique','category',this)">{{ t('media_technique') }}</button>
+            <button class="filter-pill" onclick="filterMedia('promotion','category',this)">{{ t('media_promotion') }}</button>
+            <button class="filter-pill" onclick="filterMedia('event','category',this)">{{ t('media_event') }}</button>
+            <button class="filter-pill" onclick="filterMedia('weekly','category',this)">{{ t('media_weekly') }}</button>
+        </div>
+    </div>
+    <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">{{ t('media_belt_level') }}</div>
+        <div class="filter-pills" id="beltFilter">
+            <button class="filter-pill active" onclick="filterMedia('all','belt',this)">{{ t('all') }}</button>
+            <button class="filter-pill" onclick="filterMedia('white','belt',this)">{{ t('belt_white') }}</button>
+            <button class="filter-pill" onclick="filterMedia('blue','belt',this)">{{ t('belt_blue') }}</button>
+            <button class="filter-pill" onclick="filterMedia('purple','belt',this)">{{ t('belt_purple') }}</button>
+            <button class="filter-pill" onclick="filterMedia('brown','belt',this)">{{ t('belt_brown') }}</button>
+            <button class="filter-pill" onclick="filterMedia('black','belt',this)">{{ t('belt_black') }}</button>
+        </div>
+    </div>
+</div>
+
+<!-- Media grid -->
+<div class="media-grid" id="mediaGrid">
+    {% for item in media_items|default([]) %}
+    <div class="media-item" data-category="{{ item.category|lower }}" data-belt="{{ item.belt_level|lower|default('all') }}" onclick="openLightbox('{{ item.url }}', '{{ item.type }}')">
+        {% if item.type == 'video' %}
+        <video src="{{ item.url }}" muted></video>
+        <div class="play-icon"><i class="bi bi-play-circle-fill"></i></div>
+        {% else %}
+        <img src="{{ item.url }}" alt="{{ item.title }}">
+        {% endif %}
+        <div class="media-overlay">
+            <div class="title">{{ item.title }}</div>
+            <div class="meta">{{ item.date }} · {{ item.category }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not media_items %}
+<div class="card"><div class="card-body empty-state"><i class="bi bi-camera-video"></i><p>{{ t('media_empty') }}</p></div></div>
+{% endif %}
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <div class="lightbox-close"><i class="bi bi-x-lg"></i></div>
+    <img id="lightboxImg" style="display:none;">
+    <video id="lightboxVideo" controls style="display:none;"></video>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let activeCategory = 'all', activeBelt = 'all';
+
+function filterMedia(value, type, btn) {
+    if (type === 'category') activeCategory = value;
+    if (type === 'belt') activeBelt = value;
+    btn.parentElement.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('#mediaGrid .media-item').forEach(item => {
+        const matchCat = activeCategory === 'all' || item.dataset.category === activeCategory;
+        const matchBelt = activeBelt === 'all' || item.dataset.belt === activeBelt;
+        item.style.display = (matchCat && matchBelt) ? '' : 'none';
+    });
+}
+
+function openLightbox(url, type) {
+    const lb = document.getElementById('lightbox');
+    const img = document.getElementById('lightboxImg');
+    const vid = document.getElementById('lightboxVideo');
+    if (type === 'video') { vid.src = url; vid.style.display = 'block'; img.style.display = 'none'; }
+    else { img.src = url; img.style.display = 'block'; vid.style.display = 'none'; vid.pause(); }
+    lb.classList.add('show');
+}
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('show');
+    document.getElementById('lightboxVideo').pause();
+}
+
+/* Drag and drop */
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    const input = document.getElementById('fileInput');
+    input.files = e.dataTransfer.files;
+    document.getElementById('uploadForm').submit();
+});
+</script>
+{% endblock %}

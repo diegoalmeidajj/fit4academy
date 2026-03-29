@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ t('payment_form_edit') if payment else t('payment_form_add') }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-credit-card" style="color:var(--primary);"></i> {{ t('payment_form_edit') if payment else t('payment_form_add') }}</h1>
+    <div class="topbar-actions">
+        <a href="/payments" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> {{ t('back') }}</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="grid-2 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('payment_select_member') }} *</label>
+                    <select name="member_id" class="form-select" required>
+                        <option value="">{{ t('select') }}</option>
+                        {% for m in members|default([]) %}
+                        <option value="{{ m.id }}" {{ 'selected' if (payment and payment.member_id == m.id) or preselect_member == m.id }}>{{ m.first_name }} {{ m.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('payment_amount') }} ({{ currency_symbol }}) *</label>
+                    <input type="number" name="amount" class="form-control" step="0.01" min="0" value="{{ payment.amount if payment else '' }}" required>
+                </div>
+            </div>
+
+            <div class="grid-3 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('payment_method') }} *</label>
+                    <select name="method" class="form-select" id="payMethod" onchange="toggleACH()" required>
+                        <option value="cash" {{ 'selected' if payment and payment.method == 'cash' }}>{{ t('method_cash') }}</option>
+                        <option value="check" {{ 'selected' if payment and payment.method == 'check' }}>{{ t('method_check') }}</option>
+                        <option value="card" {{ 'selected' if payment and payment.method == 'card' }}>{{ t('method_card') }}</option>
+                        <option value="ach" {{ 'selected' if payment and payment.method == 'ach' }}>{{ t('method_ach') }}</option>
+                        <option value="stripe" {{ 'selected' if payment and payment.method == 'stripe' }}>Stripe</option>
+                        <option value="square" {{ 'selected' if payment and payment.method == 'square' }}>Square</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('payment_date') }} *</label>
+                    <input type="date" name="date" class="form-control" value="{{ payment.date if payment else today }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('payment_due_date') }}</label>
+                    <input type="date" name="due_date" class="form-control" value="{{ payment.due_date if payment else '' }}">
+                </div>
+            </div>
+
+            <!-- ACH Fields (shown only when ACH selected) -->
+            <div id="achFields" style="display:none;" class="grid-2 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('payment_routing') }}</label>
+                    <input type="text" name="routing_number" class="form-control" placeholder="{{ t('payment_routing_ph') }}" value="{{ payment.routing_number if payment else '' }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('payment_account_last4') }}</label>
+                    <input type="text" name="account_last4" class="form-control" maxlength="4" placeholder="{{ t('payment_account_last4_ph') }}" value="{{ payment.account_last4 if payment else '' }}">
+                </div>
+            </div>
+
+            <div class="form-group mb-24">
+                <label class="form-label">{{ t('payment_notes') }}</label>
+                <textarea name="notes" class="form-control" placeholder="{{ t('payment_notes_ph') }}">{{ payment.notes if payment else '' }}</textarea>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <a href="/payments" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ t('save') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleACH() {
+    const method = document.getElementById('payMethod').value;
+    document.getElementById('achFields').style.display = method === 'ach' ? '' : 'none';
+}
+toggleACH();
+</script>
+{% endblock %}

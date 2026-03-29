@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_belts') }}{% endblock %}
+
+{% block extra_css %}
+.belt-card { border-radius: 14px; overflow: hidden; transition: all .2s; cursor: pointer; }
+.belt-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.belt-card-swatch { height: 8px; }
+.belt-card-body { padding: 18px; background: var(--card-bg); border: 1px solid var(--border); border-top: none; border-radius: 0 0 14px 14px; }
+.belt-card-name { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.belt-card-stats { display: flex; gap: 20px; }
+.belt-card-stat-num { font-family: 'Space Grotesk'; font-size: 22px; font-weight: 700; }
+.belt-card-stat-label { font-size: 11px; color: var(--text-muted); }
+.belt-members-list { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.belt-members-list.show { display: block; }
+.belt-member-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+.belt-member-item .name { font-weight: 600; }
+.belt-member-item .stripes { font-size: 11px; color: var(--text-muted); }
+
+.requirements-section { margin-top: 24px; }
+.req-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.req-card .req-belt { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.req-card .req-details { font-size: 12px; color: var(--text-muted); }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-award" style="color:var(--primary);"></i> {{ t('belts_title') }}</h1>
+    <div class="topbar-actions">
+        <a href="/belts/promote" class="btn btn-primary"><i class="bi bi-arrow-up-circle"></i> {{ t('belts_record_promotion') }}</a>
+    </div>
+</div>
+
+<!-- Belt cards -->
+<div class="grid-3 mb-24">
+    {% set belt_colors = {'White':'#e2e8f0','Blue':'#1d4ed8','Purple':'#7c3aed','Brown':'#78350f','Black':'#0f172a'} %}
+    {% for belt in belts|default([]) %}
+    <div class="belt-card" onclick="toggleBeltMembers('belt-{{ belt.name|lower }}')">
+        <div class="belt-card-swatch" style="background:{{ belt_colors.get(belt.name, '#6366f1') }};"></div>
+        <div class="belt-card-body">
+            <div class="belt-card-name">
+                <span class="belt-badge belt-{{ belt.name|lower }}" style="font-size:13px;">{{ t('belt_' + belt.name|lower) }}</span>
+            </div>
+            <div class="belt-card-stats">
+                <div>
+                    <div class="belt-card-stat-num">{{ belt.count }}</div>
+                    <div class="belt-card-stat-label">{{ t('belts_members') }}</div>
+                </div>
+                <div>
+                    <div class="belt-card-stat-num">{{ belt.avg_months|default('—') }}</div>
+                    <div class="belt-card-stat-label">{{ t('belts_avg_time') }}</div>
+                </div>
+            </div>
+            <div class="belt-members-list" id="belt-{{ belt.name|lower }}">
+                {% for m in belt.members|default([]) %}
+                <div class="belt-member-item">
+                    <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
+                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.initials }}{% endif %}
+                    </div>
+                    <span class="name">{{ m.name }}</span>
+                    <span class="stripes">{{ m.stripes }} {{ t('stripes') }}</span>
+                </div>
+                {% endfor %}
+                {% if not belt.members %}
+                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">{{ t('belts_no_members') }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not belts %}
+    <div class="card" style="grid-column:1/-1;"><div class="card-body empty-state"><i class="bi bi-award"></i><p>{{ t('belts_empty') }}</p></div></div>
+    {% endif %}
+</div>
+
+<!-- Belt Requirements / Customization -->
+<div class="requirements-section">
+    <div style="font-family:'Space Grotesk';font-size:16px;font-weight:600;margin-bottom:14px;"><i class="bi bi-sliders" style="color:var(--primary);"></i> {{ t('belts_requirements') }}</div>
+    <div class="card">
+        <div class="card-body">
+            {% for belt_name in ['Blue','Purple','Brown','Black'] %}
+            <div class="req-card">
+                <div class="req-belt">
+                    <span class="belt-badge belt-{{ belt_name|lower }}" style="font-size:11px;padding:2px 8px;">{{ t('belt_' + belt_name|lower) }}</span>
+                </div>
+                <div class="req-details">
+                    {% set req = requirements.get(belt_name, {}) if requirements else {} %}
+                    {{ t('belts_min_months') }}: <strong>{{ req.get('min_months', '—') }}</strong> ·
+                    {{ t('belts_min_classes') }}: <strong>{{ req.get('min_classes', '—') }}</strong> ·
+                    {{ t('belts_max_stripes') }}: <strong>{{ req.get('max_stripes', 4) }}</strong>
+                </div>
+                <a href="/settings#belt-requirements" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleBeltMembers(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('show');
+}
+</script>
+{% endblock %}

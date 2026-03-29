@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ t('member_form_edit') if member else t('member_form_add') }}{% endblock %}
+
+{% block extra_css %}
+.photo-upload { width: 120px; height: 120px; border-radius: 16px; border: 2px dashed var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; color: var(--text-muted); font-size: 12px; transition: all .2s; background: var(--input-bg); position: relative; overflow: hidden; }
+.photo-upload:hover { border-color: var(--primary); color: var(--primary); }
+.photo-upload img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.photo-upload input { display: none; }
+.photo-upload i { font-size: 28px; }
+.form-section { margin-bottom: 28px; }
+.form-section-title { font-family: 'Space Grotesk'; font-size: 15px; font-weight: 600; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.form-section-title i { color: var(--primary); font-size: 18px; }
+.form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.form-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 768px) { .form-grid, .form-grid-2 { grid-template-columns: 1fr; } }
+.belt-option { display: flex; align-items: center; gap: 8px; }
+.belt-dot { width: 14px; height: 14px; border-radius: 50%; }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-person-{{ 'gear' if member else 'plus' }}" style="color:var(--primary);"></i> {{ t('member_form_edit') if member else t('member_form_add') }}</h1>
+    <div class="topbar-actions">
+        <a href="/members" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> {{ t('back') }}</a>
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="card mb-24">
+        <div class="card-body">
+            <!-- Photo -->
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-camera"></i> {{ t('member_photo') }}</div>
+                <label class="photo-upload" onclick="document.getElementById('photoInput').click()">
+                    {% if member and member.photo %}
+                    <img src="{{ member.photo }}" id="photoPreview">
+                    {% else %}
+                    <i class="bi bi-camera" id="photoIcon"></i>
+                    <span id="photoText">{{ t('member_upload_photo') }}</span>
+                    <img id="photoPreview" style="display:none;">
+                    {% endif %}
+                    <input type="file" name="photo" id="photoInput" accept="image/*" onchange="previewPhoto(this)">
+                </label>
+            </div>
+
+            <!-- Personal Info -->
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-person"></i> {{ t('member_personal_info') }}</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_first_name') }} *</label>
+                        <input type="text" name="first_name" class="form-control" value="{{ member.first_name if member else '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_last_name') }} *</label>
+                        <input type="text" name="last_name" class="form-control" value="{{ member.last_name if member else '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_email') }}</label>
+                        <input type="email" name="email" class="form-control" value="{{ member.email if member else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_phone') }}</label>
+                        <input type="tel" name="phone" class="form-control" value="{{ member.phone if member else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_dob') }}</label>
+                        <input type="date" name="dob" class="form-control" value="{{ member.dob if member else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_gender') }}</label>
+                        <select name="gender" class="form-select">
+                            <option value="">{{ t('select') }}</option>
+                            <option value="male" {{ 'selected' if member and member.gender == 'male' }}>{{ t('gender_male') }}</option>
+                            <option value="female" {{ 'selected' if member and member.gender == 'female' }}>{{ t('gender_female') }}</option>
+                            <option value="other" {{ 'selected' if member and member.gender == 'other' }}>{{ t('gender_other') }}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Academy Info -->
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-award"></i> {{ t('member_academy_info') }}</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_belt') }} *</label>
+                        <select name="belt" class="form-select" required>
+                            <option value="White" {{ 'selected' if member and member.belt == 'White' }}>{{ t('belt_white') }}</option>
+                            <option value="Blue" {{ 'selected' if member and member.belt == 'Blue' }}>{{ t('belt_blue') }}</option>
+                            <option value="Purple" {{ 'selected' if member and member.belt == 'Purple' }}>{{ t('belt_purple') }}</option>
+                            <option value="Brown" {{ 'selected' if member and member.belt == 'Brown' }}>{{ t('belt_brown') }}</option>
+                            <option value="Black" {{ 'selected' if member and member.belt == 'Black' }}>{{ t('belt_black') }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_stripes') }}</label>
+                        <select name="stripes" class="form-select">
+                            <option value="0" {{ 'selected' if not member or member.stripes == 0 }}>0</option>
+                            <option value="1" {{ 'selected' if member and member.stripes == 1 }}>1</option>
+                            <option value="2" {{ 'selected' if member and member.stripes == 2 }}>2</option>
+                            <option value="3" {{ 'selected' if member and member.stripes == 3 }}>3</option>
+                            <option value="4" {{ 'selected' if member and member.stripes == 4 }}>4</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_join_date') }}</label>
+                        <input type="date" name="join_date" class="form-control" value="{{ member.join_date if member else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_source') }}</label>
+                        <select name="source" class="form-select">
+                            <option value="">{{ t('select') }}</option>
+                            <option value="walk-in" {{ 'selected' if member and member.source == 'walk-in' }}>{{ t('source_walkin') }}</option>
+                            <option value="referral" {{ 'selected' if member and member.source == 'referral' }}>{{ t('source_referral') }}</option>
+                            <option value="website" {{ 'selected' if member and member.source == 'website' }}>{{ t('source_website') }}</option>
+                            <option value="social" {{ 'selected' if member and member.source == 'social' }}>{{ t('source_social') }}</option>
+                            <option value="other" {{ 'selected' if member and member.source == 'other' }}>{{ t('source_other') }}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Contact -->
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-telephone"></i> {{ t('member_emergency') }}</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_emergency_name') }}</label>
+                        <input type="text" name="emergency_name" class="form-control" value="{{ member.emergency_name if member else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_emergency_phone') }}</label>
+                        <input type="tel" name="emergency_phone" class="form-control" value="{{ member.emergency_phone if member else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_emergency_relation') }}</label>
+                        <input type="text" name="emergency_relation" class="form-control" value="{{ member.emergency_relation if member else '' }}" placeholder="{{ t('member_emergency_relation_ph') }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Notes -->
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-heart-pulse"></i> {{ t('member_medical') }}</div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('member_medical_notes') }}</label>
+                    <textarea name="medical_notes" class="form-control" placeholder="{{ t('member_medical_ph') }}">{{ member.medical_notes if member else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Membership -->
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-card-checklist"></i> {{ t('member_membership') }}</div>
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label class="form-label">{{ t('member_membership_plan') }}</label>
+                        <select name="membership_id" class="form-select">
+                            <option value="">{{ t('select') }}</option>
+                            {% for plan in membership_plans|default([]) %}
+                            <option value="{{ plan.id }}" {{ 'selected' if member and member.membership_id == plan.id }}>{{ plan.name }} — {{ currency_symbol }}{{ plan.price }}/{{ plan.cycle }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <a href="/members" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ t('save') }}</button>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('photoPreview');
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            const icon = document.getElementById('photoIcon');
+            const text = document.getElementById('photoText');
+            if (icon) icon.style.display = 'none';
+            if (text) text.style.display = 'none';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+{% endblock %}

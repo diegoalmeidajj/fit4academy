@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register — Fit4Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'DM Sans',sans-serif;}
+        body{min-height:100vh;display:flex;background:#0f172a;}
+
+        .login-brand{
+            flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+            background:url('https://images.unsplash.com/photo-1564415637254-92c66292cd64?w=1200&h=1600&fit=crop') center/cover no-repeat;
+        }
+        .login-brand::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,.85) 0%,rgba(30,27,75,.75) 50%,rgba(15,23,42,.9) 100%);}
+        .brand-content{position:relative;z-index:1;text-align:center;max-width:420px;padding:60px 40px;}
+        .brand-logo{width:100px;height:100px;border-radius:24px;margin:0 auto 20px;box-shadow:0 12px 40px rgba(0,0,0,.4);background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk';font-size:36px;font-weight:700;}
+        .brand-content h1{font-family:'Space Grotesk';font-size:40px;font-weight:700;color:#fff;margin-bottom:10px;letter-spacing:-1px;}
+        .brand-content h1 span{background:linear-gradient(135deg,#a5b4fc,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+        .brand-tagline{font-size:16px;color:rgba(255,255,255,.6);line-height:1.6;margin-bottom:40px;}
+        .features{text-align:left;display:flex;flex-direction:column;gap:14px;}
+        .feature{display:flex;align-items:center;gap:12px;color:rgba(255,255,255,.7);font-size:14px;}
+        .feature i{font-size:20px;color:#a5b4fc;width:24px;text-align:center;}
+
+        .register-form-panel{
+            width:520px;min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+            background:#fff;padding:48px 44px;position:relative;overflow-y:auto;
+        }
+        .form-lang{position:absolute;top:20px;right:24px;display:flex;gap:4px;}
+        .form-lang button{padding:5px 12px;border-radius:6px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;}
+        .form-lang button.active{background:#6366f1;border-color:#6366f1;color:#fff;}
+        .form-lang button:hover:not(.active){border-color:#6366f1;color:#6366f1;}
+
+        .form-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+        .form-logo-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk';font-size:16px;font-weight:700;}
+        .form-logo span{font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#0f172a;letter-spacing:-.5px;}
+        .form-logo span em{font-style:normal;color:#6366f1;}
+        .form-header h2{font-family:'Space Grotesk';font-size:26px;font-weight:700;color:#0f172a;margin-bottom:6px;letter-spacing:-.5px;}
+        .form-header p{font-size:14px;color:#94a3b8;margin-bottom:24px;}
+
+        .error-msg{background:#fef2f2;color:#991b1b;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;display:flex;align-items:center;gap:8px;border:1px solid #fecaca;}
+        .error-msg i{font-size:16px;flex-shrink:0;}
+
+        .fg{margin-bottom:16px;}
+        .fg label{font-size:12px;font-weight:600;color:#475569;margin-bottom:5px;display:block;letter-spacing:.3px;}
+        .iw{display:flex;align-items:center;border:1.5px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all .2s;}
+        .iw:focus-within{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.08);background:#fff;}
+        .iw i{padding:0 14px;color:#94a3b8;font-size:18px;}
+        .iw input{flex:1;padding:12px 14px 12px 0;border:none;background:transparent;font-size:14px;color:#0f172a;outline:none;font-family:'DM Sans';}
+        .iw input::placeholder{color:#cbd5e1;}
+        .row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+        .btn-register{
+            width:100%;padding:16px;border:none;border-radius:12px;font-size:15px;font-weight:700;
+            cursor:pointer;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+            box-shadow:0 4px 16px rgba(99,102,241,.25);transition:all .2s;
+            font-family:'Space Grotesk';display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;
+        }
+        .btn-register:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(99,102,241,.35);}
+
+        .form-links{text-align:center;margin-top:20px;}
+        .form-links a{color:#6366f1;text-decoration:none;font-weight:600;font-size:13px;}
+        .form-links a:hover{text-decoration:underline;}
+        .form-footer{margin-top:24px;text-align:center;font-size:11px;color:#cbd5e1;}
+
+        @media(max-width:900px){
+            body{flex-direction:column;background:#fff;}
+            .login-brand{min-height:240px;flex:none;}
+            .brand-content{padding:30px 24px;}
+            .brand-logo{width:64px;height:64px;border-radius:16px;font-size:24px;}
+            .brand-content h1{font-size:28px;}
+            .brand-tagline,.features{display:none;}
+            .register-form-panel{width:100%;min-height:auto;padding:28px 24px;flex:1;}
+            .form-logo{display:none;}
+            .row-2{grid-template-columns:1fr;}
+        }
+    </style>
+</head>
+<body>
+    <div class="login-brand">
+        <div class="brand-content">
+            <div class="brand-logo">F4</div>
+            <h1>Fit4<span>Academy</span></h1>
+            <p class="brand-tagline" data-i18n="reg_tagline">Everything you need to run a world-class academy.</p>
+            <div class="features">
+                <div class="feature"><i class="bi bi-people-fill"></i> <span data-i18n="reg_feat1">Member & belt management</span></div>
+                <div class="feature"><i class="bi bi-qr-code-scan"></i> <span data-i18n="reg_feat2">QR check-in & attendance</span></div>
+                <div class="feature"><i class="bi bi-credit-card"></i> <span data-i18n="reg_feat3">Payments & billing</span></div>
+                <div class="feature"><i class="bi bi-calendar-week"></i> <span data-i18n="reg_feat4">Class scheduling</span></div>
+                <div class="feature"><i class="bi bi-graph-up-arrow"></i> <span data-i18n="reg_feat5">Revenue analytics</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="register-form-panel">
+        <div class="form-lang">
+            <button onclick="setRegLang('en')" id="rlb-en" class="active">EN</button>
+            <button onclick="setRegLang('pt')" id="rlb-pt">PT</button>
+            <button onclick="setRegLang('es')" id="rlb-es">ES</button>
+        </div>
+
+        <div class="form-logo">
+            <div class="form-logo-icon">F4</div>
+            <span>Fit4<em>Academy</em></span>
+        </div>
+
+        <div class="form-header">
+            <h2 data-i18n="reg_title">Start your free trial</h2>
+            <p data-i18n="reg_subtitle">Create your academy account in seconds</p>
+        </div>
+
+        {% if error %}<div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>{% endif %}
+
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="fg">
+                <label data-i18n="reg_academy_label">Academy Name</label>
+                <div class="iw">
+                    <i class="bi bi-building"></i>
+                    <input type="text" name="academy_name" data-i18n-placeholder="reg_academy_ph" placeholder="e.g. Elite BJJ Academy" required>
+                </div>
+            </div>
+            <div class="row-2">
+                <div class="fg">
+                    <label data-i18n="reg_name_label">Your Name</label>
+                    <div class="iw">
+                        <i class="bi bi-person"></i>
+                        <input type="text" name="full_name" data-i18n-placeholder="reg_name_ph" placeholder="Full name" required>
+                    </div>
+                </div>
+                <div class="fg">
+                    <label data-i18n="reg_username_label">Username</label>
+                    <div class="iw">
+                        <i class="bi bi-at"></i>
+                        <input type="text" name="username" data-i18n-placeholder="reg_username_ph" placeholder="Choose a username" required>
+                    </div>
+                </div>
+            </div>
+            <div class="fg">
+                <label data-i18n="reg_email_label">Email</label>
+                <div class="iw">
+                    <i class="bi bi-envelope"></i>
+                    <input type="email" name="email" data-i18n-placeholder="reg_email_ph" placeholder="your@email.com" required>
+                </div>
+            </div>
+            <div class="fg">
+                <label data-i18n="reg_password_label">Password</label>
+                <div class="iw">
+                    <i class="bi bi-lock"></i>
+                    <input type="password" name="password" data-i18n-placeholder="reg_password_ph" placeholder="Create a password (min 8 chars)" required minlength="8">
+                </div>
+            </div>
+            <button type="submit" class="btn-register"><i class="bi bi-rocket-takeoff"></i> <span data-i18n="reg_btn">Start Free Trial</span></button>
+        </form>
+
+        <div class="form-links">
+            <span data-i18n="reg_have_account" style="color:#94a3b8;">Already have an account?</span>
+            <a href="/login"> <span data-i18n="reg_signin">Sign In</span></a>
+        </div>
+        <div class="form-footer"><i class="bi bi-shield-check"></i> <span data-i18n="reg_secure">No credit card required. 30-day free trial.</span></div>
+    </div>
+
+    <script>
+    const REG_LANG = {
+        en: {
+            reg_tagline:'Everything you need to run a world-class academy.',
+            reg_feat1:'Member & belt management',reg_feat2:'QR check-in & attendance',reg_feat3:'Payments & billing',reg_feat4:'Class scheduling',reg_feat5:'Revenue analytics',
+            reg_title:'Start your free trial',reg_subtitle:'Create your academy account in seconds',
+            reg_academy_label:'Academy Name',reg_academy_ph:'e.g. Elite BJJ Academy',
+            reg_name_label:'Your Name',reg_name_ph:'Full name',
+            reg_username_label:'Username',reg_username_ph:'Choose a username',
+            reg_email_label:'Email',reg_email_ph:'your@email.com',
+            reg_password_label:'Password',reg_password_ph:'Create a password (min 8 chars)',
+            reg_btn:'Start Free Trial',reg_have_account:'Already have an account?',reg_signin:'Sign In',
+            reg_secure:'No credit card required. 30-day free trial.',
+        },
+        pt: {
+            reg_tagline:'Tudo que voce precisa para gerenciar uma academia de alto nivel.',
+            reg_feat1:'Gestao de alunos e faixas',reg_feat2:'Check-in com QR e presenca',reg_feat3:'Pagamentos e cobranca',reg_feat4:'Horario de aulas',reg_feat5:'Analise de receita',
+            reg_title:'Comece seu teste gratis',reg_subtitle:'Crie sua conta em segundos',
+            reg_academy_label:'Nome da Academia',reg_academy_ph:'ex. Elite BJJ Academy',
+            reg_name_label:'Seu Nome',reg_name_ph:'Nome completo',
+            reg_username_label:'Usuario',reg_username_ph:'Escolha um usuario',
+            reg_email_label:'Email',reg_email_ph:'seu@email.com',
+            reg_password_label:'Senha',reg_password_ph:'Crie uma senha (min 8 caracteres)',
+            reg_btn:'Comecar Teste Gratis',reg_have_account:'Ja tem uma conta?',reg_signin:'Entrar',
+            reg_secure:'Sem cartao de credito. 30 dias gratis.',
+        },
+        es: {
+            reg_tagline:'Todo lo que necesitas para gestionar una academia de primer nivel.',
+            reg_feat1:'Gestion de miembros y cinturones',reg_feat2:'Check-in con QR y asistencia',reg_feat3:'Pagos y facturacion',reg_feat4:'Horario de clases',reg_feat5:'Analisis de ingresos',
+            reg_title:'Comienza tu prueba gratis',reg_subtitle:'Crea tu cuenta en segundos',
+            reg_academy_label:'Nombre de la Academia',reg_academy_ph:'ej. Elite BJJ Academy',
+            reg_name_label:'Tu Nombre',reg_name_ph:'Nombre completo',
+            reg_username_label:'Usuario',reg_username_ph:'Elige un usuario',
+            reg_email_label:'Email',reg_email_ph:'tu@email.com',
+            reg_password_label:'Contrasena',reg_password_ph:'Crea una contrasena (min 8 caracteres)',
+            reg_btn:'Comenzar Prueba Gratis',reg_have_account:'Ya tienes cuenta?',reg_signin:'Iniciar Sesion',
+            reg_secure:'Sin tarjeta de credito. 30 dias gratis.',
+        }
+    };
+    function setRegLang(l){
+        document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(REG_LANG[l]?.[k])el.textContent=REG_LANG[l][k];});
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{const k=el.dataset.i18nPlaceholder;if(REG_LANG[l]?.[k])el.placeholder=REG_LANG[l][k];});
+        document.querySelectorAll('.form-lang button').forEach(b=>b.classList.toggle('active',b.id==='rlb-'+l));
+        localStorage.setItem('f4a_lang',l);
+    }
+    const saved=localStorage.getItem('f4a_lang');
+    if(saved&&saved!=='en')setRegLang(saved);
+    </script>
+</body>
+</html>

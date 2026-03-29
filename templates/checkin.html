@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_checkin') }}{% endblock %}
+
+{% block extra_css %}
+.kiosk-search { max-width: 600px; margin: 0 auto 24px; }
+.kiosk-search input { font-size: 18px; padding: 16px 20px 16px 48px; border-radius: 16px; border: 2px solid var(--border); width: 100%; background: var(--card-bg); color: var(--text); }
+.kiosk-search input:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,.12); outline: none; }
+.kiosk-search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 20px; color: var(--text-muted); }
+
+.current-class { text-align: center; margin-bottom: 24px; padding: 16px; background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.08)); border-radius: 14px; border: 1px solid rgba(99,102,241,.15); }
+.current-class-name { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 700; }
+.current-class-time { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+.qr-area { max-width: 300px; margin: 0 auto 24px; border-radius: 16px; overflow: hidden; border: 2px dashed var(--border); background: var(--card-bg); min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted); }
+.qr-area i { font-size: 48px; opacity: .3; }
+.qr-area p { font-size: 13px; }
+
+.member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.member-tap-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 16px 12px; text-align: center; cursor: pointer; transition: all .2s; text-decoration: none; color: var(--text); }
+.member-tap-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); border-color: var(--primary); }
+.member-tap-card .tap-photo { width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 8px; overflow: hidden; background: linear-gradient(135deg,#6366f1,#a855f7); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 18px; font-family: 'Space Grotesk'; }
+.member-tap-card .tap-photo img { width: 100%; height: 100%; object-fit: cover; }
+.member-tap-card .tap-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.member-tap-card .tap-belt { margin-top: 4px; }
+
+/* Success animation */
+.checkin-success-overlay { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); }
+.checkin-success-overlay.show { display: flex; }
+.checkin-success-card { background: #10b981; border-radius: 24px; padding: 48px; text-align: center; color: #fff; animation: successPop .4s ease; max-width: 400px; }
+@keyframes successPop { 0% { transform: scale(.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.checkin-success-card i { font-size: 64px; margin-bottom: 16px; }
+.checkin-success-card h2 { font-family: 'Space Grotesk'; font-size: 28px; margin-bottom: 8px; }
+.checkin-success-card p { opacity: .8; font-size: 15px; }
+
+.fullscreen-btn { position: fixed; bottom: 72px; right: 20px; z-index: 200; }
+@media (max-width: 768px) {
+    .member-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+    .fullscreen-btn { bottom: 64px; right: 12px; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-qr-code-scan" style="color:var(--primary);"></i> {{ t('checkin_title') }}</h1>
+</div>
+
+<!-- Current class auto-detected -->
+{% if current_class %}
+<div class="current-class">
+    <div class="current-class-name">{{ current_class.name }}</div>
+    <div class="current-class-time"><i class="bi bi-clock"></i> {{ current_class.start_time }} - {{ current_class.end_time }} · {{ current_class.instructor }}</div>
+</div>
+{% endif %}
+
+<!-- Search bar -->
+<div class="kiosk-search" style="position:relative;">
+    <i class="bi bi-search kiosk-search-icon"></i>
+    <input type="text" id="kioskSearch" placeholder="{{ t('checkin_search_ph') }}" autofocus oninput="filterKioskMembers(this.value)">
+</div>
+
+<div class="grid-2 mb-24">
+    <!-- QR Scanner area -->
+    <div>
+        <div style="font-family:'Space Grotesk';font-size:15px;font-weight:600;margin-bottom:10px;"><i class="bi bi-qr-code" style="color:var(--primary);"></i> {{ t('checkin_qr_scan') }}</div>
+        <div class="qr-area" id="qrReader">
+            <i class="bi bi-qr-code-scan"></i>
+            <p>{{ t('checkin_qr_placeholder') }}</p>
+            <button class="btn btn-sm btn-primary" onclick="startQrScanner()">{{ t('checkin_start_scanner') }}</button>
+        </div>
+    </div>
+
+    <!-- Quick tap grid -->
+    <div>
+        <div style="font-family:'Space Grotesk';font-size:15px;font-weight:600;margin-bottom:10px;"><i class="bi bi-hand-index-thumb" style="color:var(--primary);"></i> {{ t('checkin_quick_tap') }}</div>
+        <div class="member-grid" id="memberGrid">
+            {% for member in members|default([]) %}
+            <form method="post" action="/checkin" class="member-tap-card" data-name="{{ member.first_name }} {{ member.last_name }}" onclick="this.submit();">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="member_id" value="{{ member.id }}">
+                {% if current_class %}<input type="hidden" name="class_id" value="{{ current_class.id }}">{% endif %}
+                <div class="tap-photo">
+                    {% if member.photo %}<img src="{{ member.photo }}">{% else %}{{ member.first_name[0] }}{{ member.last_name[0] }}{% endif %}
+                </div>
+                <div class="tap-name">{{ member.first_name }} {{ member.last_name[0] }}.</div>
+                <div class="tap-belt"><span class="belt-badge belt-{{ member.belt|lower }}" style="font-size:9px;padding:1px 6px;">{{ member.belt }}</span></div>
+            </form>
+            {% endfor %}
+        </div>
+        {% if not members %}
+        <div class="card"><div class="card-body empty-state"><i class="bi bi-people"></i><p>{{ t('checkin_no_members') }}</p></div></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Success overlay -->
+<div class="checkin-success-overlay" id="successOverlay">
+    <div class="checkin-success-card">
+        <i class="bi bi-check-circle-fill"></i>
+        <h2 id="successName">{{ t('checkin_success') }}</h2>
+        <p>{{ t('checkin_success_sub') }}</p>
+    </div>
+</div>
+
+<!-- Fullscreen toggle -->
+<button class="btn btn-primary btn-icon fullscreen-btn" onclick="toggleFullscreen()" title="{{ t('checkin_fullscreen') }}">
+    <i class="bi bi-arrows-fullscreen"></i>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterKioskMembers(query) {
+    const q = query.toLowerCase();
+    document.querySelectorAll('#memberGrid .member-tap-card').forEach(card => {
+        card.style.display = card.dataset.name.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+function showSuccess(name) {
+    const overlay = document.getElementById('successOverlay');
+    document.getElementById('successName').textContent = name;
+    overlay.classList.add('show');
+    setTimeout(() => overlay.classList.remove('show'), 2500);
+}
+
+{% if checkin_success %}
+showSuccess('{{ checkin_success }}');
+{% endif %}
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+function startQrScanner() {
+    const reader = document.getElementById('qrReader');
+    reader.innerHTML = '<p style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;"><i class="bi bi-camera-video" style="font-size:32px;display:block;margin-bottom:8px;"></i>{{ t("checkin_qr_loading") }}</p>';
+    // html5-qrcode integration point
+    if (typeof Html5Qrcode !== 'undefined') {
+        const html5QrCode = new Html5Qrcode("qrReader");
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+            (decodedText) => { window.location.href = '/checkin/qr?code=' + encodeURIComponent(decodedText); }
+        ).catch(err => { reader.innerHTML = '<p style="padding:20px;text-align:center;color:var(--danger);">{{ t("checkin_qr_error") }}</p>'; });
+    }
+}
+</script>
+{% endblock %}

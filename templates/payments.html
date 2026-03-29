@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_payments') }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-credit-card" style="color:var(--primary);"></i> {{ t('payments_title') }}</h1>
+    <div class="topbar-actions">
+        <a href="/payments/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('payments_record') }}</a>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div class="grid-3 mb-24">
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ summary.total_collected|default(0)|int }}</div>
+        <div class="stat-label">{{ t('payments_collected') }}</div>
+    </div>
+    <div class="stat-card stat-orange">
+        <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ summary.pending|default(0)|int }}</div>
+        <div class="stat-label">{{ t('payments_pending') }}</div>
+    </div>
+    <div class="stat-card stat-red">
+        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ summary.overdue|default(0)|int }}</div>
+        <div class="stat-label">{{ t('payments_overdue') }}</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-bar">
+    <div>
+        <label>{{ t('payments_filter_status') }}</label>
+        <select class="form-select" id="filterStatus" onchange="applyFilters()">
+            <option value="">{{ t('all') }}</option>
+            <option value="paid">{{ t('status_paid') }}</option>
+            <option value="pending">{{ t('status_pending') }}</option>
+            <option value="overdue">{{ t('status_overdue') }}</option>
+            <option value="failed">{{ t('status_failed') }}</option>
+        </select>
+    </div>
+    <div>
+        <label>{{ t('payments_filter_method') }}</label>
+        <select class="form-select" id="filterMethod" onchange="applyFilters()">
+            <option value="">{{ t('all') }}</option>
+            <option value="cash">{{ t('method_cash') }}</option>
+            <option value="card">{{ t('method_card') }}</option>
+            <option value="check">{{ t('method_check') }}</option>
+            <option value="ach">{{ t('method_ach') }}</option>
+            <option value="stripe">Stripe</option>
+            <option value="square">Square</option>
+        </select>
+    </div>
+    <div>
+        <label>{{ t('payments_date_from') }}</label>
+        <input type="date" class="form-control" id="dateFrom">
+    </div>
+    <div>
+        <label>{{ t('payments_date_to') }}</label>
+        <input type="date" class="form-control" id="dateTo">
+    </div>
+    <div>
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" onclick="applyFilters()"><i class="bi bi-funnel"></i> {{ t('filter') }}</button>
+    </div>
+</div>
+
+<!-- Payments table -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="data-table" id="paymentsTable">
+            <thead>
+                <tr>
+                    <th>{{ t('payment_date') }}</th>
+                    <th>{{ t('payment_member') }}</th>
+                    <th>{{ t('payment_amount') }}</th>
+                    <th>{{ t('payment_method') }}</th>
+                    <th>{{ t('payment_status') }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pay in payments|default([]) %}
+                <tr data-status="{{ pay.status|lower }}" data-method="{{ pay.method|lower }}">
+                    <td>{{ pay.date }}</td>
+                    <td>
+                        <a href="/members/{{ pay.member_id }}" style="font-weight:600;font-size:13px;">{{ pay.member_name }}</a>
+                    </td>
+                    <td style="font-family:'Space Grotesk';font-weight:700;">{{ currency_symbol }}{{ pay.amount }}</td>
+                    <td>
+                        <span style="font-size:12px;">
+                            <i class="bi bi-{% if pay.method == 'cash' %}cash{% elif pay.method == 'card' %}credit-card{% elif pay.method == 'check' %}file-earmark{% else %}bank{% endif %}"></i>
+                            {{ pay.method|capitalize }}
+                        </span>
+                    </td>
+                    <td><span class="badge-pill badge-{{ pay.status|lower }}">{{ t('status_' + pay.status|lower) }}</span></td>
+                    <td><a href="/payments/{{ pay.id }}/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if not payments %}
+    <div class="card-body empty-state"><i class="bi bi-credit-card"></i><p>{{ t('payments_empty') }}</p></div>
+    {% endif %}
+</div>
+
+{% if total_pages|default(0) > 1 %}
+<div class="pagination">
+    {% if page > 1 %}<a href="?page={{ page - 1 }}">&laquo;</a>{% endif %}
+    {% for p in range(1, total_pages + 1) %}
+    <a href="?page={{ p }}" class="{{ 'active' if p == page }}">{{ p }}</a>
+    {% endfor %}
+    {% if page < total_pages %}<a href="?page={{ page + 1 }}">&raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applyFilters() {
+    const status = document.getElementById('filterStatus').value;
+    const method = document.getElementById('filterMethod').value;
+    document.querySelectorAll('#paymentsTable tbody tr').forEach(row => {
+        const matchStatus = !status || row.dataset.status === status;
+        const matchMethod = !method || row.dataset.method === method;
+        row.style.display = (matchStatus && matchMethod) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

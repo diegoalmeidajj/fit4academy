@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_users') }}{% endblock %}
+
+{% block extra_css %}
+.user-card { display: flex; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; background: var(--card-bg); transition: all .2s; }
+.user-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.user-avatar { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg,#6366f1,#a855f7); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 18px; font-family: 'Space Grotesk'; flex-shrink: 0; }
+.user-info { flex: 1; }
+.user-name { font-weight: 700; font-size: 15px; }
+.user-role { font-size: 12px; color: var(--text-muted); }
+.user-email { font-size: 12px; color: var(--text-muted); }
+.role-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.role-admin { background: #ede9fe; color: #5b21b6; }
+.role-instructor { background: #dbeafe; color: #1e40af; }
+.role-staff { background: #f1f5f9; color: #475569; }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-person-gear" style="color:var(--primary);"></i> {{ t('users_title') }}</h1>
+</div>
+
+<!-- User list -->
+<div class="mb-24">
+    {% for user in users|default([]) %}
+    <div class="user-card">
+        <div class="user-avatar">{{ user.initials }}</div>
+        <div class="user-info">
+            <div class="user-name">{{ user.name }}</div>
+            <div class="user-email">{{ user.email|default(user.username) }}</div>
+        </div>
+        <span class="role-badge role-{{ user.role|lower }}">{{ t('role_' + user.role|lower) }}</span>
+        <a href="#" class="btn btn-sm btn-outline-secondary" onclick="editUser({{ user.id }})"><i class="bi bi-pencil"></i></a>
+    </div>
+    {% endfor %}
+    {% if not users %}
+    <div class="card"><div class="card-body empty-state"><i class="bi bi-person-gear"></i><p>{{ t('users_empty') }}</p></div></div>
+    {% endif %}
+</div>
+
+<!-- Add user form -->
+<div class="card">
+    <div class="card-header"><i class="bi bi-person-plus"></i> {{ t('users_add') }}</div>
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="grid-2 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('users_name') }} *</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('users_username') }} *</label>
+                    <input type="text" name="username" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="grid-3 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('users_email') }}</label>
+                    <input type="email" name="email" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('users_password') }} *</label>
+                    <input type="password" name="password" class="form-control" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('users_role') }} *</label>
+                    <select name="role" class="form-select" required>
+                        <option value="instructor">{{ t('role_instructor') }}</option>
+                        <option value="staff">{{ t('role_staff') }}</option>
+                        <option value="admin">{{ t('role_admin') }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> {{ t('users_add_btn') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

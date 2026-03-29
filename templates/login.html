@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Fit4Academy</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'DM Sans',sans-serif;}
+        body{min-height:100vh;display:flex;background:#0f172a;}
+
+        /* ===== LEFT PANEL — BJJ Photo + Branding ===== */
+        .login-brand{
+            flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+            background:url('https://images.unsplash.com/photo-1555597673-b21d5c935865?w=1200&h=1600&fit=crop') center/cover no-repeat;
+        }
+        .login-brand::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,.85) 0%,rgba(30,27,75,.75) 50%,rgba(15,23,42,.9) 100%);}
+        .brand-content{position:relative;z-index:1;text-align:center;max-width:400px;padding:60px 40px;}
+        .brand-logo{width:100px;height:100px;border-radius:24px;margin:0 auto 20px;box-shadow:0 12px 40px rgba(0,0,0,.4);background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk';font-size:36px;font-weight:700;}
+        .brand-content h1{font-family:'Space Grotesk';font-size:40px;font-weight:700;color:#fff;margin-bottom:10px;letter-spacing:-1px;}
+        .brand-content h1 span{background:linear-gradient(135deg,#a5b4fc,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+        .brand-tagline{font-size:16px;color:rgba(255,255,255,.6);line-height:1.6;margin-bottom:40px;}
+        .brand-stats{display:flex;gap:24px;justify-content:center;}
+        .brand-stat{text-align:center;}
+        .brand-stat-num{font-family:'Space Grotesk';font-size:28px;font-weight:700;color:#fff;}
+        .brand-stat-label{font-size:12px;color:rgba(255,255,255,.4);margin-top:2px;}
+
+        /* ===== RIGHT PANEL — Form ===== */
+        .login-form-panel{
+            width:480px;min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+            background:#fff;padding:48px 44px;position:relative;
+        }
+        .form-lang{position:absolute;top:20px;right:24px;display:flex;gap:4px;}
+        .form-lang button{padding:5px 12px;border-radius:6px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;}
+        .form-lang button.active{background:#6366f1;border-color:#6366f1;color:#fff;}
+        .form-lang button:hover:not(.active){border-color:#6366f1;color:#6366f1;}
+
+        .form-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+        .form-logo-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Space Grotesk';font-size:16px;font-weight:700;}
+        .form-logo span{font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#0f172a;letter-spacing:-.5px;}
+        .form-logo span em{font-style:normal;color:#6366f1;}
+        .form-header h2{font-family:'Space Grotesk';font-size:28px;font-weight:700;color:#0f172a;margin-bottom:6px;letter-spacing:-.5px;}
+        .form-header p{font-size:14px;color:#94a3b8;margin-bottom:28px;}
+
+        .error-msg{background:#fef2f2;color:#991b1b;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;display:flex;align-items:center;gap:8px;border:1px solid #fecaca;}
+        .error-msg i{font-size:16px;flex-shrink:0;}
+
+        .fg{margin-bottom:18px;}
+        .fg label{font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;display:block;letter-spacing:.3px;}
+        .iw{display:flex;align-items:center;border:1.5px solid #e2e8f0;border-radius:12px;background:#f8fafc;transition:all .2s;}
+        .iw:focus-within{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.08);background:#fff;}
+        .iw i{padding:0 14px;color:#94a3b8;font-size:18px;}
+        .iw input{flex:1;padding:14px 14px 14px 0;border:none;background:transparent;font-size:15px;color:#0f172a;outline:none;font-family:'DM Sans';}
+        .iw input::placeholder{color:#cbd5e1;}
+
+        .btn-login{
+            width:100%;padding:16px;border:none;border-radius:12px;font-size:15px;font-weight:700;
+            cursor:pointer;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+            box-shadow:0 4px 16px rgba(99,102,241,.25);transition:all .2s;
+            font-family:'Space Grotesk';display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;
+        }
+        .btn-login:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(99,102,241,.35);}
+
+        .form-links{display:flex;justify-content:space-between;margin-top:20px;}
+        .form-links a{color:#6366f1;text-decoration:none;font-weight:600;font-size:13px;}
+        .form-links a:hover{text-decoration:underline;}
+
+        .divider{display:flex;align-items:center;gap:12px;margin:24px 0 20px;}
+        .divider span{font-size:11px;color:#cbd5e1;font-weight:600;}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:#e2e8f0;}
+
+        .btn-trial{
+            display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+            padding:14px;border-radius:12px;font-size:14px;font-weight:700;color:#6366f1;
+            background:#fff;border:1.5px solid #e2e8f0;text-decoration:none;transition:all .2s;
+            font-family:'Space Grotesk';
+        }
+        .btn-trial:hover{border-color:#6366f1;background:rgba(99,102,241,.03);}
+
+        .form-footer{margin-top:32px;text-align:center;font-size:11px;color:#cbd5e1;}
+
+        @media(max-width:900px){
+            body{flex-direction:column;background:#fff;}
+            .login-brand{min-height:280px;flex:none;}
+            .brand-content{padding:40px 24px;}
+            .brand-logo{width:72px;height:72px;border-radius:18px;font-size:26px;}
+            .brand-content h1{font-size:30px;}
+            .brand-tagline{display:none;}
+            .brand-stats{gap:20px;}
+            .brand-stat-num{font-size:22px;}
+            .login-form-panel{width:100%;min-height:auto;padding:32px 24px;flex:1;}
+            .form-logo{display:none;}
+            .form-header h2{font-size:24px;}
+        }
+        @media(max-width:400px){
+            .login-brand{min-height:220px;}
+            .brand-content{padding:30px 20px;}
+            .brand-logo{width:56px;height:56px;border-radius:14px;font-size:22px;}
+            .brand-content h1{font-size:24px;}
+            .brand-stats{gap:14px;}
+            .login-form-panel{padding:24px 20px;}
+        }
+    </style>
+</head>
+<body>
+    <!-- LEFT: BJJ Photo + Branding -->
+    <div class="login-brand">
+        <div class="brand-content">
+            <div class="brand-logo">F4</div>
+            <h1>Fit4<span>Academy</span></h1>
+            <p class="brand-tagline" data-i18n="login_brand_sub">The modern platform to manage your Jiu-Jitsu academy.</p>
+            <div class="brand-stats">
+                <div class="brand-stat">
+                    <div class="brand-stat-num">1k+</div>
+                    <div class="brand-stat-label" data-i18n="login_stat1">Academies</div>
+                </div>
+                <div class="brand-stat">
+                    <div class="brand-stat-num">50k+</div>
+                    <div class="brand-stat-label" data-i18n="login_stat2">Members</div>
+                </div>
+                <div class="brand-stat">
+                    <div class="brand-stat-num">3</div>
+                    <div class="brand-stat-label" data-i18n="login_stat3">Languages</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Login Form -->
+    <div class="login-form-panel">
+        <div class="form-lang">
+            <button onclick="setLoginLang('en')" id="llb-en" class="active">EN</button>
+            <button onclick="setLoginLang('pt')" id="llb-pt">PT</button>
+            <button onclick="setLoginLang('es')" id="llb-es">ES</button>
+        </div>
+
+        <div class="form-logo">
+            <div class="form-logo-icon">F4</div>
+            <span>Fit4<em>Academy</em></span>
+        </div>
+
+        <div class="form-header">
+            <h2 data-i18n="login_welcome">Welcome back</h2>
+            <p data-i18n="login_subtitle">Sign in to your Fit4Academy account</p>
+        </div>
+
+        {% if error %}<div class="error-msg"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>{% endif %}
+
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="fg">
+                <label data-i18n="login_username_label">Username</label>
+                <div class="iw">
+                    <i class="bi bi-person"></i>
+                    <input type="text" name="username" data-i18n-placeholder="login_username_placeholder" placeholder="Enter your username" autofocus required>
+                </div>
+            </div>
+            <div class="fg">
+                <label data-i18n="login_password_label">Password</label>
+                <div class="iw">
+                    <i class="bi bi-lock"></i>
+                    <input type="password" name="password" data-i18n-placeholder="login_password_placeholder" placeholder="Enter your password" required>
+                </div>
+            </div>
+            <button type="submit" class="btn-login"><i class="bi bi-box-arrow-in-right"></i> <span data-i18n="login_btn">Sign In</span></button>
+        </form>
+
+        <div class="form-links">
+            <a href="/forgot-password"><span data-i18n="login_forgot">Forgot password?</span></a>
+            <a href="/register"><span data-i18n="login_create">Create account</span></a>
+        </div>
+
+        <div class="divider"><span data-i18n="login_or">or</span></div>
+
+        <a href="/register" class="btn-trial"><i class="bi bi-rocket-takeoff"></i> <span data-i18n="login_trial">Start Your Free Trial</span></a>
+
+        <div class="form-footer"><i class="bi bi-lock"></i> <span data-i18n="login_secure">Secure, encrypted connection</span></div>
+    </div>
+
+    <script>
+    const LOGIN_LANG = {
+        en: {
+            login_brand_sub:'The modern platform to manage your Jiu-Jitsu academy.',
+            login_stat1:'Academies',login_stat2:'Members',login_stat3:'Languages',
+            login_welcome:'Welcome back',login_subtitle:'Sign in to your Fit4Academy account',
+            login_username_label:'Username',login_username_placeholder:'Enter your username',
+            login_password_label:'Password',login_password_placeholder:'Enter your password',
+            login_btn:'Sign In',login_forgot:'Forgot password?',login_create:'Create account',
+            login_or:'or',login_trial:'Start Your Free Trial',login_secure:'Secure, encrypted connection',
+        },
+        pt: {
+            login_brand_sub:'A plataforma moderna para gerenciar sua academia de Jiu-Jitsu.',
+            login_stat1:'Academias',login_stat2:'Membros',login_stat3:'Idiomas',
+            login_welcome:'Bem-vindo de volta',login_subtitle:'Entre na sua conta Fit4Academy',
+            login_username_label:'Usuario',login_username_placeholder:'Digite seu usuario',
+            login_password_label:'Senha',login_password_placeholder:'Digite sua senha',
+            login_btn:'Entrar',login_forgot:'Esqueceu a senha?',login_create:'Criar conta',
+            login_or:'ou',login_trial:'Comece seu Teste Gratis',login_secure:'Conexao segura e criptografada',
+        },
+        es: {
+            login_brand_sub:'La plataforma moderna para gestionar tu academia de Jiu-Jitsu.',
+            login_stat1:'Academias',login_stat2:'Miembros',login_stat3:'Idiomas',
+            login_welcome:'Bienvenido de nuevo',login_subtitle:'Inicia sesion en tu cuenta Fit4Academy',
+            login_username_label:'Usuario',login_username_placeholder:'Ingresa tu usuario',
+            login_password_label:'Contrasena',login_password_placeholder:'Ingresa tu contrasena',
+            login_btn:'Iniciar Sesion',login_forgot:'Olvidaste la contrasena?',login_create:'Crear cuenta',
+            login_or:'o',login_trial:'Comienza tu Prueba Gratis',login_secure:'Conexion segura y encriptada',
+        }
+    };
+    function setLoginLang(l){
+        document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(LOGIN_LANG[l]?.[k])el.textContent=LOGIN_LANG[l][k];});
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{const k=el.dataset.i18nPlaceholder;if(LOGIN_LANG[l]?.[k])el.placeholder=LOGIN_LANG[l][k];});
+        document.querySelectorAll('.form-lang button').forEach(b=>b.classList.toggle('active',b.id==='llb-'+l));
+        localStorage.setItem('f4a_lang',l);
+    }
+    const saved=localStorage.getItem('f4a_lang');
+    if(saved&&saved!=='en')setLoginLang(saved);
+    </script>
+</body>
+</html>

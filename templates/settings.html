@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_settings') }}{% endblock %}
+
+{% block extra_css %}
+.settings-section { margin-bottom: 28px; }
+.settings-section-title { font-family: 'Space Grotesk'; font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.settings-section-title i { color: var(--primary); font-size: 20px; }
+.logo-preview { width: 80px; height: 80px; border-radius: 16px; background: var(--card-bg); border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px; }
+.logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.connection-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; }
+.connection-info { display: flex; align-items: center; gap: 12px; }
+.connection-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.connection-status { font-size: 12px; font-weight: 600; }
+.connection-status.connected { color: var(--success); }
+.connection-status.disconnected { color: var(--text-muted); }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-gear" style="color:var(--primary);"></i> {{ t('settings_title') }}</h1>
+</div>
+
+<form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Academy Info -->
+    <div class="card mb-24">
+        <div class="card-body">
+            <div class="settings-section">
+                <div class="settings-section-title"><i class="bi bi-building"></i> {{ t('settings_academy_info') }}</div>
+
+                <div style="display:flex;gap:20px;align-items:start;margin-bottom:16px;">
+                    <div>
+                        <div class="logo-preview">
+                            {% if academy and academy.logo %}
+                            <img src="{{ academy.logo }}" id="logoPreview">
+                            {% else %}
+                            <i class="bi bi-image" style="font-size:24px;color:var(--text-muted);"></i>
+                            {% endif %}
+                        </div>
+                        <input type="file" name="logo" class="form-control" accept="image/*" style="max-width:200px;font-size:11px;" onchange="previewLogo(this)">
+                    </div>
+                    <div style="flex:1;">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label class="form-label">{{ t('settings_academy_name') }}</label>
+                                <input type="text" name="academy_name" class="form-control" value="{{ academy.name if academy else '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">{{ t('settings_website') }}</label>
+                                <input type="url" name="website" class="form-control" value="{{ academy.website if academy else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">{{ t('settings_address') }}</label>
+                        <input type="text" name="address" class="form-control" value="{{ academy.address if academy else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('settings_phone') }}</label>
+                        <input type="tel" name="phone" class="form-control" value="{{ academy.phone if academy else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('settings_email') }}</label>
+                        <input type="email" name="email" class="form-control" value="{{ academy.email if academy else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Regional Settings -->
+    <div class="card mb-24">
+        <div class="card-body">
+            <div class="settings-section">
+                <div class="settings-section-title"><i class="bi bi-globe2"></i> {{ t('settings_regional') }}</div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">{{ t('settings_timezone') }}</label>
+                        <select name="timezone" class="form-select">
+                            <option value="America/New_York" {{ 'selected' if academy and academy.timezone == 'America/New_York' }}>{{ t('tz_eastern') }}</option>
+                            <option value="America/Chicago" {{ 'selected' if academy and academy.timezone == 'America/Chicago' }}>{{ t('tz_central') }}</option>
+                            <option value="America/Denver" {{ 'selected' if academy and academy.timezone == 'America/Denver' }}>{{ t('tz_mountain') }}</option>
+                            <option value="America/Los_Angeles" {{ 'selected' if academy and academy.timezone == 'America/Los_Angeles' }}>{{ t('tz_pacific') }}</option>
+                            <option value="America/Sao_Paulo" {{ 'selected' if academy and academy.timezone == 'America/Sao_Paulo' }}>{{ t('tz_brazil') }}</option>
+                            <option value="America/Mexico_City" {{ 'selected' if academy and academy.timezone == 'America/Mexico_City' }}>{{ t('tz_mexico') }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">{{ t('settings_currency') }}</label>
+                        <select name="currency" class="form-select">
+                            <option value="USD" {{ 'selected' if academy and academy.currency == 'USD' }}>USD ($)</option>
+                            <option value="BRL" {{ 'selected' if academy and academy.currency == 'BRL' }}>BRL (R$)</option>
+                            <option value="MXN" {{ 'selected' if academy and academy.currency == 'MXN' }}>MXN (MX$)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Connections -->
+    <div class="card mb-24">
+        <div class="card-body">
+            <div class="settings-section">
+                <div class="settings-section-title"><i class="bi bi-credit-card-2-front"></i> {{ t('settings_payment_connections') }}</div>
+
+                <div class="connection-card">
+                    <div class="connection-info">
+                        <div class="connection-icon" style="background:#635bff20;color:#635bff;"><i class="bi bi-stripe"></i></div>
+                        <div>
+                            <div style="font-weight:600;font-size:14px;">Stripe</div>
+                            <div class="connection-status {{ 'connected' if academy and academy.stripe_connected else 'disconnected' }}">
+                                <i class="bi bi-{% if academy and academy.stripe_connected %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                                {{ t('settings_connected') if academy and academy.stripe_connected else t('settings_not_connected') }}
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm {{ 'btn-outline-danger' if academy and academy.stripe_connected else 'btn-primary' }}">
+                        {{ t('settings_disconnect') if academy and academy.stripe_connected else t('settings_connect') }}
+                    </button>
+                </div>
+
+                <div class="connection-card">
+                    <div class="connection-info">
+                        <div class="connection-icon" style="background:#00000010;"><i class="bi bi-square"></i></div>
+                        <div>
+                            <div style="font-weight:600;font-size:14px;">Square</div>
+                            <div class="connection-status {{ 'connected' if academy and academy.square_connected else 'disconnected' }}">
+                                <i class="bi bi-{% if academy and academy.square_connected %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                                {{ t('settings_connected') if academy and academy.square_connected else t('settings_not_connected') }}
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm {{ 'btn-outline-danger' if academy and academy.square_connected else 'btn-primary' }}">
+                        {{ t('settings_disconnect') if academy and academy.square_connected else t('settings_connect') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Preferences -->
+    <div class="card mb-24">
+        <div class="card-body">
+            <div class="settings-section">
+                <div class="settings-section-title"><i class="bi bi-bell"></i> {{ t('settings_notifications') }}</div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" name="notify_checkin" {{ 'checked' if not academy or academy.notify_checkin }}>
+                            <span style="font-size:13px;">{{ t('settings_notify_checkin') }}</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" name="notify_payment" {{ 'checked' if not academy or academy.notify_payment }}>
+                            <span style="font-size:13px;">{{ t('settings_notify_payment') }}</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" name="notify_birthday" {{ 'checked' if not academy or academy.notify_birthday }}>
+                            <span style="font-size:13px;">{{ t('settings_notify_birthday') }}</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" name="notify_expiring" {{ 'checked' if not academy or academy.notify_expiring }}>
+                            <span style="font-size:13px;">{{ t('settings_notify_expiring') }}</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-check-lg"></i> {{ t('settings_save') }}</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewLogo(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            let preview = document.getElementById('logoPreview');
+            if (!preview) {
+                const container = document.querySelector('.logo-preview');
+                container.innerHTML = '<img id="logoPreview">';
+                preview = document.getElementById('logoPreview');
+            }
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ t('class_form_edit') if cls else t('class_form_add') }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-calendar-{{ 'event' if cls else 'plus' }}" style="color:var(--primary);"></i> {{ t('class_form_edit') if cls else t('class_form_add') }}</h1>
+    <div class="topbar-actions">
+        <a href="/classes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> {{ t('back') }}</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="grid-2 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_name') }} *</label>
+                    <input type="text" name="name" class="form-control" value="{{ cls.name if cls else '' }}" placeholder="{{ t('class_name_ph') }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_type') }} *</label>
+                    <select name="type" class="form-select" required>
+                        <option value="Gi" {{ 'selected' if cls and cls.type == 'Gi' }}>{{ t('class_gi') }}</option>
+                        <option value="NoGi" {{ 'selected' if cls and cls.type == 'NoGi' }}>{{ t('class_nogi') }}</option>
+                        <option value="Kids" {{ 'selected' if cls and cls.type == 'Kids' }}>{{ t('class_kids') }}</option>
+                        <option value="Open" {{ 'selected' if cls and cls.type == 'Open' }}>{{ t('class_open') }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group mb-24">
+                <label class="form-label">{{ t('class_description') }}</label>
+                <textarea name="description" class="form-control" placeholder="{{ t('class_description_ph') }}">{{ cls.description if cls else '' }}</textarea>
+            </div>
+
+            <div class="grid-3 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_instructor') }} *</label>
+                    <select name="instructor_id" class="form-select" required>
+                        <option value="">{{ t('select') }}</option>
+                        {% for inst in instructors|default([]) %}
+                        <option value="{{ inst.id }}" {{ 'selected' if cls and cls.instructor_id == inst.id }}>{{ inst.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_duration') }} ({{ t('minutes') }})</label>
+                    <input type="number" name="duration" class="form-control" value="{{ cls.duration if cls else 60 }}" min="15" max="180">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_capacity') }}</label>
+                    <input type="number" name="max_capacity" class="form-control" value="{{ cls.max_capacity if cls else 30 }}" min="1">
+                </div>
+            </div>
+
+            <div class="form-group mb-24">
+                <label class="form-label">{{ t('class_belt_minimum') }}</label>
+                <select name="belt_minimum" class="form-select" style="max-width:250px;">
+                    <option value="">{{ t('class_no_minimum') }}</option>
+                    <option value="White" {{ 'selected' if cls and cls.belt_minimum == 'White' }}>{{ t('belt_white') }}</option>
+                    <option value="Blue" {{ 'selected' if cls and cls.belt_minimum == 'Blue' }}>{{ t('belt_blue') }}</option>
+                    <option value="Purple" {{ 'selected' if cls and cls.belt_minimum == 'Purple' }}>{{ t('belt_purple') }}</option>
+                    <option value="Brown" {{ 'selected' if cls and cls.belt_minimum == 'Brown' }}>{{ t('belt_brown') }}</option>
+                    <option value="Black" {{ 'selected' if cls and cls.belt_minimum == 'Black' }}>{{ t('belt_black') }}</option>
+                </select>
+            </div>
+
+            <div style="font-family:'Space Grotesk';font-size:15px;font-weight:600;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);"><i class="bi bi-clock" style="color:var(--primary);"></i> {{ t('class_schedule') }}</div>
+
+            <div class="grid-4 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_day') }} *</label>
+                    <select name="day_of_week" class="form-select" required>
+                        {% for day in ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
+                        <option value="{{ day }}" {{ 'selected' if cls and cls.day_of_week == day }}>{{ t('day_' + day) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_start_time') }} *</label>
+                    <input type="time" name="start_time" class="form-control" value="{{ cls.start_time if cls else '09:00' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_end_time') }} *</label>
+                    <input type="time" name="end_time" class="form-control" value="{{ cls.end_time if cls else '10:00' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('class_room') }}</label>
+                    <input type="text" name="room" class="form-control" value="{{ cls.room if cls else '' }}" placeholder="{{ t('class_room_ph') }}">
+                </div>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <a href="/classes" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
+                {% if cls %}
+                <button type="button" class="btn btn-outline-danger" onclick="if(confirm('{{ t('class_delete_confirm') }}'))document.getElementById('deleteForm').submit();">
+                    <i class="bi bi-trash"></i> {{ t('delete') }}
+                </button>
+                {% endif %}
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ t('save') }}</button>
+            </div>
+        </form>
+
+        {% if cls %}
+        <form id="deleteForm" method="post" action="/classes/{{ cls.id }}/delete" style="display:none;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

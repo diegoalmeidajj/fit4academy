@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ t('prospect_form_edit') if prospect else t('prospect_form_add') }}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-funnel" style="color:var(--primary);"></i> {{ t('prospect_form_edit') if prospect else t('prospect_form_add') }}</h1>
+    <div class="topbar-actions">
+        <a href="/prospects" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> {{ t('back') }}</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="grid-2 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('prospect_name') }} *</label>
+                    <input type="text" name="name" class="form-control" value="{{ prospect.name if prospect else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('prospect_email') }}</label>
+                    <input type="email" name="email" class="form-control" value="{{ prospect.email if prospect else '' }}">
+                </div>
+            </div>
+
+            <div class="grid-2 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('prospect_phone') }}</label>
+                    <input type="tel" name="phone" class="form-control" value="{{ prospect.phone if prospect else '' }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('prospect_source') }}</label>
+                    <select name="source" class="form-select">
+                        <option value="">{{ t('select') }}</option>
+                        <option value="walk-in" {{ 'selected' if prospect and prospect.source == 'walk-in' }}>{{ t('source_walkin') }}</option>
+                        <option value="referral" {{ 'selected' if prospect and prospect.source == 'referral' }}>{{ t('source_referral') }}</option>
+                        <option value="website" {{ 'selected' if prospect and prospect.source == 'website' }}>{{ t('source_website') }}</option>
+                        <option value="social" {{ 'selected' if prospect and prospect.source == 'social' }}>{{ t('source_social') }}</option>
+                        <option value="event" {{ 'selected' if prospect and prospect.source == 'event' }}>{{ t('source_event') }}</option>
+                        <option value="other" {{ 'selected' if prospect and prospect.source == 'other' }}>{{ t('source_other') }}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-3 mb-24">
+                <div class="form-group">
+                    <label class="form-label">{{ t('prospect_status') }} *</label>
+                    <select name="status" class="form-select" required>
+                        <option value="new" {{ 'selected' if prospect and prospect.status == 'new' }}>{{ t('stage_new') }}</option>
+                        <option value="contacted" {{ 'selected' if prospect and prospect.status == 'contacted' }}>{{ t('stage_contacted') }}</option>
+                        <option value="trial" {{ 'selected' if prospect and prospect.status == 'trial' }}>{{ t('stage_trial') }}</option>
+                        <option value="converted" {{ 'selected' if prospect and prospect.status == 'converted' }}>{{ t('stage_converted') }}</option>
+                        <option value="lost" {{ 'selected' if prospect and prospect.status == 'lost' }}>{{ t('stage_lost') }}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('prospect_interested') }}</label>
+                    <input type="text" name="interested_in" class="form-control" value="{{ prospect.interested_in if prospect else '' }}" placeholder="{{ t('prospect_interested_ph') }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('prospect_followup_date') }}</label>
+                    <input type="date" name="follow_up_date" class="form-control" value="{{ prospect.follow_up_date if prospect else '' }}">
+                </div>
+            </div>
+
+            <div class="form-group mb-24">
+                <label class="form-label">{{ t('prospect_notes') }}</label>
+                <textarea name="notes" class="form-control" placeholder="{{ t('prospect_notes_ph') }}">{{ prospect.notes if prospect else '' }}</textarea>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <a href="/prospects" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
+                {% if prospect %}
+                <button type="button" class="btn btn-outline-danger" onclick="if(confirm('{{ t('prospect_delete_confirm') }}'))document.getElementById('deleteForm').submit();">
+                    <i class="bi bi-trash"></i> {{ t('delete') }}
+                </button>
+                {% endif %}
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ t('save') }}</button>
+            </div>
+        </form>
+
+        {% if prospect %}
+        <form id="deleteForm" method="post" action="/prospects/{{ prospect.id }}/delete" style="display:none;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

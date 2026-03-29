@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_finance') }}{% endblock %}
+
+{% block extra_css %}
+.chart-container { position: relative; height: 250px; background: var(--card-bg); border-radius: 14px; overflow: hidden; }
+.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 20px 20px 0; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bar-fill { width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #6366f1, #818cf8); transition: height .6s ease; min-height: 2px; }
+.bar-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+.bar-value { font-size: 10px; font-weight: 700; color: var(--primary); }
+
+.donut-chart { width: 180px; height: 180px; border-radius: 50%; position: relative; margin: 0 auto; }
+.donut-center { position: absolute; inset: 30%; background: var(--card-bg); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.donut-center .total { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; }
+.donut-center .label { font-size: 10px; color: var(--text-muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+.comparison-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.comparison-row:last-child { border-bottom: none; }
+.comparison-label { width: 120px; font-size: 13px; font-weight: 600; }
+.comparison-bar-track { flex: 1; height: 20px; background: var(--border); border-radius: 6px; overflow: hidden; }
+.comparison-bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; font-weight: 700; color: #fff; }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-graph-up-arrow" style="color:var(--primary);"></i> {{ t('finance_title') }}</h1>
+</div>
+
+<!-- Top summary -->
+<div class="grid-4 mb-24">
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ finance.total_revenue|default(0)|int }}</div>
+        <div class="stat-label">{{ t('finance_total_revenue') }}</div>
+    </div>
+    <div class="stat-card stat-blue">
+        <div class="stat-icon"><i class="bi bi-people"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ finance.avg_per_member|default(0)|int }}</div>
+        <div class="stat-label">{{ t('finance_avg_member') }}</div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-icon"><i class="bi bi-calendar-month"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ finance.this_month|default(0)|int }}</div>
+        <div class="stat-label">{{ t('finance_this_month') }}</div>
+    </div>
+    <div class="stat-card stat-orange">
+        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ finance.outstanding|default(0)|int }}</div>
+        <div class="stat-label">{{ t('finance_outstanding') }}</div>
+    </div>
+</div>
+
+<div class="grid-2 mb-24">
+    <!-- Monthly Revenue Chart -->
+    <div class="card">
+        <div class="card-header"><i class="bi bi-bar-chart"></i> {{ t('finance_monthly_chart') }}</div>
+        <div class="card-body">
+            <div class="bar-chart" id="revenueChart">
+                {% set max_rev = monthly_revenue.values()|max if monthly_revenue else 1 %}
+                {% for month, amount in (monthly_revenue or {}).items() %}
+                <div class="bar-col">
+                    <div class="bar-value">{{ currency_symbol }}{{ amount|int }}</div>
+                    <div class="bar-fill" style="height:{{ (amount / max_rev * 160)|int }}px;"></div>
+                    <div class="bar-label">{{ month }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if not monthly_revenue %}
+            <div class="empty-state" style="padding:30px;"><i class="bi bi-bar-chart"></i><p>{{ t('finance_no_data') }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Revenue by Method -->
+    <div class="card">
+        <div class="card-header"><i class="bi bi-pie-chart"></i> {{ t('finance_by_method') }}</div>
+        <div class="card-body" style="text-align:center;">
+            {% if revenue_by_method %}
+            {% set method_colors = {'cash':'#10b981','card':'#6366f1','check':'#f59e0b','ach':'#06b6d4','stripe':'#8b5cf6','square':'#0ea5e9'} %}
+            {% set total = revenue_by_method.values()|sum %}
+            <div class="donut-chart" style="background: conic-gradient({% for method, amount in revenue_by_method.items() %}{{ method_colors.get(method, '#6b7280') }} {{ loop.previtem_pct|default(0) }}% {{ (amount / total * 100)|round(1) }}%{% if not loop.last %}, {% endif %}{% endfor %});">
+                <div class="donut-center">
+                    <div class="total">{{ currency_symbol }}{{ total|int }}</div>
+                    <div class="label">{{ t('finance_total') }}</div>
+                </div>
+            </div>
+            <div class="legend">
+                {% for method, amount in revenue_by_method.items() %}
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:{{ method_colors.get(method, '#6b7280') }};"></div>
+                    {{ method|capitalize }} ({{ currency_symbol }}{{ amount|int }})
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding:30px;"><i class="bi bi-pie-chart"></i><p>{{ t('finance_no_data') }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Month-over-month comparison -->
+<div class="card mb-24">
+    <div class="card-header"><i class="bi bi-arrow-left-right"></i> {{ t('finance_comparison') }}</div>
+    <div class="card-body">
+        {% if month_comparison %}
+        {% set comp_max = month_comparison.values()|max if month_comparison else 1 %}
+        {% for month, amount in month_comparison.items() %}
+        <div class="comparison-row">
+            <div class="comparison-label">{{ month }}</div>
+            <div class="comparison-bar-track">
+                <div class="comparison-bar-fill" style="width:{{ (amount / comp_max * 100)|int }}%;background:linear-gradient(90deg,#6366f1,#818cf8);">{{ currency_symbol }}{{ amount|int }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state" style="padding:20px;"><i class="bi bi-arrow-left-right"></i><p>{{ t('finance_no_data') }}</p></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Outstanding Payments -->
+<div class="card">
+    <div class="card-header flex-between">
+        <span><i class="bi bi-exclamation-circle"></i> {{ t('finance_outstanding_list') }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>{{ t('payment_member') }}</th>
+                    <th>{{ t('payment_amount') }}</th>
+                    <th>{{ t('payment_due_date') }}</th>
+                    <th>{{ t('payment_status') }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pay in outstanding_payments|default([]) %}
+                <tr>
+                    <td><a href="/members/{{ pay.member_id }}" style="font-weight:600;">{{ pay.member_name }}</a></td>
+                    <td style="font-family:'Space Grotesk';font-weight:700;">{{ currency_symbol }}{{ pay.amount }}</td>
+                    <td>{{ pay.due_date }}</td>
+                    <td><span class="badge-pill badge-{{ pay.status|lower }}">{{ t('status_' + pay.status|lower) }}</span></td>
+                    <td><a href="/payments/{{ pay.id }}/edit" class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if not outstanding_payments %}
+    <div class="card-body empty-state" style="padding:20px;"><i class="bi bi-check-circle"></i><p>{{ t('finance_no_outstanding') }}</p></div>
+    {% endif %}
+</div>
+{% endblock %}

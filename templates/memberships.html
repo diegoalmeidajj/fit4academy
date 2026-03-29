@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_memberships') }}{% endblock %}
+
+{% block extra_css %}
+.plan-card { border: 1px solid var(--border); border-radius: 14px; background: var(--card-bg); overflow: hidden; transition: all .2s; }
+.plan-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.plan-header { padding: 18px; border-bottom: 1px solid var(--border); }
+.plan-name { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; }
+.plan-type { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.plan-price { font-family: 'Space Grotesk'; font-size: 28px; font-weight: 700; color: var(--primary); padding: 18px; }
+.plan-price span { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.plan-stats { display: flex; justify-content: space-around; padding: 14px; background: var(--table-head); }
+.plan-stat { text-align: center; }
+.plan-stat-num { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; }
+.plan-stat-label { font-size: 10px; color: var(--text-muted); }
+.plan-actions { padding: 14px; display: flex; gap: 8px; }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-card-checklist" style="color:var(--primary);"></i> {{ t('memberships_title') }}</h1>
+    <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('addPlanModal').style.display='flex'"><i class="bi bi-plus-lg"></i> {{ t('memberships_add') }}</button>
+    </div>
+</div>
+
+<!-- Plans grid -->
+<div class="grid-3 mb-24">
+    {% for plan in plans|default([]) %}
+    <div class="plan-card">
+        <div class="plan-header">
+            <div class="plan-name">{{ plan.name }}</div>
+            <div class="plan-type">{{ plan.type|default('Standard') }}</div>
+        </div>
+        <div class="plan-price">{{ currency_symbol }}{{ plan.price }} <span>/ {{ plan.cycle }}</span></div>
+        <div class="plan-stats">
+            <div class="plan-stat">
+                <div class="plan-stat-num">{{ plan.active_members|default(0) }}</div>
+                <div class="plan-stat-label">{{ t('memberships_active') }}</div>
+            </div>
+            <div class="plan-stat">
+                <div class="plan-stat-num">{{ currency_symbol }}{{ (plan.price * plan.active_members|default(0))|int }}</div>
+                <div class="plan-stat-label">{{ t('memberships_mrr') }}</div>
+            </div>
+        </div>
+        <div class="plan-actions">
+            <a href="/memberships/{{ plan.id }}/edit" class="btn btn-sm btn-outline-primary" style="flex:1;justify-content:center;"><i class="bi bi-pencil"></i> {{ t('edit') }}</a>
+            <button class="btn btn-sm btn-outline-secondary" style="flex:1;justify-content:center;" onclick="openAssignModal({{ plan.id }}, '{{ plan.name }}')"><i class="bi bi-person-plus"></i> {{ t('memberships_assign') }}</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not plans %}
+<div class="card"><div class="card-body empty-state"><i class="bi bi-card-checklist"></i><p>{{ t('memberships_empty') }}</p></div></div>
+{% endif %}
+
+<!-- Add Plan Modal -->
+<div id="addPlanModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;max-height:90vh;overflow-y:auto;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;">{{ t('memberships_add') }}</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('addPlanModal').style.display='none'">&times;</button>
+        </div>
+        <form method="post" action="/memberships/new">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="form-label">{{ t('memberships_plan_name') }} *</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">{{ t('memberships_type') }}</label>
+                <select name="type" class="form-select">
+                    <option value="Standard">{{ t('memberships_standard') }}</option>
+                    <option value="Premium">{{ t('memberships_premium') }}</option>
+                    <option value="Kids">{{ t('memberships_kids') }}</option>
+                    <option value="Family">{{ t('memberships_family') }}</option>
+                    <option value="Drop-in">{{ t('memberships_dropin') }}</option>
+                </select>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">{{ t('memberships_price') }} *</label>
+                    <input type="number" name="price" class="form-control" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('memberships_cycle') }} *</label>
+                    <select name="cycle" class="form-select" required>
+                        <option value="month">{{ t('memberships_monthly') }}</option>
+                        <option value="quarter">{{ t('memberships_quarterly') }}</option>
+                        <option value="year">{{ t('memberships_yearly') }}</option>
+                        <option value="one-time">{{ t('memberships_onetime') }}</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('addPlanModal').style.display='none'">{{ t('cancel') }}</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ t('save') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Assign Member Modal -->
+<div id="assignModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:400px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;" id="assignTitle">{{ t('memberships_assign') }}</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('assignModal').style.display='none'">&times;</button>
+        </div>
+        <form method="post" action="/memberships/assign">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="plan_id" id="assignPlanId">
+            <div class="form-group">
+                <label class="form-label">{{ t('memberships_select_member') }}</label>
+                <select name="member_id" class="form-select" required>
+                    <option value="">{{ t('select') }}</option>
+                    {% for m in members|default([]) %}
+                    <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('assignModal').style.display='none'">{{ t('cancel') }}</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> {{ t('memberships_assign_btn') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAssignModal(planId, planName) {
+    document.getElementById('assignPlanId').value = planId;
+    document.getElementById('assignTitle').textContent = '{{ t("memberships_assign") }} — ' + planName;
+    document.getElementById('assignModal').style.display = 'flex';
+}
+</script>
+{% endblock %}

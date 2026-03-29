@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_classes') }}{% endblock %}
+
+{% block extra_css %}
+.schedule-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.day-col { min-width: 0; }
+.day-header { text-align: center; font-family: 'Space Grotesk'; font-weight: 700; font-size: 13px; padding: 10px 4px; background: var(--table-head); border-radius: 10px 10px 0 0; border: 1px solid var(--border); border-bottom: none; }
+.day-body { border: 1px solid var(--border); border-radius: 0 0 10px 10px; min-height: 300px; padding: 6px; background: var(--card-bg); }
+.class-block { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; transition: all .2s; border-left: 3px solid var(--primary); }
+.class-block:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.class-block.gi { border-left-color: #1d4ed8; }
+.class-block.nogi { border-left-color: #eab308; }
+.class-block.kids { border-left-color: #10b981; }
+.class-block.open { border-left-color: #7c3aed; }
+.class-block-time { font-family: 'Space Grotesk'; font-size: 12px; font-weight: 700; color: var(--primary); }
+.class-block-name { font-weight: 600; font-size: 12px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.class-block-meta { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+
+.filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-pill { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all .2s; }
+.filter-pill:hover { border-color: var(--primary); color: var(--primary); }
+.filter-pill.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+@media (max-width: 768px) {
+    .schedule-grid { grid-template-columns: 1fr; }
+    .day-col { margin-bottom: 12px; }
+    .day-header { border-radius: 10px 10px 0 0; }
+    .day-body { border-radius: 0 0 10px 10px; min-height: auto; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-calendar-week" style="color:var(--primary);"></i> {{ t('classes_title') }}</h1>
+    <div class="topbar-actions">
+        <a href="/classes/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('classes_add') }}</a>
+    </div>
+</div>
+
+<!-- Filter by type -->
+<div class="filter-bar mb-16">
+    <div class="filter-pills">
+        <button class="filter-pill active" onclick="filterClasses('all', this)">{{ t('all') }}</button>
+        <button class="filter-pill" onclick="filterClasses('gi', this)">{{ t('class_gi') }}</button>
+        <button class="filter-pill" onclick="filterClasses('nogi', this)">{{ t('class_nogi') }}</button>
+        <button class="filter-pill" onclick="filterClasses('kids', this)">{{ t('class_kids') }}</button>
+        <button class="filter-pill" onclick="filterClasses('open', this)">{{ t('class_open') }}</button>
+    </div>
+</div>
+
+<!-- Weekly Grid -->
+<div class="schedule-grid">
+    {% set days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
+    {% for day in days %}
+    <div class="day-col">
+        <div class="day-header">{{ t('day_' + day) }}</div>
+        <div class="day-body">
+            {% for cls in schedule.get(day, []) %}
+            <a href="/classes/{{ cls.id }}/edit" class="class-block {{ cls.type|lower }}" data-type="{{ cls.type|lower }}" style="text-decoration:none;color:inherit;">
+                <div class="class-block-time">{{ cls.start_time }} - {{ cls.end_time }}</div>
+                <div class="class-block-name">{{ cls.name }}</div>
+                <div class="class-block-meta">
+                    <span class="badge-pill badge-{{ cls.type|lower }}" style="padding:1px 6px;font-size:9px;">{{ cls.type }}</span>
+                </div>
+                <div class="class-block-meta" style="margin-top:3px;">
+                    <i class="bi bi-person"></i> {{ cls.instructor }}
+                    <span>·</span>
+                    <i class="bi bi-people"></i> {{ cls.enrolled }}/{{ cls.capacity }}
+                </div>
+            </a>
+            {% endfor %}
+            {% if not schedule.get(day) %}
+            <div style="text-align:center;padding:20px 4px;color:var(--text-muted);font-size:11px;">{{ t('classes_none') }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterClasses(type, btn) {
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.class-block').forEach(block => {
+        block.style.display = (type === 'all' || block.dataset.type === type) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}
