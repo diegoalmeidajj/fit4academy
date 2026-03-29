@@ -6,7 +6,7 @@
     <title>{% block title %}{{ t('app_name') }}{% endblock %} — Fit4Academy</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* ===== THEME VARIABLES ===== */
         :root, [data-theme="light"] {
@@ -56,8 +56,8 @@
         [data-theme="dark"] .btn-outline-danger { color: var(--danger); border-color: var(--danger); }
 
         /* ===== BASE ===== */
-        * { font-family: 'DM Sans', -apple-system, sans-serif; }
-        h1,h2,h3,h4,h5,h6,.stat-value,.topbar h1 { font-family: 'Space Grotesk', sans-serif; }
+        * { font-family: 'Inter', -apple-system, sans-serif; font-weight: 500; }
+        h1,h2,h3,h4,h5,h6,.stat-value,.topbar h1 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; }
         body { background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; transition: background 0.3s, color 0.3s; margin: 0; }
 
         /* ===== SIDEBAR ===== */
@@ -82,7 +82,7 @@
         .sidebar-nav a {
             display: flex; align-items: center; gap: 10px; padding: 9px 12px;
             border-radius: 9px; color: rgba(255,255,255,0.5); text-decoration: none;
-            font-size: 13px; font-weight: 500; transition: all 0.15s;
+            font-size: 13px; font-weight: 600; transition: all 0.15s;
         }
         .sidebar-nav a:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
         .sidebar-nav a.active {
@@ -98,14 +98,6 @@
         .sidebar-footer {
             padding: 10px 12px 14px; border-top: 1px solid rgba(255,255,255,0.06);
         }
-        .currency-switch { display: flex; gap: 3px; margin-bottom: 8px; }
-        .currency-switch a {
-            flex: 1; text-align: center; padding: 5px; border-radius: 6px;
-            color: rgba(255,255,255,0.35); text-decoration: none; font-size: 9px;
-            font-weight: 600; transition: all 0.2s; cursor: pointer;
-        }
-        .currency-switch a:hover { color: #fff; background: rgba(255,255,255,0.08); }
-        .currency-switch a.active { color: #fff; background: #6366f1; }
         .lang-switch { display: flex; gap: 3px; margin-bottom: 8px; }
         .lang-switch a {
             flex: 1; text-align: center; padding: 5px; border-radius: 6px;
@@ -115,12 +107,12 @@
         .lang-switch a:hover { color: #fff; background: rgba(255,255,255,0.08); }
         .lang-switch a.active { color: #fff; background: #6366f1; }
         .theme-toggle {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 6px; border-radius: 8px; background: rgba(255,255,255,0.05);
-            cursor: pointer; color: rgba(255,255,255,0.35); font-size: 11px; font-weight: 600;
-            border: none; width: 100%; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.06);
+            cursor: pointer; color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 600;
+            border: none; width: 100%; transition: all 0.2s; font-family: 'Inter', sans-serif;
         }
-        .theme-toggle:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+        .theme-toggle:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
 
         /* ===== MAIN ===== */
         .main { margin-left: 220px; padding: 20px 28px; min-height: 100vh; }
@@ -390,11 +382,6 @@
                 <a href="?lang=es" class="{{ 'active' if ui_lang == 'es' }}">ES</a>
                 <a href="?lang=pt" class="{{ 'active' if ui_lang == 'pt' }}">PT</a>
             </div>
-            <div class="currency-switch">
-                <a href="?currency=USD" class="{{ 'active' if currency == 'USD' }}">$ USD</a>
-                <a href="?currency=BRL" class="{{ 'active' if currency == 'BRL' }}">R$ BRL</a>
-                <a href="?currency=MXN" class="{{ 'active' if currency == 'MXN' }}">MX$</a>
-            </div>
             <button class="theme-toggle" onclick="toggleTheme()">
                 <i class="bi bi-moon-stars" id="themeIcon"></i>
                 <span id="themeLabel">{{ t('theme_toggle') }}</span>
@@ -478,7 +465,9 @@
     }
     function updateThemeUI(theme) {
         const icon = document.getElementById('themeIcon');
+        const label = document.getElementById('themeLabel');
         if (icon) icon.className = theme === 'dark' ? 'bi bi-moon-stars' : 'bi bi-sun';
+        if (label) label.textContent = theme === 'dark' ? '{{ t("theme_toggle") }}' : '{{ t("theme_toggle") }}';
     }
     (function() {
         const saved = localStorage.getItem('f4a_theme') || 'dark';
