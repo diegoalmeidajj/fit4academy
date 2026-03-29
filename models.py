@@ -292,7 +292,7 @@ def init_db():
         print("[Seed] Belt ranks created")
 
     # ─── Seed Admin User ────────────────────────────────────────
-    # ─── Add missing columns if they don't exist ──────────────
+    # ─── Add missing columns safely (PostgreSQL needs commit per ALTER) ─
     for alter in [
         "ALTER TABLE users ADD COLUMN photo_url TEXT DEFAULT ''",
         "ALTER TABLE users ADD COLUMN academy_id INTEGER DEFAULT 1",
@@ -301,33 +301,65 @@ def init_db():
     ]:
         try:
             conn.execute(alter)
+            conn.commit()
         except Exception:
-            pass  # Column already exists
+            try:
+                conn.rollback()
+            except Exception:
+                pass
 
     # ─── Seed Admin User ──────────────────────────────────────
-    row = conn.execute("SELECT id FROM users WHERE username = 'seeds13'").fetchone()
-    if not row:
-        conn.execute(
-            "INSERT INTO users (username, password, name, email, role, active) VALUES (?, ?, ?, ?, ?, ?)",
-            ('seeds13', _hash_password('Seeds2026!'), 'Seeds 13', '', 'admin', True)
-        )
-        print("[Seed] Admin user seeds13 created")
-    # Always try to set photo and academy_id
     try:
-        conn.execute("UPDATE users SET photo_url = '/static/logo-seeds13-sm.png', academy_id = 1 WHERE username = 'seeds13'")
+        row = conn.execute("SELECT id FROM users WHERE username = 'seeds13'").fetchone()
+        if not row:
+            conn.execute(
+                "INSERT INTO users (username, password, name, email, role, active) VALUES (?, ?, ?, ?, ?, ?)",
+                ('seeds13', _hash_password('Seeds2026!'), 'Seeds 13', '', 'admin', True)
+            )
+            conn.commit()
+            print("[Seed] Admin user seeds13 created")
+    except Exception as e:
+        print(f"[Seed] Admin user error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    # Try to update photo (may fail if column doesn't exist yet)
+    try:
+        conn.execute("UPDATE users SET photo_url = '/static/logo-seeds13-sm.png' WHERE username = 'seeds13'")
+        conn.commit()
     except Exception:
-        pass
+        try:
+            conn.rollback()
+        except Exception:
+            pass
 
     # ─── Seed Default Academy ───────────────────────────────────
-    row = conn.execute("SELECT id FROM academies WHERE id = 1").fetchone()
-    if not row:
-        conn.execute(
-            "INSERT INTO academies (name, owner_id, logo_url) VALUES (?, ?, ?)",
-            ('Seeds 13 BJJ', 1, '/static/logo-seeds13-sm.png')
-        )
-        print("[Seed] Default academy Seeds 13 BJJ created")
-    else:
-        conn.execute("UPDATE academies SET logo_url = '/static/logo-seeds13-sm.png' WHERE id = 1 AND (logo_url IS NULL OR logo_url = '')")
+    try:
+        row = conn.execute("SELECT id FROM academies WHERE id = 1").fetchone()
+        if not row:
+            conn.execute(
+                "INSERT INTO academies (name, owner_id) VALUES (?, ?)",
+                ('Seeds 13 BJJ', 1)
+            )
+            conn.commit()
+            print("[Seed] Default academy Seeds 13 BJJ created")
+        # Try to set logo
+        try:
+            conn.execute("UPDATE academies SET logo_url = '/static/logo-seeds13-sm.png' WHERE id = 1")
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[Seed] Academy error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
 
     conn.commit()
     conn.close()
