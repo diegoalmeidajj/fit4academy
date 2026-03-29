@@ -1010,8 +1010,17 @@ def checkin_history():
     except Exception:
         checkins = []
 
+    stats = {
+        'month_total': len([c for c in checkins if str(c.get('check_in_time', ''))[:7] == datetime.now().strftime('%Y-%m')]),
+        'avg_daily': 0,
+        'total': len(checkins),
+    }
+    if stats['month_total'] > 0:
+        stats['avg_daily'] = round(stats['month_total'] / max(1, datetime.now().day), 1)
+
     return render_template('checkin_history.html',
         checkins=checkins,
+        stats=stats,
         date_from=date_from,
         date_to=date_to,
     )
@@ -1203,8 +1212,15 @@ def payments_list():
     except Exception:
         payments = []
 
+    summary = {
+        'total_collected': sum(p.get('amount', 0) for p in payments if p.get('status') == 'completed'),
+        'pending': sum(p.get('amount', 0) for p in payments if p.get('status') == 'pending'),
+        'overdue': len([p for p in payments if p.get('status') == 'failed']),
+    }
+
     return render_template('payments.html',
         payments=payments,
+        summary=summary,
         status_filter=status_filter,
         method_filter=method_filter,
     )
