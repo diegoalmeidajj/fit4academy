@@ -292,16 +292,31 @@ def init_db():
         print("[Seed] Belt ranks created")
 
     # ─── Seed Admin User ────────────────────────────────────────
+    # ─── Add missing columns if they don't exist ──────────────
+    for alter in [
+        "ALTER TABLE users ADD COLUMN photo_url TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN academy_id INTEGER DEFAULT 1",
+        "ALTER TABLE users ADD COLUMN trial_start TIMESTAMP",
+        "ALTER TABLE academies ADD COLUMN logo_url TEXT DEFAULT ''",
+    ]:
+        try:
+            conn.execute(alter)
+        except Exception:
+            pass  # Column already exists
+
+    # ─── Seed Admin User ──────────────────────────────────────
     row = conn.execute("SELECT id FROM users WHERE username = 'seeds13'").fetchone()
     if not row:
         conn.execute(
-            "INSERT INTO users (username, password, name, email, role, academy_id, active, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            ('seeds13', _hash_password('Seeds2026!'), 'Seeds 13', '', 'admin', 1, True, '/static/logo-seeds13-sm.png')
+            "INSERT INTO users (username, password, name, email, role, active) VALUES (?, ?, ?, ?, ?, ?)",
+            ('seeds13', _hash_password('Seeds2026!'), 'Seeds 13', '', 'admin', True)
         )
         print("[Seed] Admin user seeds13 created")
-    else:
-        # Update existing user photo and academy logo
-        conn.execute("UPDATE users SET photo_url = '/static/logo-seeds13-sm.png' WHERE username = 'seeds13' AND (photo_url IS NULL OR photo_url = '')")
+    # Always try to set photo and academy_id
+    try:
+        conn.execute("UPDATE users SET photo_url = '/static/logo-seeds13-sm.png', academy_id = 1 WHERE username = 'seeds13'")
+    except Exception:
+        pass
 
     # ─── Seed Default Academy ───────────────────────────────────
     row = conn.execute("SELECT id FROM academies WHERE id = 1").fetchone()
