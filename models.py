@@ -295,19 +295,24 @@ def init_db():
     row = conn.execute("SELECT id FROM users WHERE username = 'seeds13'").fetchone()
     if not row:
         conn.execute(
-            "INSERT INTO users (username, password, name, email, role, academy_id, active) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ('seeds13', _hash_password('Seeds2026!'), 'Seeds 13', '', 'admin', 1, True)
+            "INSERT INTO users (username, password, name, email, role, academy_id, active, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ('seeds13', _hash_password('Seeds2026!'), 'Seeds 13', '', 'admin', 1, True, '/static/logo-seeds13-sm.png')
         )
         print("[Seed] Admin user seeds13 created")
+    else:
+        # Update existing user photo and academy logo
+        conn.execute("UPDATE users SET photo_url = '/static/logo-seeds13-sm.png' WHERE username = 'seeds13' AND (photo_url IS NULL OR photo_url = '')")
 
     # ─── Seed Default Academy ───────────────────────────────────
     row = conn.execute("SELECT id FROM academies WHERE id = 1").fetchone()
     if not row:
         conn.execute(
-            "INSERT INTO academies (name, owner_id) VALUES (?, ?)",
-            ('Seeds 13 BJJ', 1)
+            "INSERT INTO academies (name, owner_id, logo_url) VALUES (?, ?, ?)",
+            ('Seeds 13 BJJ', 1, '/static/logo-seeds13-sm.png')
         )
         print("[Seed] Default academy Seeds 13 BJJ created")
+    else:
+        conn.execute("UPDATE academies SET logo_url = '/static/logo-seeds13-sm.png' WHERE id = 1 AND (logo_url IS NULL OR logo_url = '')")
 
     conn.commit()
     conn.close()
