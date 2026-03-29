@@ -324,10 +324,11 @@ def authenticate_user(username, password):
     conn.close()
     if not row:
         return None
+    row = dict(row)
     if not row.get('active', True) in (True, 1):
         return None
     if _check_password(password, row['password']):
-        return dict(row) if not isinstance(row, dict) else row
+        return row
     return None
 
 
@@ -1816,15 +1817,16 @@ def get_expiring_memberships(academy_id=1, days=30):
 def get_belt_distribution(academy_id=1):
     conn = get_db()
     rows = conn.execute(
-        """SELECT b.name, b.color, b.sort_order, COUNT(m.id) as count
+        """SELECT b.name, b.color_hex as color, b.sort_order, COUNT(m.id) as count
            FROM belt_ranks b
-           LEFT JOIN members m ON m.belt_rank_id = b.id AND m.academy_id = ? AND m.active = ?
-           GROUP BY b.id, b.name, b.color, b.sort_order
+           LEFT JOIN members m ON m.belt_rank = b.name AND m.academy_id = ? AND m.active = 1
+           WHERE b.academy_id = ?
+           GROUP BY b.id, b.name, b.color_hex, b.sort_order
            ORDER BY b.sort_order""",
-        (academy_id, True)
+        (academy_id, academy_id)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_monthly_revenue(academy_id=1, months=12):
