@@ -468,9 +468,10 @@ def members_list():
     except Exception:
         plans_display = []
 
-    # Growth stats — new members per month (last 6 months)
+    # Growth stats — total active members at end of each month (last 6 + next month)
     today = date.today()
-    member_months = []
+    member_months = []  # new joins per month for sparkline
+    total_by_month = []  # cumulative total each month
     for i in range(5, -1, -1):
         m = today.month - i
         y = today.year
@@ -478,15 +479,21 @@ def members_list():
             m += 12
             y -= 1
         month_key = f"{y}-{m:02d}"
-        count = sum(1 for mb in members if str(mb.get('join_date', '') or '')[:7] == month_key)
-        member_months.append(count)
+        new_count = sum(1 for mb in members if str(mb.get('join_date', '') or '')[:7] == month_key)
+        member_months.append(new_count)
+        # Total members who joined on or before this month end
+        total = sum(1 for mb in members
+                    if str(mb.get('join_date', '') or '')[:7] <= month_key
+                    and mb.get('status') in ('active', 'trial', ''))
+        total_by_month.append(total)
 
     new_this_month = member_months[-1] if member_months else 0
-    last_month = member_months[-2] if len(member_months) >= 2 else 0
+    current_total = total_by_month[-1] if total_by_month else 0
+    last_month_total = total_by_month[-2] if len(total_by_month) >= 2 else 0
     growth_pct = 0
-    if last_month > 0:
-        growth_pct = int(((new_this_month - last_month) / last_month) * 100)
-    elif new_this_month > 0:
+    if last_month_total > 0:
+        growth_pct = int(((current_total - last_month_total) / last_month_total) * 100)
+    elif current_total > 0:
         growth_pct = 100
 
     # Leads per month (last 6 months)
@@ -533,6 +540,7 @@ def members_list():
         new_this_month=new_this_month,
         new_leads_this_month=new_leads_this_month,
         member_months=member_months,
+        total_by_month=total_by_month,
         leads_months=leads_months,
         lost_this_month=lost_this_month,
         lost_months=lost_months,

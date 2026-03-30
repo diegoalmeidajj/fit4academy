@@ -58,7 +58,7 @@
                 </div>
                 <div style="font-size:11px;color:{% if growth_pct|default(0) >= 0 %}var(--success){% else %}var(--danger){% endif %};font-weight:600;">
                     <i class="bi bi-{% if growth_pct|default(0) >= 0 %}arrow-up-right{% else %}arrow-down-right{% endif %}"></i>
-                    {{ new_this_month|default(0) }} {{ t('stats_vs_last') }}
+                    {{ t('stats_monthly') }}
                 </div>
             </div>
             <canvas id="sparkGrowth" width="80" height="40"></canvas>
@@ -323,7 +323,8 @@ function bulkExport() {
 
 /* ===== Sparklines ===== */
 (function() {
-    const growthData = {{ member_months|default([])|tojson }};
+    const growthData = {{ total_by_month|default([])|tojson }};
+    const newMembersData = {{ member_months|default([])|tojson }};
     const leadsData = {{ leads_months|default([])|tojson }};
     const lostData = {{ lost_months|default([])|tojson }};
 
@@ -354,7 +355,7 @@ function bulkExport() {
     }
 
     sparkline('sparkGrowth', growthData, '#6366f1');
-    sparkline('sparkMembers', growthData, '#10b981');
+    sparkline('sparkMembers', newMembersData, '#10b981');
     sparkline('sparkLeads', leadsData, '#f59e0b');
     sparkline('sparkLost', lostData, '#ef4444');
 })();
