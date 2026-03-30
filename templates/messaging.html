@@ -105,21 +105,21 @@
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_delivered') }}</div>
         <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:var(--success);">{{ stats.delivered|default(0) }}</div>
         <div style="font-size:11px;color:var(--success);font-weight:600;">
-            {% if stats.total_sent|default(0) > 0 %}{{ ((stats.delivered|default(0)) / stats.total_sent * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_rate') }}
+            {% if stats.get('total_sent', 0) > 0 %}{{ ((stats.get('delivered', 0)) / stats.get('total_sent', 1) * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_rate') }}
         </div>
     </div>
     <div class="card" style="padding:16px;">
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_opened') }}</div>
         <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#6366f1;">{{ stats.opened|default(0) }}</div>
         <div style="font-size:11px;color:#6366f1;font-weight:600;">
-            {% if stats.delivered|default(0) > 0 %}{{ ((stats.opened|default(0)) / stats.delivered * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_open_rate') }}
+            {% if stats.get('delivered', 0) > 0 %}{{ ((stats.get('opened', 0)) / stats.get('delivered', 1) * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_open_rate') }}
         </div>
     </div>
     <div class="card" style="padding:16px;">
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_clicked') }}</div>
         <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#f59e0b;">{{ stats.clicked|default(0) }}</div>
         <div style="font-size:11px;color:#f59e0b;font-weight:600;">
-            {% if stats.opened|default(0) > 0 %}{{ ((stats.clicked|default(0)) / stats.opened * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_click_rate') }}
+            {% if stats.get('opened', 0) > 0 %}{{ ((stats.get('clicked', 0)) / stats.get('opened', 1) * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_click_rate') }}
         </div>
     </div>
 </div>
@@ -134,15 +134,14 @@
     <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
         <canvas id="deliveryChart" style="max-width:280px;max-height:280px;"></canvas>
         <div style="flex:1;min-width:200px;">
-            {% set s = stats %}
             {% set items = [
-                ('Delivered', s.delivered|default(0), '#10b981'),
-                ('Opened', s.opened|default(0), '#6366f1'),
-                ('Clicked', s.clicked|default(0), '#f59e0b'),
-                ('Deferred', s.deferred|default(0), '#94a3b8'),
-                ('Bounced', s.bounced|default(0), '#ef4444'),
-                ('Dropped', s.dropped|default(0), '#f97316'),
-                ('Spam', s.spam|default(0), '#dc2626')
+                ('Delivered', stats.get('delivered', 0), '#10b981'),
+                ('Opened', stats.get('opened', 0), '#6366f1'),
+                ('Clicked', stats.get('clicked', 0), '#f59e0b'),
+                ('Deferred', stats.get('deferred', 0), '#94a3b8'),
+                ('Bounced', stats.get('bounced', 0), '#ef4444'),
+                ('Dropped', stats.get('dropped', 0), '#f97316'),
+                ('Spam', stats.get('spam', 0), '#dc2626')
             ] %}
             {% for label, val, color in items %}
             <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
@@ -352,13 +351,13 @@
     if (!el) return;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const data = [
-        {{ stats.delivered|default(0) }},
-        {{ stats.opened|default(0) }},
-        {{ stats.clicked|default(0) }},
-        {{ stats.deferred|default(0) }},
-        {{ stats.bounced|default(0) }},
-        {{ stats.dropped|default(0) }},
-        {{ stats.spam|default(0) }}
+        {{ stats.get('delivered', 0) }},
+        {{ stats.get('opened', 0) }},
+        {{ stats.get('clicked', 0) }},
+        {{ stats.get('deferred', 0) }},
+        {{ stats.get('bounced', 0) }},
+        {{ stats.get('dropped', 0) }},
+        {{ stats.get('spam', 0) }}
     ];
     const hasData = data.some(v => v > 0);
     new Chart(el, {
