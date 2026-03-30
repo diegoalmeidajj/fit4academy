@@ -2569,11 +2569,15 @@ def messaging_send():
     if filter_type == 'manual':
         filter_desc = f"manual:{len(recipients)} selected"
 
-    # Log message
+    # Calculate delivery stats
+    total_attempted = email_sent + email_failed + sms_sent + sms_failed
+    delivered = email_sent + sms_sent
+    bounced = email_failed + sms_failed
+
     status = 'sent'
-    if (channel == 'email' and email_sent == 0) or (channel == 'sms' and sms_sent == 0):
+    if delivered == 0 and total_attempted > 0:
         status = 'failed'
-    elif email_failed > 0 or sms_failed > 0:
+    elif bounced > 0:
         status = 'partial'
 
     try:
@@ -2584,11 +2588,24 @@ def messaging_send():
             channel=channel,
             recipient_filter=filter_desc,
             recipient_count=len(recipients),
+            delivered=delivered,
             sent_by=session.get('user_id'),
             status=status,
         )
     except Exception as e:
         print(f"[Messaging] Log error: {e}")
+
+    # Update message with delivery breakdown
+    try:
+        msgs = models.get_all_messages(academy_id, limit=1)
+        if msgs:
+            models.update_message_stats(msgs[0]['id'],
+                total=len(recipients),
+                delivered=delivered,
+                bounced=bounced,
+            )
+    except Exception as e:
+        print(f"[Messaging] Stats update error: {e}")
 
     # Flash results
     parts = []
