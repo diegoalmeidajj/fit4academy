@@ -468,6 +468,26 @@ def members_list():
     except Exception:
         plans_display = []
 
+    # Compute chart data from ALL members (not paginated)
+    belt_counts = {}
+    status_counts = {}
+    plan_counts = {}
+    for m in members:
+        b = m.get('belt', 'White')
+        belt_counts[b] = belt_counts.get(b, 0) + 1
+        s = m.get('status', 'active')
+        status_counts[s] = status_counts.get(s, 0) + 1
+        p = m.get('membership_name') or 'No Plan'
+        plan_counts[p] = plan_counts.get(p, 0) + 1
+
+    # Order belts correctly
+    belt_order = ['White', 'Blue', 'Purple', 'Brown', 'Black']
+    chart_belts = [(b, belt_counts.get(b, 0)) for b in belt_order if belt_counts.get(b, 0) > 0]
+    # Add any belts not in standard order
+    for b, c in belt_counts.items():
+        if b not in belt_order:
+            chart_belts.append((b, c))
+
     return render_template('members.html',
         members=paginated,
         membership_plans=plans_display,
@@ -475,6 +495,9 @@ def members_list():
         total_pages=total_pages,
         total_members=total,
         search=search,
+        chart_belts=chart_belts,
+        chart_status=list(status_counts.items()),
+        chart_plans=list(plan_counts.items()),
     )
 
 
