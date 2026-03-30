@@ -367,6 +367,7 @@
                 <a href="/events" class="{{ 'active' if request.path.startswith('/events') }}"><i class="bi bi-trophy"></i> {{ t('nav_events') }}</a>
                 <a href="/media" class="{{ 'active' if request.path == '/media' }}"><i class="bi bi-camera-video"></i> {{ t('nav_media') }}</a>
                 <a href="/notifications" class="{{ 'active' if request.path == '/notifications' }}"><i class="bi bi-bell"></i> {{ t('nav_notifications') }}</a>
+                <a href="/messaging" class="{{ 'active' if request.path == '/messaging' }}"><i class="bi bi-megaphone"></i> {{ t('nav_messaging') }}</a>
             </div>
             {% if session.get('role') == 'admin' %}
             <div class="nav-section">

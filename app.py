@@ -2421,6 +2421,207 @@ def api_checkin_today():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  MESSAGING (Mass Communication)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/messaging')
+@login_required
+def messaging_page():
+    academy_id = _get_academy_id()
+    try:
+        members = models.get_all_members(academy_id)
+    except Exception:
+        members = []
+    try:
+        plans = models.get_all_membership_plans(academy_id)
+    except Exception:
+        plans = []
+    try:
+        messages = models.get_all_messages(academy_id, limit=50)
+    except Exception:
+        messages = []
+    try:
+        belts = models.get_all_belt_ranks()
+    except Exception:
+        belts = []
+
+    return render_template('messaging.html',
+                           members=members,
+                           plans=plans,
+                           messages=messages,
+                           belts=belts)
+
+
+@app.route('/messaging/send', methods=['POST'])
+@login_required
+def messaging_send():
+    if not validate_csrf():
+        return redirect(url_for('messaging_page'))
+
+    academy_id = _get_academy_id()
+    subject = request.form.get('subject', '').strip()
+    body = request.form.get('body', '').strip()
+    channel = request.form.get('channel', 'email')
+    filter_type = request.form.get('filter_type', 'all')
+    filter_value = request.form.get('filter_value', '')
+    manual_ids = request.form.get('manual_ids', '')
+
+    if not body:
+        flash('Message body is required.', 'error')
+        return redirect(url_for('messaging_page'))
+
+    # Determine recipients
+    if filter_type == 'manual':
+        recipients = models.get_members_by_filter(academy_id, 'manual', manual_ids)
+    else:
+        recipients = models.get_members_by_filter(academy_id, filter_type, filter_value)
+
+    if not recipients:
+        flash(get_text(session.get('ui_lang', 'en'), 'msg_no_recipients'), 'warning')
+        return redirect(url_for('messaging_page'))
+
+    email_sent = 0
+    email_failed = 0
+    sms_sent = 0
+    sms_failed = 0
+
+    # Send emails
+    if channel in ('email', 'both'):
+        smtp_host = os.environ.get('SMTP_HOST', '')
+        smtp_port = os.environ.get('SMTP_PORT', '587')
+        smtp_user = os.environ.get('SMTP_USER', '')
+        smtp_pass = os.environ.get('SMTP_PASS', '')
+        smtp_from = os.environ.get('SMTP_FROM', smtp_user)
+
+        if smtp_host and smtp_user:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+
+            try:
+                server = smtplib.SMTP(smtp_host, int(smtp_port))
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+
+                for member in recipients:
+                    if member.get('email'):
+                        try:
+                            msg = MIMEMultipart()
+                            msg['From'] = smtp_from
+                            msg['To'] = member['email']
+                            msg['Subject'] = subject
+                            msg.attach(MIMEText(body, 'plain'))
+                            server.sendmail(smtp_from, member['email'], msg.as_string())
+                            email_sent += 1
+                        except Exception as e:
+                            print(f"[Messaging] Email error for {member.get('email')}: {e}")
+                            email_failed += 1
+
+                server.quit()
+            except Exception as e:
+                print(f"[Messaging] SMTP connection error: {e}")
+                email_failed = len([m for m in recipients if m.get('email')])
+        else:
+            flash('SMTP is not configured. Emails were not sent.', 'warning')
+
+    # Send SMS
+    if channel in ('sms', 'both'):
+        twilio_sid = os.environ.get('TWILIO_SID', '')
+        twilio_token = os.environ.get('TWILIO_TOKEN', '')
+        twilio_from = os.environ.get('TWILIO_FROM', '')
+
+        if twilio_sid and twilio_token and twilio_from:
+            try:
+                from twilio.rest import Client
+                client = Client(twilio_sid, twilio_token)
+
+                sms_body = f"{subject}\n\n{body}" if subject else body
+                for member in recipients:
+                    if member.get('phone'):
+                        try:
+                            client.messages.create(
+                                body=sms_body,
+                                from_=twilio_from,
+                                to=member['phone']
+                            )
+                            sms_sent += 1
+                        except Exception as e:
+                            print(f"[Messaging] SMS error for {member.get('phone')}: {e}")
+                            sms_failed += 1
+            except ImportError:
+                flash('Twilio library not installed. SMS were not sent.', 'warning')
+            except Exception as e:
+                print(f"[Messaging] Twilio error: {e}")
+                sms_failed = len([m for m in recipients if m.get('phone')])
+        else:
+            flash('Twilio is not configured. SMS were not sent.', 'warning')
+
+    # Build filter description for logging
+    filter_desc = filter_type
+    if filter_value:
+        filter_desc = f"{filter_type}:{filter_value}"
+    if filter_type == 'manual':
+        filter_desc = f"manual:{len(recipients)} selected"
+
+    # Log message
+    status = 'sent'
+    if (channel == 'email' and email_sent == 0) or (channel == 'sms' and sms_sent == 0):
+        status = 'failed'
+    elif email_failed > 0 or sms_failed > 0:
+        status = 'partial'
+
+    try:
+        models.create_message(
+            academy_id=academy_id,
+            subject=subject,
+            body=body,
+            channel=channel,
+            recipient_filter=filter_desc,
+            recipient_count=len(recipients),
+            sent_by=session.get('user_id'),
+            status=status,
+        )
+    except Exception as e:
+        print(f"[Messaging] Log error: {e}")
+
+    # Flash results
+    parts = []
+    if channel in ('email', 'both'):
+        parts.append(f"{email_sent} email(s) sent")
+        if email_failed:
+            parts.append(f"{email_failed} email(s) failed")
+    if channel in ('sms', 'both'):
+        parts.append(f"{sms_sent} SMS sent")
+        if sms_failed:
+            parts.append(f"{sms_failed} SMS failed")
+
+    flash(', '.join(parts) if parts else 'Message logged.', 'success' if status == 'sent' else 'warning')
+    return redirect(url_for('messaging_page'))
+
+
+@app.route('/api/messaging/preview')
+@login_required
+def api_messaging_preview():
+    academy_id = _get_academy_id()
+    filter_type = request.args.get('filter_type', 'all')
+    filter_value = request.args.get('filter_value', '')
+    channel = request.args.get('channel', 'email')
+
+    try:
+        recipients = models.get_members_by_filter(academy_id, filter_type, filter_value)
+        # Count those with valid contact for the channel
+        if channel == 'email':
+            count = len([m for m in recipients if m.get('email')])
+        elif channel == 'sms':
+            count = len([m for m in recipients if m.get('phone')])
+        else:  # both
+            count = len(recipients)
+        return jsonify({'count': count, 'total': len(recipients)})
+    except Exception:
+        return jsonify({'count': 0, 'total': 0})
+
+
+# ═══════════════════════════════════════════════════════════════
 #  STATIC FILES
 # ═══════════════════════════════════════════════════════════════
 

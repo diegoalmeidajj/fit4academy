@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_messaging') }}{% endblock %}
+
+{% block extra_css %}
+.compose-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.compose-full { grid-column: 1 / -1; }
+.channel-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.channel-option { flex: 1; min-width: 100px; }
+.channel-option input[type="radio"] { display: none; }
+.channel-option label {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 16px; border-radius: 10px; border: 2px solid var(--border);
+    cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s;
+    background: var(--card-bg); text-align: center; width: 100%;
+}
+.channel-option input:checked + label {
+    border-color: var(--primary); background: rgba(99,102,241,.1); color: var(--primary);
+}
+.channel-option label:hover { border-color: var(--primary); }
+
+.recipient-tabs { display: flex; gap: 0; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; flex-wrap: wrap; }
+.recipient-tab {
+    padding: 10px 18px; font-size: 13px; font-weight: 600; background: transparent;
+    color: var(--text-muted); border: none; cursor: pointer; transition: all .2s; flex: 1; text-align: center;
+}
+.recipient-tab.active { background: var(--primary); color: #fff; }
+.recipient-tab:hover:not(.active) { background: rgba(99,102,241,.08); }
+
+.filter-panel { display: none; padding: 0; }
+.filter-panel.active { display: block; }
+
+.preview-badge {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px;
+    border-radius: 10px; background: rgba(99,102,241,.1); font-size: 14px; font-weight: 600;
+    color: var(--primary); margin-top: 12px;
+}
+.preview-badge .count { font-size: 22px; font-weight: 800; font-family: 'Space Grotesk'; }
+
+.tpl-btn {
+    padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: var(--card-bg); color: var(--text); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.tpl-btn:hover { border-color: var(--primary); color: var(--primary); }
+.tpl-btn.active { border-color: var(--primary); background: rgba(99,102,241,.1); color: var(--primary); }
+
+.member-picker { max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+.member-pick-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border-radius: 8px; cursor: pointer; transition: background .15s; font-size: 13px;
+}
+.member-pick-item:hover { background: rgba(99,102,241,.06); }
+.member-pick-item input { accent-color: var(--primary); width: 16px; height: 16px; }
+.member-pick-item .initials {
+    width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+}
+.member-pick-name { font-weight: 600; }
+.member-pick-contact { font-size: 11px; color: var(--text-muted); }
+
+.msg-status { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.msg-status.sent { background: rgba(16,185,129,.12); color: var(--success); }
+.msg-status.failed { background: rgba(239,68,68,.12); color: var(--danger); }
+.msg-status.partial { background: rgba(245,158,11,.12); color: var(--warning); }
+
+.msg-channel-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.msg-channel-badge.email { background: #dbeafe; color: #1d4ed8; }
+.msg-channel-badge.sms { background: #dcfce7; color: #166534; }
+.msg-channel-badge.both { background: #ede9fe; color: #5b21b6; }
+
+.send-btn {
+    padding: 14px 32px; font-size: 15px; font-weight: 700; border-radius: 12px;
+    border: none; cursor: pointer; transition: all .2s;
+    background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff;
+    display: inline-flex; align-items: center; gap: 8px;
+}
+.send-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(99,102,241,.3); }
+.send-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+@media (max-width: 768px) {
+    .compose-grid { grid-template-columns: 1fr; }
+    .recipient-tabs { flex-direction: column; }
+    .recipient-tab { padding: 8px 12px; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-megaphone" style="color:var(--primary);"></i> {{ t('nav_messaging') }}</h1>
+</div>
+
+<!-- Compose Section -->
+<div class="card mb-24">
+    <div class="card-header">
+        <h3 style="margin:0;font-family:'Space Grotesk';font-size:18px;font-weight:700;">
+            <i class="bi bi-pencil-square" style="margin-right:6px;color:var(--primary);"></i> {{ t('msg_compose') }}
+        </h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/messaging/send" id="composeForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="filter_type" id="filterType" value="all">
+            <input type="hidden" name="filter_value" id="filterValue" value="">
+            <input type="hidden" name="manual_ids" id="manualIds" value="">
+
+            <!-- Templates -->
+            <div style="margin-bottom:20px;">
+                <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:block;">
+                    <i class="bi bi-lightning"></i> {{ t('msg_templates') }}
+                </label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" class="tpl-btn" onclick="applyTemplate('announcement', this)"><i class="bi bi-megaphone"></i> {{ t('msg_tpl_announcement') }}</button>
+                    <button type="button" class="tpl-btn" onclick="applyTemplate('payment', this)"><i class="bi bi-credit-card"></i> {{ t('msg_tpl_payment') }}</button>
+                    <button type="button" class="tpl-btn" onclick="applyTemplate('event', this)"><i class="bi bi-calendar-event"></i> {{ t('msg_tpl_event') }}</button>
+                    <button type="button" class="tpl-btn" onclick="applyTemplate('custom', this)"><i class="bi bi-pencil"></i> {{ t('msg_tpl_custom') }}</button>
+                </div>
+            </div>
+
+            <div class="compose-grid">
+                <!-- Left: Channel + Recipients -->
+                <div>
+                    <!-- Channel -->
+                    <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:block;">
+                        {{ t('msg_channel') }}
+                    </label>
+                    <div class="channel-options" style="margin-bottom:20px;">
+                        <div class="channel-option">
+                            <input type="radio" name="channel" id="chEmail" value="email" checked onchange="updatePreview()">
+                            <label for="chEmail"><i class="bi bi-envelope"></i> {{ t('msg_email') }}</label>
+                        </div>
+                        <div class="channel-option">
+                            <input type="radio" name="channel" id="chSms" value="sms" onchange="updatePreview()">
+                            <label for="chSms"><i class="bi bi-chat-dots"></i> {{ t('msg_sms') }}</label>
+                        </div>
+                        <div class="channel-option">
+                            <input type="radio" name="channel" id="chBoth" value="both" onchange="updatePreview()">
+                            <label for="chBoth"><i class="bi bi-send"></i> {{ t('msg_both') }}</label>
+                        </div>
+                    </div>
+
+                    <!-- Recipients -->
+                    <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:block;">
+                        {{ t('msg_recipients') }}
+                    </label>
+                    <div class="recipient-tabs">
+                        <button type="button" class="recipient-tab active" onclick="switchFilter('all', this)">{{ t('msg_all_members') }}</button>
+                        <button type="button" class="recipient-tab" onclick="switchFilter('status', this)">{{ t('msg_by_status') }}</button>
+                        <button type="button" class="recipient-tab" onclick="switchFilter('belt', this)">{{ t('msg_by_belt') }}</button>
+                        <button type="button" class="recipient-tab" onclick="switchFilter('plan', this)">{{ t('msg_by_plan') }}</button>
+                        <button type="button" class="recipient-tab" onclick="switchFilter('manual', this)">{{ t('msg_manual') }}</button>
+                    </div>
+
+                    <!-- Filter: All (nothing needed) -->
+                    <div class="filter-panel active" id="panel-all"></div>
+
+                    <!-- Filter: Status -->
+                    <div class="filter-panel" id="panel-status">
+                        <select class="form-select" id="statusSelect" onchange="updateFilterValue('status'); updatePreview();">
+                            <option value="active">{{ t('status_active') }}</option>
+                            <option value="inactive">{{ t('status_inactive') }}</option>
+                            <option value="expired">{{ t('status_expired') }}</option>
+                            <option value="trial">{{ t('status_trial') }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter: Belt -->
+                    <div class="filter-panel" id="panel-belt">
+                        <select class="form-select" id="beltSelect" onchange="updateFilterValue('belt'); updatePreview();">
+                            {% for belt in belts|default([]) %}
+                            <option value="{{ belt.name }}">{{ belt.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Filter: Plan -->
+                    <div class="filter-panel" id="panel-plan">
+                        <select class="form-select" id="planSelect" onchange="updateFilterValue('plan'); updatePreview();">
+                            {% for plan in plans|default([]) %}
+                            <option value="{{ plan.id }}">{{ plan.name }} — {{ plan.price|default(0) }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Filter: Manual -->
+                    <div class="filter-panel" id="panel-manual">
+                        <input type="text" class="form-control" id="memberSearch" placeholder="{{ t('msg_search_members') }}" onkeyup="filterMembers()" style="margin-bottom:10px;">
+                        <div class="member-picker" id="memberPicker">
+                            {% for m in members|default([]) %}
+                            <label class="member-pick-item" data-name="{{ m.first_name|lower }} {{ m.last_name|lower }}" data-email="{{ m.email|default('')|lower }}" data-phone="{{ m.phone|default('') }}">
+                                <input type="checkbox" value="{{ m.id }}" onchange="updateManualIds()">
+                                <div class="initials">{{ m.first_name[:1]|upper }}{{ m.last_name[:1]|default('') |upper }}</div>
+                                <div>
+                                    <div class="member-pick-name">{{ m.first_name }} {{ m.last_name }}</div>
+                                    <div class="member-pick-contact">{{ m.email|default('') }}{% if m.phone %} &middot; {{ m.phone }}{% endif %}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Preview -->
+                    <div class="preview-badge" id="previewBadge">
+                        <i class="bi bi-people" style="font-size:18px;"></i>
+                        <span class="count" id="previewCount">0</span>
+                        <span>{{ t('msg_preview') }}</span>
+                    </div>
+                </div>
+
+                <!-- Right: Subject + Body -->
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:block;">
+                        {{ t('msg_subject') }}
+                    </label>
+                    <input type="text" name="subject" id="msgSubject" class="form-control" placeholder="{{ t('msg_subject') }}..." style="margin-bottom:16px;">
+
+                    <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:block;">
+                        {{ t('msg_body') }}
+                    </label>
+                    <textarea name="body" id="msgBody" class="form-control" rows="10" placeholder="{{ t('msg_body') }}..." style="resize:vertical;min-height:200px;" required></textarea>
+                </div>
+            </div>
+
+            <!-- Send -->
+            <div style="margin-top:24px;display:flex;align-items:center;justify-content:flex-end;">
+                <button type="submit" class="send-btn" id="sendBtn">
+                    <i class="bi bi-send-fill"></i> {{ t('msg_send') }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Message History -->
+<div class="card">
+    <div class="card-header">
+        <h3 style="margin:0;font-family:'Space Grotesk';font-size:18px;font-weight:700;">
+            <i class="bi bi-clock-history" style="margin-right:6px;color:var(--primary);"></i> {{ t('msg_history') }}
+        </h3>
+    </div>
+    {% if messages %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>{{ t('msg_subject') }}</th>
+                    <th>{{ t('msg_channel') }}</th>
+                    <th>{{ t('msg_recipients') }}</th>
+                    <th>{{ t('status') }}</th>
+                    <th>{{ t('msg_body') }}</th>
+                    <th style="white-space:nowrap;">{{ t('notifications_date') if t('notifications_date') != 'notifications_date' else 'Date' }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for msg in messages %}
+                <tr>
+                    <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ msg.subject or '(no subject)' }}</td>
+                    <td>
+                        <span class="msg-channel-badge {{ msg.channel }}">
+                            {% if msg.channel == 'email' %}<i class="bi bi-envelope"></i>{% elif msg.channel == 'sms' %}<i class="bi bi-chat-dots"></i>{% else %}<i class="bi bi-send"></i>{% endif %}
+                            {{ msg.channel|upper }}
+                        </span>
+                    </td>
+                    <td style="font-weight:600;">{{ msg.recipient_count }}</td>
+                    <td><span class="msg-status {{ msg.status }}">{{ msg.status }}</span></td>
+                    <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-muted);">{{ msg.body[:80] }}{% if msg.body|length > 80 %}...{% endif %}</td>
+                    <td style="white-space:nowrap;font-size:12px;color:var(--text-muted);">{{ msg.created_at[:16] if msg.created_at else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-body empty-state" style="text-align:center;padding:40px;">
+        <i class="bi bi-chat-square-text" style="font-size:40px;color:var(--text-muted);opacity:.4;"></i>
+        <p style="margin-top:10px;color:var(--text-muted);">{{ t('msg_no_history') }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TEMPLATES = {
+    announcement: {
+        subject: 'Academy Announcement',
+        body: 'Dear members,\n\nWe have an important announcement to share with you.\n\n[Your announcement here]\n\nThank you for being part of our academy family!\n\nOss!'
+    },
+    payment: {
+        subject: 'Payment Reminder',
+        body: 'Dear member,\n\nThis is a friendly reminder that your membership payment is due.\n\nPlease ensure your payment is up to date to continue enjoying uninterrupted training.\n\nIf you have any questions, please don\'t hesitate to reach out.\n\nThank you!'
+    },
+    event: {
+        subject: 'Upcoming Event',
+        body: 'Dear members,\n\nWe are excited to announce an upcoming event!\n\nEvent: [Event Name]\nDate: [Date]\nTime: [Time]\nLocation: [Location]\n\nDon\'t miss out! Register now.\n\nOss!'
+    },
+    custom: {
+        subject: '',
+        body: ''
+    }
+};
+
+let currentFilter = 'all';
+
+function applyTemplate(key, btn) {
+    document.querySelectorAll('.tpl-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tpl = TEMPLATES[key];
+    document.getElementById('msgSubject').value = tpl.subject;
+    document.getElementById('msgBody').value = tpl.body;
+    if (key === 'custom') {
+        document.getElementById('msgSubject').focus();
+    }
+}
+
+function switchFilter(type, btn) {
+    currentFilter = type;
+    document.querySelectorAll('.recipient-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.filter-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + type).classList.add('active');
+    document.getElementById('filterType').value = type;
+
+    // Set initial filter value
+    if (type === 'status') {
+        updateFilterValue('status');
+    } else if (type === 'belt') {
+        updateFilterValue('belt');
+    } else if (type === 'plan') {
+        updateFilterValue('plan');
+    } else if (type === 'manual') {
+        updateManualIds();
+    } else {
+        document.getElementById('filterValue').value = '';
+    }
+    updatePreview();
+}
+
+function updateFilterValue(type) {
+    let val = '';
+    if (type === 'status') val = document.getElementById('statusSelect').value;
+    else if (type === 'belt') val = document.getElementById('beltSelect').value;
+    else if (type === 'plan') val = document.getElementById('planSelect').value;
+    document.getElementById('filterValue').value = val;
+}
+
+function updateManualIds() {
+    const checked = document.querySelectorAll('#memberPicker input:checked');
+    const ids = Array.from(checked).map(cb => cb.value);
+    document.getElementById('manualIds').value = ids.join(',');
+    document.getElementById('previewCount').textContent = ids.length;
+}
+
+function filterMembers() {
+    const q = document.getElementById('memberSearch').value.toLowerCase();
+    document.querySelectorAll('#memberPicker .member-pick-item').forEach(item => {
+        const name = item.dataset.name || '';
+        const email = item.dataset.email || '';
+        item.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
+    });
+}
+
+function updatePreview() {
+    if (currentFilter === 'manual') {
+        updateManualIds();
+        return;
+    }
+    const channel = document.querySelector('input[name="channel"]:checked').value;
+    const filterType = document.getElementById('filterType').value;
+    const filterValue = document.getElementById('filterValue').value;
+
+    fetch(`/api/messaging/preview?filter_type=${encodeURIComponent(filterType)}&filter_value=${encodeURIComponent(filterValue)}&channel=${encodeURIComponent(channel)}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('previewCount').textContent = data.count || 0;
+        })
+        .catch(() => {
+            document.getElementById('previewCount').textContent = '?';
+        });
+}
+
+// Confirm before sending
+document.getElementById('composeForm').addEventListener('submit', function(e) {
+    const count = document.getElementById('previewCount').textContent;
+    if (count === '0') {
+        e.preventDefault();
+        alert('{{ t("msg_no_recipients") }}');
+        return;
+    }
+    if (!confirm('Send message to ' + count + ' recipient(s)?')) {
+        e.preventDefault();
+    }
+});
+
+// Initial preview load
+updatePreview();
+</script>
+{% endblock %}

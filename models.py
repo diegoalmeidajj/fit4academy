@@ -258,6 +258,19 @@ def init_db():
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS messages (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id      INTEGER DEFAULT 1,
+            subject         TEXT DEFAULT '',
+            body            TEXT NOT NULL,
+            channel         TEXT DEFAULT 'email',
+            recipient_filter TEXT DEFAULT 'all',
+            recipient_count INTEGER DEFAULT 0,
+            sent_by         INTEGER REFERENCES users(id),
+            status          TEXT DEFAULT 'sent',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS audit_log (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     INTEGER,
@@ -1766,6 +1779,99 @@ def delete_notification(notif_id):
     conn.commit()
     conn.close()
     return True
+
+
+# ═══════════════════════════════════════════════════════════════
+#  MESSAGES (Mass Communication)
+# ═══════════════════════════════════════════════════════════════
+
+def create_message(academy_id=1, **kwargs):
+    conn = get_db()
+    cur = conn.execute(
+        """INSERT INTO messages (academy_id, subject, body, channel, recipient_filter,
+           recipient_count, sent_by, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (academy_id, kwargs.get('subject', ''), kwargs.get('body', ''),
+         kwargs.get('channel', 'email'), kwargs.get('recipient_filter', 'all'),
+         kwargs.get('recipient_count', 0), kwargs.get('sent_by'),
+         kwargs.get('status', 'sent'))
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return new_id
+
+
+def get_all_messages(academy_id=1, limit=50):
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT msg.*, u.name as sent_by_name
+           FROM messages msg
+           LEFT JOIN users u ON msg.sent_by = u.id
+           WHERE msg.academy_id = ?
+           ORDER BY msg.created_at DESC
+           LIMIT ?""",
+        (academy_id, limit)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_members_by_filter(academy_id=1, filter_type='all', filter_value=''):
+    """Get members matching a filter for messaging."""
+    conn = get_db()
+    if filter_type == 'status':
+        rows = conn.execute(
+            """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               WHERE m.academy_id = ? AND m.membership_status = ? AND m.active = 1
+               ORDER BY m.last_name, m.first_name""",
+            (academy_id, filter_value)
+        ).fetchall()
+    elif filter_type == 'belt':
+        rows = conn.execute(
+            """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               LEFT JOIN belt_ranks b ON m.belt_rank_id = b.id
+               WHERE m.academy_id = ? AND LOWER(b.name) = LOWER(?) AND m.active = 1
+               ORDER BY m.last_name, m.first_name""",
+            (academy_id, filter_value)
+        ).fetchall()
+    elif filter_type == 'plan':
+        rows = conn.execute(
+            """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               JOIN memberships ms ON ms.member_id = m.id
+               WHERE m.academy_id = ? AND ms.plan_id = ? AND ms.status = 'active' AND m.active = 1
+               ORDER BY m.last_name, m.first_name""",
+            (academy_id, filter_value)
+        ).fetchall()
+    elif filter_type == 'manual':
+        if not filter_value:
+            conn.close()
+            return []
+        ids = [int(x) for x in filter_value.split(',') if x.strip().isdigit()]
+        if not ids:
+            conn.close()
+            return []
+        placeholders = ','.join('?' * len(ids))
+        rows = conn.execute(
+            f"""SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               WHERE m.academy_id = ? AND m.id IN ({placeholders}) AND m.active = 1
+               ORDER BY m.last_name, m.first_name""",
+            [academy_id] + ids
+        ).fetchall()
+    else:  # 'all'
+        rows = conn.execute(
+            """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               WHERE m.academy_id = ? AND m.active = 1
+               ORDER BY m.last_name, m.first_name""",
+            (academy_id,)
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 # ═══════════════════════════════════════════════════════════════
