@@ -25,6 +25,7 @@
                     <select name="type" class="form-select" required onchange="updateClassColor()">
                         <option value="Gi" {{ 'selected' if cls and cls.type == 'Gi' }}>{{ t('class_gi') }}</option>
                         <option value="NoGi" {{ 'selected' if cls and cls.type == 'NoGi' }}>{{ t('class_nogi') }}</option>
+                        <option value="GiNoGi" {{ 'selected' if cls and cls.type == 'GiNoGi' }}>Gi & No-Gi</option>
                         <option value="Kids" {{ 'selected' if cls and cls.type == 'Kids' }}>{{ t('class_kids') }}</option>
                         <option value="Open" {{ 'selected' if cls and cls.type == 'Open' }}>{{ t('class_open') }}</option>
                     </select>
@@ -125,7 +126,7 @@
 <script>
 function updateClassColor() {
     const type = document.querySelector('[name=type]').value.toLowerCase();
-    const colors = {gi:'#1d4ed8', nogi:'#eab308', kids:'#10b981', open:'#7c3aed'};
+    const colors = {gi:'#1d4ed8', nogi:'#eab308', ginogi:'#f97316', kids:'#10b981', open:'#7c3aed'};
     const bar = document.getElementById('classColorBar');
     if (bar) bar.style.background = colors[type] || '#6366f1';
 }

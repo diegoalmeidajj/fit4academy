@@ -21,6 +21,7 @@
 .class-block:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); border-color: var(--primary); }
 .class-block.gi::before { background: #1d4ed8; }
 .class-block.nogi::before { background: #eab308; }
+.class-block.ginogi::before { background: #f97316; }
 .class-block.kids::before { background: #10b981; }
 .class-block.open::before { background: #7c3aed; }
 
@@ -32,6 +33,7 @@
 .type-badge { padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
 .type-gi { background: rgba(29,78,216,.12); color: #1d4ed8; }
 .type-nogi { background: rgba(234,179,8,.12); color: #b45309; }
+.type-ginogi { background: rgba(249,115,22,.12); color: #ea580c; }
 .type-kids { background: rgba(16,185,129,.12); color: #059669; }
 .type-open { background: rgba(124,58,237,.12); color: #7c3aed; }
 
@@ -93,6 +95,7 @@
         <button class="filter-pill active" onclick="filterClasses('all', this)">{{ t('all') }}</button>
         <button class="filter-pill" onclick="filterClasses('gi', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1d4ed8;margin-right:4px;"></span> {{ t('class_gi') }}</button>
         <button class="filter-pill" onclick="filterClasses('nogi', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#eab308;margin-right:4px;"></span> {{ t('class_nogi') }}</button>
+        <button class="filter-pill" onclick="filterClasses('ginogi', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;margin-right:4px;"></span> Gi & No-Gi</button>
         <button class="filter-pill" onclick="filterClasses('kids', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:4px;"></span> {{ t('class_kids') }}</button>
         <button class="filter-pill" onclick="filterClasses('open', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7c3aed;margin-right:4px;"></span> {{ t('class_open') }}</button>
     </div>
@@ -121,7 +124,7 @@
                     <span class="class-block-meta"><i class="bi bi-people"></i> {{ cls.capacity }}</span>
                 </div>
                 <div class="class-block-instructor">
-                    <i class="bi bi-person-fill"></i> {{ cls.instructor or 'TBA' }}
+                    <i class="bi bi-person-fill"></i> {{ cls.instructor or 'No instructor' }}
                 </div>
             </a>
             {% endfor %}

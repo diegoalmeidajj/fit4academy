@@ -1457,15 +1457,26 @@ def class_add():
             return redirect(url_for('class_add'))
 
         try:
+            # Get instructor name from ID
+            instructor_name = ''
+            instructor_id = request.form.get('instructor_id', '')
+            if instructor_id:
+                try:
+                    inst_user = models.get_user(int(instructor_id))
+                    if inst_user:
+                        instructor_name = inst_user.get('name', '')
+                except Exception:
+                    pass
+
             class_id = models.create_class(
                 academy_id=academy_id,
                 name=request.form.get('name', '').strip(),
-                class_type=request.form.get('class_type', 'gi'),
-                instructor=request.form.get('instructor', '').strip(),
+                class_type=request.form.get('type', 'gi'),
+                instructor=instructor_name,
                 description=request.form.get('description', ''),
                 duration=int(request.form.get('duration', 60)),
                 max_capacity=int(request.form.get('max_capacity', 30)),
-                belt_level=request.form.get('belt_level', 'all'),
+                belt_level=request.form.get('belt_minimum', 'all'),
             )
 
             # Create schedule entries
@@ -1515,14 +1526,25 @@ def class_edit(class_id):
         if not validate_csrf():
             return redirect(url_for('class_edit', class_id=class_id))
         try:
+            # Get instructor name from ID
+            instructor_name = ''
+            instructor_id = request.form.get('instructor_id', '')
+            if instructor_id:
+                try:
+                    inst_user = models.get_user(int(instructor_id))
+                    if inst_user:
+                        instructor_name = inst_user.get('name', '')
+                except Exception:
+                    pass
+
             models.update_class(class_id,
                 name=request.form.get('name', '').strip(),
-                class_type=request.form.get('class_type', 'gi'),
-                instructor=request.form.get('instructor', '').strip(),
+                class_type=request.form.get('type', 'gi'),
+                instructor=instructor_name,
                 description=request.form.get('description', ''),
                 duration=int(request.form.get('duration', 60)),
                 max_capacity=int(request.form.get('max_capacity', 30)),
-                belt_level=request.form.get('belt_level', 'all'),
+                belt_level=request.form.get('belt_minimum', 'all'),
             )
 
             # Update schedule: delete old, create new
