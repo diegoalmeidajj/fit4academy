@@ -86,23 +86,21 @@
                 <div class="form-section-title"><i class="bi bi-award"></i> {{ t('member_academy_info') }}</div>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label class="form-label">{{ t('member_belt') }} *</label>
-                        <select name="belt" class="form-select" required>
-                            <option value="White" {{ 'selected' if member and member.belt == 'White' }}>{{ t('belt_white') }}</option>
-                            <option value="Blue" {{ 'selected' if member and member.belt == 'Blue' }}>{{ t('belt_blue') }}</option>
-                            <option value="Purple" {{ 'selected' if member and member.belt == 'Purple' }}>{{ t('belt_purple') }}</option>
-                            <option value="Brown" {{ 'selected' if member and member.belt == 'Brown' }}>{{ t('belt_brown') }}</option>
-                            <option value="Black" {{ 'selected' if member and member.belt == 'Black' }}>{{ t('belt_black') }}</option>
+                        <label class="form-label">Category</label>
+                        <select id="beltCategory" class="form-select" onchange="updateBeltOptions()">
+                            <option value="kids" {{ 'selected' if member and member.belt in ['White','Grey','Yellow','Orange','Green'] and member.belt != 'White' }}>Kids (4-15)</option>
+                            <option value="adults" {{ 'selected' if not member or member.belt in ['White','Blue','Purple','Brown','Black','Red/Black','Red/White','Red'] }}>Adults (16+)</option>
                         </select>
                     </div>
                     <div class="form-group">
+                        <label class="form-label">{{ t('member_belt') }} *</label>
+                        <select name="belt" id="beltSelect" class="form-select" required onchange="updateStripeOptions()">
+                        </select>
+                        <div id="beltColorBar" style="height:4px;border-radius:0 0 8px 8px;margin-top:2px;transition:background .3s;"></div>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">{{ t('member_stripes') }}</label>
-                        <select name="stripes" class="form-select">
-                            <option value="0" {{ 'selected' if not member or member.stripes == 0 }}>0</option>
-                            <option value="1" {{ 'selected' if member and member.stripes == 1 }}>1</option>
-                            <option value="2" {{ 'selected' if member and member.stripes == 2 }}>2</option>
-                            <option value="3" {{ 'selected' if member and member.stripes == 3 }}>3</option>
-                            <option value="4" {{ 'selected' if member and member.stripes == 4 }}>4</option>
+                        <select name="stripes" id="stripesSelect" class="form-select">
                         </select>
                     </div>
                     <div class="form-group">
@@ -199,5 +197,103 @@ function previewPhoto(input) {
         reader.readAsDataURL(input.files[0]);
     }
 }
+
+/* ===== Smart Belt System ===== */
+const BELTS = {
+    kids: [
+        {name:'White', color:'#e2e8f0', text:'#334155', stripes:4},
+        {name:'Grey', color:'#808080', text:'#fff', stripes:4},
+        {name:'Yellow', color:'#FFD700', text:'#1a1a2e', stripes:4},
+        {name:'Orange', color:'#FF8C00', text:'#fff', stripes:4},
+        {name:'Green', color:'#228B22', text:'#fff', stripes:4},
+    ],
+    adults: [
+        {name:'White', color:'#e2e8f0', text:'#334155', stripes:4},
+        {name:'Blue', color:'#0056B3', text:'#fff', stripes:4},
+        {name:'Purple', color:'#6F42C1', text:'#fff', stripes:4},
+        {name:'Brown', color:'#8B4513', text:'#fff', stripes:4},
+        {name:'Black', color:'#000000', text:'#fff', stripes:6},
+        {name:'Red/Black', color:'#8B0000', text:'#fff', stripes:0},
+        {name:'Red/White', color:'#DC143C', text:'#fff', stripes:0},
+        {name:'Red', color:'#FF0000', text:'#fff', stripes:0},
+    ]
+};
+
+const CURRENT_BELT = '{{ member.belt if member else "White" }}';
+const CURRENT_STRIPES = {{ member.stripes if member else 0 }};
+
+function updateBeltOptions() {
+    const cat = document.getElementById('beltCategory').value;
+    const sel = document.getElementById('beltSelect');
+    const belts = BELTS[cat] || BELTS.adults;
+
+    sel.innerHTML = '';
+    belts.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.name;
+        opt.textContent = b.name;
+        opt.style.background = b.color;
+        opt.style.color = b.text;
+        opt.style.fontWeight = '700';
+        if (b.name === CURRENT_BELT) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    updateStripeOptions();
+    updateBeltColor();
+}
+
+function updateStripeOptions() {
+    const cat = document.getElementById('beltCategory').value;
+    const beltName = document.getElementById('beltSelect').value;
+    const belts = BELTS[cat] || BELTS.adults;
+    const belt = belts.find(b => b.name === beltName);
+    const maxStripes = belt ? belt.stripes : 4;
+
+    const sel = document.getElementById('stripesSelect');
+    sel.innerHTML = '';
+    for (let i = 0; i <= maxStripes; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        if (i === CURRENT_STRIPES) opt.selected = true;
+        sel.appendChild(opt);
+    }
+
+    updateBeltColor();
+}
+
+function updateBeltColor() {
+    const cat = document.getElementById('beltCategory').value;
+    const beltName = document.getElementById('beltSelect').value;
+    const belts = BELTS[cat] || BELTS.adults;
+    const belt = belts.find(b => b.name === beltName);
+    const bar = document.getElementById('beltColorBar');
+    if (bar && belt) bar.style.background = belt.color;
+}
+
+// Auto-detect category from DOB
+document.querySelector('[name=dob]').addEventListener('change', function() {
+    const dob = this.value;
+    if (!dob) return;
+    const age = Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+    const cat = document.getElementById('beltCategory');
+    if (age < 16) {
+        cat.value = 'kids';
+    } else {
+        cat.value = 'adults';
+    }
+    updateBeltOptions();
+});
+
+// Init on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Detect category from current belt
+    const kidsBelts = ['Grey','Yellow','Orange','Green'];
+    if (kidsBelts.includes(CURRENT_BELT)) {
+        document.getElementById('beltCategory').value = 'kids';
+    }
+    updateBeltOptions();
+});
 </script>
 {% endblock %}
