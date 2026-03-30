@@ -47,7 +47,7 @@
 
 <!-- Growth Stats -->
 {% if total_members|default(0) > 0 %}
-<div class="grid-3 mb-16">
+<div class="grid-4 mb-16">
     <!-- Growth -->
     <div class="card" style="padding:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -84,6 +84,17 @@
                 <div style="font-size:11px;color:var(--text-muted);font-weight:600;">{{ t('stats_this_month') }}</div>
             </div>
             <canvas id="sparkLeads" width="80" height="40"></canvas>
+        </div>
+    </div>
+    <!-- Lost Members -->
+    <div class="card" style="padding:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('stats_lost_members') }}</div>
+                <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:var(--danger);">{{ lost_this_month|default(0) }}</div>
+                <div style="font-size:11px;color:var(--danger);font-weight:600;">{{ t('stats_this_month') }}</div>
+            </div>
+            <canvas id="sparkLost" width="80" height="40"></canvas>
         </div>
     </div>
 </div>
@@ -314,6 +325,7 @@ function bulkExport() {
 (function() {
     const growthData = {{ member_months|default([])|tojson }};
     const leadsData = {{ leads_months|default([])|tojson }};
+    const lostData = {{ lost_months|default([])|tojson }};
 
     function sparkline(canvasId, data, color) {
         const el = document.getElementById(canvasId);
@@ -344,6 +356,7 @@ function bulkExport() {
     sparkline('sparkGrowth', growthData, '#6366f1');
     sparkline('sparkMembers', growthData, '#10b981');
     sparkline('sparkLeads', leadsData, '#f59e0b');
+    sparkline('sparkLost', lostData, '#ef4444');
 })();
 
 /* ===== Filters ===== */

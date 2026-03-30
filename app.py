@@ -507,6 +507,21 @@ def members_list():
         leads_months.append(count)
     new_leads_this_month = leads_months[-1] if leads_months else 0
 
+    # Lost members per month (inactive/expired by updated_at or join context)
+    lost_months = []
+    all_inactive = [m for m in members if m.get('status') in ('inactive', 'expired')]
+    for i in range(5, -1, -1):
+        m_num = today.month - i
+        y = today.year
+        while m_num <= 0:
+            m_num += 12
+            y -= 1
+        month_key = f"{y}-{m_num:02d}"
+        count = sum(1 for mb in all_inactive
+                    if str(mb.get('updated_at', '') or mb.get('join_date', '') or '')[:7] == month_key)
+        lost_months.append(count)
+    lost_this_month = lost_months[-1] if lost_months else 0
+
     return render_template('members.html',
         members=paginated,
         membership_plans=plans_display,
@@ -519,6 +534,8 @@ def members_list():
         new_leads_this_month=new_leads_this_month,
         member_months=member_months,
         leads_months=leads_months,
+        lost_this_month=lost_this_month,
+        lost_months=lost_months,
     )
 
 
