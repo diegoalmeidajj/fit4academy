@@ -729,7 +729,7 @@ def members_export_csv():
     ids_str = request.args.get('ids', '')
 
     try:
-        all_members = models.get_all_members(academy_id)
+        all_members = models.get_all_members_enriched(academy_id)
     except Exception:
         all_members = []
 
@@ -742,28 +742,87 @@ def members_export_csv():
                 pass
         all_members = [m for m in all_members if m.get('id') in id_set]
 
+    # Load belt ranks for progression info
+    try:
+        belt_ranks = models.get_all_belt_ranks()
+    except Exception:
+        belt_ranks = []
+    belt_map = {}
+    for b in (belt_ranks or []):
+        belt_map[b.get('id')] = b
+
+    # Belt progression order
+    belt_order = {1: 2, 2: 3, 3: 4, 4: 5}  # White->Blue->Purple->Brown->Black
+
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['first_name', 'last_name', 'email', 'phone', 'date_of_birth',
-                     'gender', 'belt', 'stripes', 'status', 'join_date',
-                     'emergency_contact', 'emergency_phone', 'medical_notes', 'source', 'notes'])
+    writer.writerow([
+        'First Name', 'Last Name', 'Email', 'Phone', 'Date of Birth', 'Gender',
+        'Belt', 'Belt Color', 'Stripes', 'Max Stripes',
+        'Status', 'Membership Plan', 'Join Date',
+        'Emergency Contact', 'Emergency Phone', 'Medical Notes',
+        'Last Check-in', 'Months at Belt', 'Min Months for Next Belt',
+        'Progress to Next Belt/Stripe', 'Source', 'Notes',
+    ])
 
-    belt_names = {1: 'White', 2: 'Blue', 3: 'Purple', 4: 'Brown', 5: 'Black'}
+    today = date.today()
     for m in all_members:
+        belt_id = m.get('belt_rank_id', 1)
+        belt_info = belt_map.get(belt_id, {})
+        belt_name = belt_info.get('name', m.get('belt_name', 'White'))
+        belt_color = belt_info.get('color', '')
+        max_stripes = belt_info.get('max_stripes', 4)
+        stripes = m.get('stripes', 0) or 0
+
+        # Calculate months at current belt
+        join_str = str(m.get('join_date', '') or '')[:10]
+        months_at_belt = 0
+        if join_str:
+            try:
+                join_dt = datetime.strptime(join_str, '%Y-%m-%d').date()
+                months_at_belt = (today.year - join_dt.year) * 12 + (today.month - join_dt.month)
+                if months_at_belt < 0:
+                    months_at_belt = 0
+            except Exception:
+                pass
+
+        # Next belt info
+        next_belt_id = belt_order.get(belt_id)
+        next_belt_info = belt_map.get(next_belt_id, {})
+        min_months_next = next_belt_info.get('min_months', 0)
+
+        # Progress calculation
+        if stripes < max_stripes:
+            progress = f'{stripes}/{max_stripes} stripes — next stripe'
+        elif next_belt_id and min_months_next > 0:
+            pct = min(100, int(months_at_belt / min_months_next * 100))
+            next_name = next_belt_info.get('name', '')
+            progress = f'{months_at_belt}/{min_months_next} months ({pct}%) — {next_name} belt'
+        elif next_belt_id:
+            next_name = next_belt_info.get('name', '')
+            progress = f'Ready for {next_name} belt'
+        else:
+            progress = 'Black belt'
+
+        last_checkin = str(m.get('last_checkin', '') or '')[:16]
+
         writer.writerow([
             m.get('first_name', ''), m.get('last_name', ''), m.get('email', ''),
             m.get('phone', ''), m.get('date_of_birth', ''), m.get('gender', ''),
-            belt_names.get(m.get('belt_rank_id', 1), 'White'), m.get('stripes', 0),
-            m.get('membership_status', ''), m.get('join_date', ''),
+            belt_name, belt_color, stripes, max_stripes,
+            m.get('membership_status', ''), m.get('plan_name', '') or '',
+            join_str,
             m.get('emergency_contact', ''), m.get('emergency_phone', ''),
-            m.get('medical_notes', ''), m.get('source', ''), m.get('notes', ''),
+            m.get('medical_notes', ''),
+            last_checkin, months_at_belt, min_months_next,
+            progress, m.get('source', ''), m.get('notes', ''),
         ])
 
     from flask import Response
     return Response(
         output.getvalue(),
         mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=members_export.csv'}
+        headers={'Content-Disposition': f'attachment; filename=members_export_{today.strftime("%Y%m%d")}.csv'}
     )
 
 
