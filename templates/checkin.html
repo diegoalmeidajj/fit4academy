@@ -2,106 +2,362 @@
 {% block title %}{{ t('nav_checkin') }}{% endblock %}
 
 {% block extra_css %}
-.kiosk-search { max-width: 600px; margin: 0 auto 24px; }
-.kiosk-search input { font-size: 18px; padding: 16px 20px 16px 48px; border-radius: 16px; border: 2px solid var(--border); width: 100%; background: var(--card-bg); color: var(--text); }
-.kiosk-search input:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,.12); outline: none; }
-.kiosk-search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 20px; color: var(--text-muted); }
+/* ===== KIOSK HEADER ===== */
+.kiosk-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; margin: -12px -12px 20px;
+    background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.06));
+    border-radius: 18px; border: 1px solid rgba(99,102,241,.12);
+}
+.kiosk-header-left { display: flex; align-items: center; gap: 14px; }
+.kiosk-header-left img { width: 44px; height: 44px; border-radius: 12px; object-fit: contain; }
+.kiosk-header-left .kiosk-brand { font-family: 'Space Grotesk'; font-size: 22px; font-weight: 700; }
+.kiosk-header-center { text-align: center; }
+.kiosk-clock { font-family: 'Space Grotesk'; font-size: 32px; font-weight: 700; letter-spacing: 1px; }
+.kiosk-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.kiosk-header-right { text-align: right; }
+.kiosk-class-name { font-family: 'Space Grotesk'; font-size: 15px; font-weight: 700; color: var(--primary); }
+.kiosk-class-time { font-size: 12px; color: var(--text-muted); }
+.kiosk-today-count { margin-top: 6px; font-size: 13px; font-weight: 600; }
+.kiosk-today-count span { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 800; color: var(--success); }
 
-.current-class { text-align: center; margin-bottom: 24px; padding: 16px; background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.08)); border-radius: 14px; border: 1px solid rgba(99,102,241,.15); }
-.current-class-name { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 700; }
-.current-class-time { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+/* ===== TAB SWITCHER ===== */
+.kiosk-tabs {
+    display: flex; justify-content: center; gap: 6px;
+    margin-bottom: 28px; padding: 5px;
+    background: rgba(99,102,241,.06); border-radius: 16px;
+    width: fit-content; margin-left: auto; margin-right: auto;
+    border: 1px solid rgba(99,102,241,.1);
+}
+.kiosk-tab {
+    padding: 12px 32px; border-radius: 12px; cursor: pointer;
+    font-family: 'Space Grotesk'; font-size: 15px; font-weight: 600;
+    color: var(--text-muted); transition: all .25s ease;
+    display: flex; align-items: center; gap: 8px;
+    background: transparent; border: none; user-select: none;
+}
+.kiosk-tab:hover { color: var(--text); background: rgba(99,102,241,.06); }
+.kiosk-tab.active {
+    background: rgba(99,102,241,.15); color: var(--primary);
+    box-shadow: 0 2px 12px rgba(99,102,241,.15);
+    backdrop-filter: blur(8px);
+}
+.kiosk-tab i { font-size: 18px; }
 
-.qr-area { max-width: 300px; margin: 0 auto 24px; border-radius: 16px; overflow: hidden; border: 2px dashed var(--border); background: var(--card-bg); min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted); }
-.qr-area i { font-size: 48px; opacity: .3; }
-.qr-area p { font-size: 13px; }
+/* ===== TAB PANELS ===== */
+.kiosk-panel { display: none; animation: panelFadeIn .3s ease; }
+.kiosk-panel.active { display: block; }
+@keyframes panelFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-.member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
-.member-tap-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 16px 12px; text-align: center; cursor: pointer; transition: all .2s; text-decoration: none; color: var(--text); }
-.member-tap-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); border-color: var(--primary); }
-.member-tap-card .tap-photo { width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 8px; overflow: hidden; background: linear-gradient(135deg,#6366f1,#a855f7); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 18px; font-family: 'Space Grotesk'; }
+/* ===== PIN PAD ===== */
+.pin-container { max-width: 380px; margin: 0 auto; }
+.pin-display {
+    background: var(--card-bg); border: 2px solid var(--border);
+    border-radius: 18px; padding: 28px 20px; text-align: center;
+    margin-bottom: 20px; position: relative; overflow: hidden;
+}
+.pin-display::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(99,102,241,.04), rgba(139,92,246,.04));
+    pointer-events: none;
+}
+.pin-label { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
+.pin-dots {
+    display: flex; justify-content: center; gap: 16px; min-height: 48px; align-items: center;
+}
+.pin-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border); background: transparent;
+    transition: all .2s ease;
+}
+.pin-dot.filled {
+    background: var(--primary); border-color: var(--primary);
+    box-shadow: 0 0 12px rgba(99,102,241,.4);
+    animation: dotPop .2s ease;
+}
+@keyframes dotPop { 0% { transform: scale(.6); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+.pin-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
+
+.pin-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.pin-btn {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; font-family: 'Space Grotesk';
+    font-size: 28px; font-weight: 700; color: var(--text);
+    cursor: pointer; transition: all .15s ease; user-select: none;
+    position: relative; overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+.pin-btn::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    pointer-events: none;
+}
+.pin-btn:hover { background: rgba(99,102,241,.08); border-color: var(--primary); transform: scale(1.03); }
+.pin-btn:active { transform: scale(.96); background: rgba(99,102,241,.15); }
+.pin-btn.pin-action {
+    font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif;
+    letter-spacing: .5px;
+}
+.pin-btn.pin-clear { color: var(--danger); }
+.pin-btn.pin-enter { background: rgba(99,102,241,.1); color: var(--primary); border-color: rgba(99,102,241,.2); }
+
+/* ===== QR SCAN ===== */
+.qr-container { max-width: 480px; margin: 0 auto; text-align: center; }
+.qr-area {
+    border-radius: 20px; overflow: hidden;
+    border: 2px dashed var(--border); background: var(--card-bg);
+    min-height: 360px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    color: var(--text-muted); position: relative;
+}
+.qr-area::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(99,102,241,.03), rgba(139,92,246,.03));
+    pointer-events: none;
+}
+.qr-area i { font-size: 56px; opacity: .25; }
+.qr-area p { font-size: 14px; max-width: 260px; line-height: 1.5; }
+.qr-instructions {
+    margin-top: 16px; font-size: 13px; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+/* ===== QUICK TAP ===== */
+.tap-search { max-width: 500px; margin: 0 auto 20px; position: relative; }
+.tap-search input {
+    font-size: 16px; padding: 14px 18px 14px 46px; border-radius: 14px;
+    border: 2px solid var(--border); width: 100%; background: var(--card-bg);
+    color: var(--text); transition: border-color .2s;
+}
+.tap-search input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99,102,241,.1); outline: none; }
+.tap-search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--text-muted); }
+
+.member-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px; max-width: 900px; margin: 0 auto;
+}
+.member-tap-card {
+    background: var(--card-bg); border: 2px solid var(--border);
+    border-radius: 16px; padding: 20px 14px; text-align: center;
+    cursor: pointer; transition: all .2s ease; text-decoration: none;
+    color: var(--text); position: relative; overflow: hidden;
+}
+.member-tap-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.03), transparent);
+    pointer-events: none;
+}
+.member-tap-card:hover {
+    transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    border-color: var(--primary);
+}
+.member-tap-card:active { transform: scale(.97); }
+.member-tap-card .tap-photo {
+    width: 68px; height: 68px; border-radius: 50%;
+    margin: 0 auto 10px; overflow: hidden;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 20px; font-family: 'Space Grotesk';
+    border: 3px solid var(--border);
+}
+/* Belt color borders */
+.member-tap-card[data-belt="white"] .tap-photo { border-color: #e2e8f0; }
+.member-tap-card[data-belt="blue"] .tap-photo { border-color: #1d4ed8; }
+.member-tap-card[data-belt="purple"] .tap-photo { border-color: #7c3aed; }
+.member-tap-card[data-belt="brown"] .tap-photo { border-color: #78350f; }
+.member-tap-card[data-belt="black"] .tap-photo { border-color: #0f172a; }
+.member-tap-card[data-belt="yellow"] .tap-photo { border-color: #eab308; }
+.member-tap-card[data-belt="orange"] .tap-photo { border-color: #ea580c; }
+.member-tap-card[data-belt="green"] .tap-photo { border-color: #16a34a; }
+.member-tap-card[data-belt="grey"] .tap-photo { border-color: #6b7280; }
+.member-tap-card[data-belt="red"] .tap-photo { border-color: #dc2626; }
 .member-tap-card .tap-photo img { width: 100%; height: 100%; object-fit: cover; }
-.member-tap-card .tap-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.member-tap-card .tap-belt { margin-top: 4px; }
+.member-tap-card .tap-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+.member-tap-card .tap-belt { margin-bottom: 4px; }
+.member-tap-card .tap-streak { font-size: 11px; color: var(--warning); font-weight: 600; }
 
-/* Success animation */
-.checkin-success-overlay { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); }
+/* ===== SUCCESS OVERLAY ===== */
+.checkin-success-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.7); backdrop-filter: blur(12px);
+}
 .checkin-success-overlay.show { display: flex; }
-.checkin-success-card { background: #10b981; border-radius: 24px; padding: 48px; text-align: center; color: #fff; animation: successPop .4s ease; max-width: 400px; }
-@keyframes successPop { 0% { transform: scale(.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-.checkin-success-card i { font-size: 64px; margin-bottom: 16px; }
-.checkin-success-card h2 { font-family: 'Space Grotesk'; font-size: 28px; margin-bottom: 8px; }
-.checkin-success-card p { opacity: .8; font-size: 15px; }
+.checkin-success-card {
+    background: linear-gradient(135deg, #059669, #10b981);
+    border-radius: 28px; padding: 56px 64px; text-align: center;
+    color: #fff; animation: successPop .4s cubic-bezier(.34,1.56,.64,1);
+    max-width: 460px; width: 90%; box-shadow: 0 24px 64px rgba(16,185,129,.3);
+}
+@keyframes successPop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.success-icon { font-size: 80px; margin-bottom: 20px; display: block; }
+.success-name { font-family: 'Space Grotesk'; font-size: 34px; font-weight: 800; margin-bottom: 8px; }
+.success-belt { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; background: rgba(255,255,255,.2); margin-bottom: 12px; }
+.success-streak { font-size: 22px; font-weight: 700; margin-top: 8px; }
+.success-sub { opacity: .85; font-size: 15px; margin-top: 8px; }
 
-.fullscreen-btn { position: fixed; bottom: 72px; right: 20px; z-index: 200; }
+/* ===== FULLSCREEN BTN ===== */
+.fullscreen-btn { position: fixed; bottom: 24px; right: 24px; z-index: 200; border-radius: 14px; padding: 12px 14px; }
+
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-    .member-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
-    .fullscreen-btn { bottom: 64px; right: 12px; }
+    .kiosk-header { flex-direction: column; gap: 12px; text-align: center; padding: 14px 16px; }
+    .kiosk-header-right { text-align: center; }
+    .kiosk-tabs { flex-direction: row; width: 100%; }
+    .kiosk-tab { flex: 1; justify-content: center; padding: 10px 12px; font-size: 13px; }
+    .kiosk-tab span { display: none; }
+    .member-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+    .pin-container { max-width: 320px; }
+    .pin-btn { padding: 16px; font-size: 24px; }
+    .checkin-success-card { padding: 40px 32px; }
+    .success-name { font-size: 26px; }
+    .fullscreen-btn { bottom: 16px; right: 16px; }
+}
+@media (max-width: 480px) {
+    .kiosk-clock { font-size: 24px; }
+    .pin-btn { padding: 14px; font-size: 22px; border-radius: 12px; }
+    .pin-dots { gap: 12px; }
+    .pin-dot { width: 16px; height: 16px; }
 }
 {% endblock %}
 
 {% block content %}
-<div class="topbar">
-    <h1><i class="bi bi-qr-code-scan" style="color:var(--primary);"></i> {{ t('checkin_title') }}</h1>
+<!-- ===== KIOSK HEADER ===== -->
+<div class="kiosk-header">
+    <div class="kiosk-header-left">
+        <i class="bi bi-shield-check" style="font-size:36px;color:var(--primary);"></i>
+        <div class="kiosk-brand">{{ t('checkin_title') }}</div>
+    </div>
+    <div class="kiosk-header-center">
+        <div class="kiosk-clock" id="kioskClock">--:--:--</div>
+        <div class="kiosk-date" id="kioskDate"></div>
+    </div>
+    <div class="kiosk-header-right">
+        {% if current_class %}
+        <div class="kiosk-class-name"><i class="bi bi-mortarboard-fill"></i> {{ current_class.name }}</div>
+        <div class="kiosk-class-time">{{ current_class.start_time }} - {{ current_class.end_time }} &middot; {{ current_class.instructor }}</div>
+        {% else %}
+        <div class="kiosk-class-name" style="opacity:.4;"><i class="bi bi-calendar-x"></i> No class right now</div>
+        {% endif %}
+        <div class="kiosk-today-count"><span>{{ today_checkins|length }}</span> check-ins today</div>
+    </div>
 </div>
 
-<!-- Current class auto-detected -->
-{% if current_class %}
-<div class="current-class">
-    <div class="current-class-name">{{ current_class.name }}</div>
-    <div class="current-class-time"><i class="bi bi-clock"></i> {{ current_class.start_time }} - {{ current_class.end_time }} · {{ current_class.instructor }}</div>
+<!-- ===== TAB SWITCHER ===== -->
+<div class="kiosk-tabs" id="kioskTabs">
+    <button class="kiosk-tab active" data-tab="pin" onclick="switchTab('pin')">
+        <i class="bi bi-grid-3x3-gap-fill"></i> <span>PIN</span>
+    </button>
+    <button class="kiosk-tab" data-tab="qr" onclick="switchTab('qr')">
+        <i class="bi bi-qr-code-scan"></i> <span>QR Scan</span>
+    </button>
+    <button class="kiosk-tab" data-tab="tap" onclick="switchTab('tap')">
+        <i class="bi bi-hand-index-thumb-fill"></i> <span>Quick Tap</span>
+    </button>
 </div>
-{% endif %}
 
-<!-- Search bar -->
-<div class="kiosk-search" style="position:relative;">
-    <i class="bi bi-search kiosk-search-icon"></i>
-    <input type="text" id="kioskSearch" placeholder="{{ t('checkin_search_ph') }}" autofocus oninput="filterKioskMembers(this.value)">
+<!-- ===== PIN PANEL ===== -->
+<div class="kiosk-panel active" id="panelPin">
+    <div class="pin-container">
+        <div class="pin-display">
+            <div class="pin-label">Enter Your 4-Digit PIN</div>
+            <div class="pin-dots">
+                <div class="pin-dot" id="dot0"></div>
+                <div class="pin-dot" id="dot1"></div>
+                <div class="pin-dot" id="dot2"></div>
+                <div class="pin-dot" id="dot3"></div>
+            </div>
+            <div class="pin-error" id="pinError">Invalid PIN. Please try again.</div>
+        </div>
+        <div class="pin-grid">
+            <button class="pin-btn" onclick="pinPress('1')" type="button">1</button>
+            <button class="pin-btn" onclick="pinPress('2')" type="button">2</button>
+            <button class="pin-btn" onclick="pinPress('3')" type="button">3</button>
+            <button class="pin-btn" onclick="pinPress('4')" type="button">4</button>
+            <button class="pin-btn" onclick="pinPress('5')" type="button">5</button>
+            <button class="pin-btn" onclick="pinPress('6')" type="button">6</button>
+            <button class="pin-btn" onclick="pinPress('7')" type="button">7</button>
+            <button class="pin-btn" onclick="pinPress('8')" type="button">8</button>
+            <button class="pin-btn" onclick="pinPress('9')" type="button">9</button>
+            <button class="pin-btn pin-action pin-clear" onclick="pinClear()" type="button"><i class="bi bi-x-lg"></i> Clear</button>
+            <button class="pin-btn" onclick="pinPress('0')" type="button">0</button>
+            <button class="pin-btn pin-action pin-enter" onclick="pinSubmit()" type="button"><i class="bi bi-arrow-return-left"></i> Enter</button>
+        </div>
+    </div>
+
+    <!-- Hidden PIN form -->
+    <form method="post" action="/checkin/pin" id="pinForm" style="display:none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="pin" id="pinInput">
+        {% if current_class %}<input type="hidden" name="class_id" value="{{ current_class.id }}">{% endif %}
+    </form>
 </div>
 
-<div class="grid-2 mb-24">
-    <!-- QR Scanner area -->
-    <div>
-        <div style="font-family:'Space Grotesk';font-size:15px;font-weight:600;margin-bottom:10px;"><i class="bi bi-qr-code" style="color:var(--primary);"></i> {{ t('checkin_qr_scan') }}</div>
+<!-- ===== QR PANEL ===== -->
+<div class="kiosk-panel" id="panelQr">
+    <div class="qr-container">
         <div class="qr-area" id="qrReader">
             <i class="bi bi-qr-code-scan"></i>
             <p>{{ t('checkin_qr_placeholder') }}</p>
-            <button class="btn btn-sm btn-primary" onclick="startQrScanner()">{{ t('checkin_start_scanner') }}</button>
+            <button class="btn btn-primary" onclick="startQrScanner()" style="border-radius:12px;padding:10px 28px;font-weight:600;">
+                <i class="bi bi-camera-video"></i> {{ t('checkin_start_scanner') }}
+            </button>
         </div>
-    </div>
-
-    <!-- Quick tap grid -->
-    <div>
-        <div style="font-family:'Space Grotesk';font-size:15px;font-weight:600;margin-bottom:10px;"><i class="bi bi-hand-index-thumb" style="color:var(--primary);"></i> {{ t('checkin_quick_tap') }}</div>
-        <div class="member-grid" id="memberGrid">
-            {% for member in members|default([]) %}
-            <form method="post" action="/checkin" class="member-tap-card" data-name="{{ member.first_name }} {{ member.last_name }}" onclick="this.submit();">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="member_id" value="{{ member.id }}">
-                {% if current_class %}<input type="hidden" name="class_id" value="{{ current_class.id }}">{% endif %}
-                <div class="tap-photo">
-                    {% if member.photo %}<img src="{{ member.photo }}">{% else %}{{ member.first_name[0] }}{{ member.last_name[0] }}{% endif %}
-                </div>
-                <div class="tap-name">{{ member.first_name }} {{ member.last_name[0] }}.</div>
-                <div class="tap-belt"><span class="belt-badge belt-{{ member.belt|lower }}" style="font-size:9px;padding:1px 6px;">{{ member.belt }}</span></div>
-            </form>
-            {% endfor %}
+        <div class="qr-instructions">
+            <i class="bi bi-info-circle"></i>
+            Hold your QR code steady in front of the camera
         </div>
-        {% if not members %}
-        <div class="card"><div class="card-body empty-state"><i class="bi bi-people"></i><p>{{ t('checkin_no_members') }}</p></div></div>
-        {% endif %}
     </div>
 </div>
 
-<!-- Success overlay -->
+<!-- ===== QUICK TAP PANEL ===== -->
+<div class="kiosk-panel" id="panelTap">
+    <div class="tap-search">
+        <i class="bi bi-search tap-search-icon"></i>
+        <input type="text" id="kioskSearch" placeholder="{{ t('checkin_search_ph') }}" oninput="filterKioskMembers(this.value)">
+    </div>
+
+    <div class="member-grid" id="memberGrid">
+        {% for member in members|default([]) %}
+        <form method="post" action="/checkin" class="member-tap-card" data-name="{{ member.first_name }} {{ member.last_name }}" data-belt="{{ member.belt|lower }}" onclick="this.submit();">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="member_id" value="{{ member.id }}">
+            {% if current_class %}<input type="hidden" name="class_id" value="{{ current_class.id }}">{% endif %}
+            <div class="tap-photo">
+                {% if member.photo %}<img src="{{ member.photo }}" alt="">{% else %}{{ member.first_name[0] }}{{ member.last_name[0] }}{% endif %}
+            </div>
+            <div class="tap-name">{{ member.first_name }} {{ member.last_name[0] }}.</div>
+            <div class="tap-belt"><span class="belt-badge belt-{{ member.belt|lower }}" style="font-size:10px;padding:2px 8px;">{{ member.belt }}</span></div>
+            {% if member.streak is defined and member.streak and member.streak > 0 %}
+            <div class="tap-streak">&#x1F525; Week {{ member.streak }}</div>
+            {% endif %}
+        </form>
+        {% endfor %}
+    </div>
+    {% if not members %}
+    <div class="card" style="max-width:500px;margin:0 auto;">
+        <div class="card-body empty-state" style="text-align:center;padding:40px;">
+            <i class="bi bi-people" style="font-size:48px;display:block;margin-bottom:12px;"></i>
+            <p>{{ t('checkin_no_members') }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===== SUCCESS OVERLAY ===== -->
 <div class="checkin-success-overlay" id="successOverlay">
     <div class="checkin-success-card">
-        <i class="bi bi-check-circle-fill"></i>
-        <h2 id="successName">{{ t('checkin_success') }}</h2>
-        <p>{{ t('checkin_success_sub') }}</p>
+        <span class="success-icon">&#x2705;</span>
+        <div class="success-name" id="successName">{{ t('checkin_success') }}</div>
+        <div class="success-belt" id="successBelt" style="display:none;"></div>
+        <div class="success-streak" id="successStreak" style="display:none;"></div>
+        <div class="success-sub">{{ t('checkin_success_sub') }}</div>
     </div>
 </div>
 
-<!-- Fullscreen toggle -->
+<!-- ===== FULLSCREEN TOGGLE ===== -->
 <button class="btn btn-primary btn-icon fullscreen-btn" onclick="toggleFullscreen()" title="{{ t('checkin_fullscreen') }}">
     <i class="bi bi-arrows-fullscreen"></i>
 </button>
@@ -109,6 +365,89 @@
 
 {% block extra_js %}
 <script>
+/* ===== CLOCK ===== */
+function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('kioskClock').textContent = h + ':' + m + ':' + s;
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('kioskDate').textContent = now.toLocaleDateString(undefined, opts);
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+/* ===== TAB SWITCHING ===== */
+function switchTab(tab) {
+    document.querySelectorAll('.kiosk-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.kiosk-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.kiosk-tab[data-tab="' + tab + '"]').classList.add('active');
+    document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+    if (tab === 'tap') {
+        const search = document.getElementById('kioskSearch');
+        if (search) setTimeout(() => search.focus(), 100);
+    }
+}
+
+/* ===== PIN PAD ===== */
+let pinDigits = '';
+
+function pinPress(digit) {
+    if (pinDigits.length >= 4) return;
+    pinDigits += digit;
+    updatePinDots();
+    if (pinDigits.length === 4) {
+        setTimeout(pinSubmit, 200);
+    }
+}
+
+function pinClear() {
+    pinDigits = '';
+    updatePinDots();
+    document.getElementById('pinError').style.display = 'none';
+}
+
+function updatePinDots() {
+    for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById('dot' + i);
+        if (i < pinDigits.length) {
+            dot.classList.add('filled');
+        } else {
+            dot.classList.remove('filled');
+        }
+    }
+}
+
+function pinSubmit() {
+    if (pinDigits.length === 0) return;
+    document.getElementById('pinInput').value = pinDigits;
+    document.getElementById('pinForm').submit();
+}
+
+/* Keyboard support for PIN */
+document.addEventListener('keydown', function(e) {
+    const pinPanel = document.getElementById('panelPin');
+    if (!pinPanel.classList.contains('active')) return;
+    if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        pinPress(e.key);
+    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        if (pinDigits.length > 0) {
+            pinDigits = pinDigits.slice(0, -1);
+            updatePinDots();
+        }
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        pinSubmit();
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        pinClear();
+    }
+});
+
+/* ===== QUICK TAP SEARCH ===== */
 function filterKioskMembers(query) {
     const q = query.toLowerCase();
     document.querySelectorAll('#memberGrid .member-tap-card').forEach(card => {
@@ -116,17 +455,42 @@ function filterKioskMembers(query) {
     });
 }
 
-function showSuccess(name) {
+/* ===== SUCCESS OVERLAY ===== */
+function showSuccess(name, belt, streak) {
     const overlay = document.getElementById('successOverlay');
     document.getElementById('successName').textContent = name;
+
+    const beltEl = document.getElementById('successBelt');
+    if (belt) {
+        beltEl.textContent = belt + ' Belt';
+        beltEl.style.display = 'inline-flex';
+    } else {
+        beltEl.style.display = 'none';
+    }
+
+    const streakEl = document.getElementById('successStreak');
+    if (streak && parseInt(streak) > 0) {
+        streakEl.innerHTML = '&#x1F525; Week ' + streak + '!';
+        streakEl.style.display = 'block';
+    } else {
+        streakEl.style.display = 'none';
+    }
+
     overlay.classList.add('show');
-    setTimeout(() => overlay.classList.remove('show'), 2500);
+
+    /* Sound effect hook — replace with actual audio if desired */
+    if (typeof playCheckinSound === 'function') {
+        playCheckinSound();
+    }
+
+    setTimeout(() => overlay.classList.remove('show'), 3000);
 }
 
 {% if checkin_success %}
-showSuccess('{{ checkin_success }}');
+showSuccess('{{ checkin_success }}', '{{ checkin_belt|default("") }}', '{{ checkin_streak|default("0") }}');
 {% endif %}
 
+/* ===== FULLSCREEN ===== */
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
@@ -135,15 +499,21 @@ function toggleFullscreen() {
     }
 }
 
+/* ===== QR SCANNER ===== */
 function startQrScanner() {
     const reader = document.getElementById('qrReader');
-    reader.innerHTML = '<p style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;"><i class="bi bi-camera-video" style="font-size:32px;display:block;margin-bottom:8px;"></i>{{ t("checkin_qr_loading") }}</p>';
-    // html5-qrcode integration point
+    reader.innerHTML = '<p style="padding:24px;text-align:center;color:var(--text-muted);font-size:14px;"><i class="bi bi-camera-video" style="font-size:40px;display:block;margin-bottom:10px;"></i>{{ t("checkin_qr_loading") }}</p>';
     if (typeof Html5Qrcode !== 'undefined') {
         const html5QrCode = new Html5Qrcode("qrReader");
-        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+        html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 280, height: 280 } },
             (decodedText) => { window.location.href = '/checkin/qr?code=' + encodeURIComponent(decodedText); }
-        ).catch(err => { reader.innerHTML = '<p style="padding:20px;text-align:center;color:var(--danger);">{{ t("checkin_qr_error") }}</p>'; });
+        ).catch(err => {
+            reader.innerHTML = '<p style="padding:24px;text-align:center;color:var(--danger);"><i class="bi bi-exclamation-triangle" style="font-size:32px;display:block;margin-bottom:8px;"></i>{{ t("checkin_qr_error") }}</p>';
+        });
+    } else {
+        reader.innerHTML = '<p style="padding:24px;text-align:center;color:var(--text-muted);">QR scanner library not loaded.</p>';
     }
 }
 </script>

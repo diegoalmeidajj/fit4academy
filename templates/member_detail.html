@@ -131,6 +131,22 @@
     </div>
 </div>
 
+<!-- QR Code for Check-in -->
+<div class="grid-3 mb-24">
+    <div class="card info-card">
+        <div class="card-header"><i class="bi bi-qr-code"></i> Check-in QR Code</div>
+        <div class="card-body" style="text-align:center;">
+            <img src="/members/{{ member.id }}/qr" alt="QR Code" style="width:180px;height:180px;border-radius:12px;border:2px solid var(--border);">
+            <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+                PIN: <span style="font-weight:700;color:var(--primary);font-family:monospace;font-size:16px;letter-spacing:2px;">{{ member.pin }}</span>
+            </div>
+            <div style="margin-top:8px;">
+                <a href="/members/{{ member.id }}/qr" download="checkin-{{ member.first_name }}.png" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i> Download QR</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Belt Progression + Attendance Chart -->
 <div class="grid-2 mb-24">
     <!-- Belt Progression -->

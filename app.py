@@ -6,7 +6,7 @@ Main Flask application."""
 # ═══════════════════════════════════════════════════════════════
 
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, flash, jsonify, send_from_directory)
+                   session, flash, jsonify, send_from_directory, Response, abort)
 import config
 import models
 from i18n import get_text
@@ -398,6 +398,13 @@ def dashboard():
     except Exception as e:
         print(f"[Dashboard] Belt distribution error: {e}")
 
+    # At-risk members (no check-in in 7+ days)
+    at_risk = []
+    try:
+        at_risk = models.get_at_risk_members(academy_id, days_threshold=7)
+    except Exception:
+        at_risk = []
+
     return render_template('dashboard.html',
         greeting=greeting,
         stats=stats,
@@ -406,6 +413,7 @@ def dashboard():
         upcoming_birthdays=upcoming_birthdays,
         payment_alerts=payment_alerts,
         belt_distribution=belt_distribution,
+        at_risk=at_risk,
     )
 
 
@@ -875,6 +883,45 @@ def member_toggle_status(member_id):
         print(f"[Members] Toggle status error: {e}")
         flash('Error updating status.', 'error')
     return redirect(request.referrer or url_for('members_list'))
+
+
+@app.route('/members/<int:member_id>/qr')
+@login_required
+def member_qr_code(member_id):
+    """Generate QR code image for member check-in."""
+    try:
+        import qrcode
+        import io
+
+        member = models.get_member_by_id(member_id)
+        if not member:
+            abort(404)
+
+        pin = member.get('pin', '')
+        if not pin:
+            # Generate PIN if missing
+            import random
+            pin = str(random.randint(1000, 9999))
+            models.update_member(member_id, pin=pin)
+
+        # QR contains: CHECKIN:{pin}
+        qr_data = f"CHECKIN:{pin}"
+
+        qr = qrcode.QRCode(version=1, box_size=10, border=2)
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+
+        return Response(buf.getvalue(), mimetype='image/png',
+                       headers={'Cache-Control': 'public, max-age=86400'})
+    except Exception as e:
+        print(f"[QR] Error: {e}")
+        abort(500)
 
 
 @app.route('/members/bulk-delete', methods=['POST'])
@@ -1544,10 +1591,18 @@ def checkin_page():
     except Exception:
         pass
 
+    # Today's check-in count
+    today_count = 0
+    try:
+        today_count = models.get_today_checkin_count(academy_id)
+    except Exception:
+        pass
+
     return render_template('checkin.html',
         current_class=current_class,
         members=members,
         today_checkins=today_checkins,
+        today_count=today_count,
     )
 
 
@@ -1580,6 +1635,92 @@ def checkin_manual():
         flash('Check-in failed.', 'error')
 
     return redirect(request.referrer or url_for('checkin_page'))
+
+
+@app.route('/checkin/pin', methods=['POST'])
+@login_required
+def checkin_pin():
+    if not validate_csrf():
+        return redirect(url_for('checkin_page'))
+
+    pin = request.form.get('pin', '').strip()
+    class_id = request.form.get('class_id')
+    academy_id = _get_academy_id()
+
+    if not pin or len(pin) != 4:
+        flash('Invalid PIN.', 'error')
+        return redirect(url_for('checkin_page'))
+
+    # Find member by PIN
+    try:
+        all_members = models.get_all_members(academy_id)
+        member = None
+        for m in (all_members or []):
+            if m.get('pin') == pin:
+                member = m
+                break
+
+        if not member:
+            flash('PIN not found. Please try again.', 'error')
+            return redirect(url_for('checkin_page'))
+
+        # Create check-in
+        models.create_checkin(
+            member_id=member['id'],
+            class_id=int(class_id) if class_id else None,
+            academy_id=academy_id,
+            method='pin'
+        )
+
+        name = f"{member.get('first_name', '')} {member.get('last_name', '')}"
+        flash(f'Check-in: {name}', 'success')
+        return redirect(url_for('checkin_page', success=name))
+    except Exception as e:
+        print(f"[Checkin] PIN error: {e}")
+        flash('Error during check-in.', 'error')
+        return redirect(url_for('checkin_page'))
+
+
+@app.route('/checkin/qr')
+@login_required
+def checkin_qr():
+    """Handle QR code scan check-in."""
+    code = request.args.get('code', '').strip()
+    academy_id = _get_academy_id()
+
+    if not code:
+        flash('Invalid QR code.', 'error')
+        return redirect(url_for('checkin_page'))
+
+    # Parse QR: CHECKIN:{pin}
+    pin = code.replace('CHECKIN:', '').strip()
+
+    try:
+        all_members = models.get_all_members(academy_id)
+        member = None
+        for m in (all_members or []):
+            if m.get('pin') == pin:
+                member = m
+                break
+
+        if not member:
+            flash('Member not found from QR code.', 'error')
+            return redirect(url_for('checkin_page'))
+
+        models.create_checkin(
+            member_id=member['id'],
+            class_id=None,
+            academy_id=academy_id,
+            method='qr',
+        )
+
+        name = f"{member.get('first_name', '')} {member.get('last_name', '')}"
+        flash(f'Check-in: {name}', 'success')
+        return redirect(url_for('checkin_page', success=name))
+    except Exception as e:
+        print(f"[Checkin] QR error: {e}")
+        flash('Error during check-in.', 'error')
+        return redirect(url_for('checkin_page'))
 
 
 @app.route('/checkin/history')

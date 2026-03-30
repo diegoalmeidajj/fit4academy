@@ -2111,6 +2111,76 @@ def get_belt_distribution(academy_id=1):
     return [dict(r) for r in rows]
 
 
+def get_member_streak(member_id):
+    """Calculate weekly training streak for a member."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT DISTINCT date(check_in_time) as checkin_date
+           FROM check_ins
+           WHERE member_id = ?
+           ORDER BY check_in_time DESC
+           LIMIT 90""",
+        (member_id,)
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        return 0
+
+    dates = set()
+    for r in rows:
+        d = str(r.get('checkin_date', '') if isinstance(r, dict) else r[0])[:10]
+        if d:
+            dates.add(d)
+
+    # Count consecutive weeks with at least 1 training
+    from datetime import datetime, timedelta
+    today = datetime.now().date()
+    streak = 0
+
+    for week_offset in range(52):  # Check up to 52 weeks back
+        week_start = today - timedelta(days=today.weekday() + 7 * week_offset)
+        week_end = week_start + timedelta(days=6)
+
+        week_dates = [d for d in dates if week_start.isoformat() <= d <= week_end.isoformat()]
+        if week_dates:
+            streak += 1
+        else:
+            break
+
+    return streak
+
+
+def get_at_risk_members(academy_id=1, days_threshold=7):
+    """Get active members who haven't checked in for X days."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.belt_rank_id,
+                  MAX(ci.check_in_time) as last_checkin,
+                  CAST(julianday('now') - julianday(MAX(ci.check_in_time)) AS INTEGER) as days_absent
+           FROM members m
+           LEFT JOIN check_ins ci ON ci.member_id = m.id
+           WHERE m.academy_id = ? AND m.membership_status = 'active'
+           GROUP BY m.id
+           HAVING days_absent >= ? OR last_checkin IS NULL
+           ORDER BY days_absent DESC""",
+        (academy_id, days_threshold)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_today_checkin_count(academy_id=1):
+    """Get total check-ins for today."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND date(check_in_time) = date('now')",
+        (academy_id,)
+    ).fetchone()
+    conn.close()
+    return row['cnt'] if row else 0
+
+
 def get_monthly_revenue(academy_id=1, months=12):
     conn = get_db()
     rows = conn.execute(
