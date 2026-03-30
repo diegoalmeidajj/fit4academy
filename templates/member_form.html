@@ -107,7 +107,8 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">PIN <span style="font-size:10px;color:var(--text-muted);">(4 digits)</span></label>
-                        <input type="text" name="pin" class="form-control" value="{{ member.pin if member else '' }}" placeholder="Auto-generated" maxlength="4" pattern="[0-9]{4}" style="font-family:monospace;font-size:18px;letter-spacing:4px;font-weight:700;">
+                        <input type="text" name="pin" class="form-control" value="{{ member.pin|default('', true) if member else '' }}" placeholder="Auto-generated" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" style="font-family:monospace;font-size:18px;letter-spacing:4px;font-weight:700;color:var(--primary);">
+                        <small style="font-size:10px;color:var(--text-muted);">Check-in PIN code</small>
                     </div>
                     <div class="form-group">
                         <label class="form-label">{{ t('member_join_date') }}</label>
