@@ -2433,7 +2433,14 @@ def users_page():
 
         if action == 'add':
             try:
-                models.create_user(
+                # Collect permissions from checkboxes
+                perm_list = []
+                for p in ['checkin','members','classes','attendance','prospects','payments','finance','messaging','settings','users']:
+                    if request.form.get(f'perm_{p}'):
+                        perm_list.append(p)
+                permissions = ','.join(perm_list)
+
+                new_id = models.create_user(
                     username=request.form.get('username', '').strip(),
                     password=request.form.get('password', ''),
                     name=request.form.get('name', '').strip(),
@@ -2442,6 +2449,8 @@ def users_page():
                     role=request.form.get('role', 'user'),
                     academy_id=_get_academy_id(),
                 )
+                if new_id and permissions:
+                    models.update_user(new_id, permissions=permissions)
                 flash('User created!', 'success')
             except Exception as e:
                 print(f"[Users] Create error: {e}")
@@ -2519,11 +2528,19 @@ def user_edit(user_id):
     if not validate_csrf():
         return redirect(url_for('users_page'))
     try:
+        # Collect permissions
+        perm_list = []
+        for p in ['checkin','members','classes','attendance','prospects','payments','finance','messaging','settings','users']:
+            if request.form.get(f'perm_{p}'):
+                perm_list.append(p)
+        permissions = ','.join(perm_list)
+
         update_data = {
             'name': request.form.get('name', '').strip(),
             'email': request.form.get('email', '').strip(),
             'phone': request.form.get('phone', ''),
             'role': request.form.get('role', 'staff'),
+            'permissions': permissions,
         }
         pw = request.form.get('password', '').strip()
         if pw:

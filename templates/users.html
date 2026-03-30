@@ -55,28 +55,21 @@
                 {% if user.email %}<span><i class="bi bi-envelope"></i> {{ user.email }}</span>{% endif %}
                 {% if user.phone %}<span><i class="bi bi-phone"></i> {{ user.phone }}</span>{% endif %}
             </div>
+            {% set perms = (user.permissions or '')|default('', true) %}
+            {% set all_perms = ['checkin','members','classes','attendance','prospects','payments','finance','messaging','settings','users'] %}
             <div class="access-badges">
                 {% if user.role == 'admin' %}
-                <span class="access-badge on"><i class="bi bi-check"></i> Members</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Classes</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Payments</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Finance</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Settings</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Users</span>
-                {% elif user.role == 'instructor' %}
-                <span class="access-badge on"><i class="bi bi-check"></i> Check-in</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Classes</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Attendance</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Members</span>
-                <span class="access-badge off"><i class="bi bi-x"></i> Payments</span>
-                <span class="access-badge off"><i class="bi bi-x"></i> Settings</span>
+                    {% for p in all_perms %}
+                    <span class="access-badge on"><i class="bi bi-check"></i> {{ p|capitalize }}</span>
+                    {% endfor %}
                 {% else %}
-                <span class="access-badge on"><i class="bi bi-check"></i> Check-in</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Members</span>
-                <span class="access-badge on"><i class="bi bi-check"></i> Prospects</span>
-                <span class="access-badge off"><i class="bi bi-x"></i> Classes</span>
-                <span class="access-badge off"><i class="bi bi-x"></i> Payments</span>
-                <span class="access-badge off"><i class="bi bi-x"></i> Settings</span>
+                    {% for p in all_perms %}
+                    {% if p in perms %}
+                    <span class="access-badge on"><i class="bi bi-check"></i> {{ p|capitalize }}</span>
+                    {% else %}
+                    <span class="access-badge off"><i class="bi bi-x"></i> {{ p|capitalize }}</span>
+                    {% endif %}
+                    {% endfor %}
                 {% endif %}
             </div>
         </div>
@@ -128,13 +121,26 @@
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
-                            <label class="form-label" style="font-size:11px;">New Password <span style="color:var(--text-muted);">(leave blank to keep)</span></label>
+                            <label class="form-label" style="font-size:11px;">New Password <span style="color:var(--text-muted);">(leave blank)</span></label>
                             <input type="password" name="password" class="form-control form-control-sm" placeholder="••••••••">
                         </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label class="form-label" style="font-size:11px;">&nbsp;</label>
-                            <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-check"></i> Save</button>
+                    </div>
+                    <!-- Permissions -->
+                    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+                        <label class="form-label" style="font-size:11px;margin-bottom:8px;"><i class="bi bi-shield-lock"></i> Access Permissions</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                            {% set user_perms = (user.permissions or '')|default('', true) %}
+                            {% for p in ['checkin','members','classes','attendance','prospects','payments','finance','messaging','settings','users'] %}
+                            <label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);font-size:11px;font-weight:600;cursor:pointer;background:var(--input-bg);transition:all .15s;" class="perm-label">
+                                <input type="checkbox" name="perm_{{ p }}" value="1" {{ 'checked' if user.role == 'admin' or p in user_perms else '' }} style="accent-color:var(--primary);">
+                                {{ p|capitalize }}
+                            </label>
+                            {% endfor %}
                         </div>
+                        <div style="margin-top:6px;font-size:10px;color:var(--text-muted);"><i class="bi bi-info-circle"></i> Admin role always has full access.</div>
+                    </div>
+                    <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check"></i> Save Changes</button>
                     </div>
                 </form>
             </div>
@@ -176,19 +182,28 @@
                     <input type="password" name="password" class="form-control" required minlength="6">
                 </div>
             </div>
-            <div class="grid-2 mb-24">
-                <div class="form-group">
-                    <label class="form-label">{{ t('users_role') }} *</label>
-                    <select name="role" class="form-select" required>
-                        <option value="instructor">{{ t('role_instructor') }}</option>
-                        <option value="staff">{{ t('role_staff') }}</option>
-                        <option value="admin">{{ t('role_admin') }}</option>
-                    </select>
+            <div class="form-group mb-24">
+                <label class="form-label">{{ t('users_role') }} *</label>
+                <select name="role" class="form-select" required style="max-width:300px;">
+                    <option value="instructor">{{ t('role_instructor') }}</option>
+                    <option value="staff">{{ t('role_staff') }}</option>
+                    <option value="admin">{{ t('role_admin') }}</option>
+                </select>
+            </div>
+            <div class="form-group mb-24">
+                <label class="form-label"><i class="bi bi-shield-lock"></i> Access Permissions</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    {% for p in ['checkin','members','classes','attendance','prospects','payments','finance','messaging','settings','users'] %}
+                    <label style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;background:var(--input-bg);" class="perm-label">
+                        <input type="checkbox" name="perm_{{ p }}" value="1" {{ 'checked' if p in ['checkin','members','classes','attendance'] else '' }} style="accent-color:var(--primary);">
+                        {{ p|capitalize }}
+                    </label>
+                    {% endfor %}
                 </div>
-                <div class="form-group">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-person-plus"></i> {{ t('users_add_btn') }}</button>
-                </div>
+                <div style="margin-top:6px;font-size:10px;color:var(--text-muted);"><i class="bi bi-info-circle"></i> Select which sections this user can access. Admin role always has full access.</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> {{ t('users_add_btn') }}</button>
             </div>
         </form>
     </div>

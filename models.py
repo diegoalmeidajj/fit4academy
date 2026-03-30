@@ -33,6 +33,7 @@ def init_db():
             email       TEXT DEFAULT '',
             phone       TEXT DEFAULT '',
             role        TEXT DEFAULT 'user',
+            permissions TEXT DEFAULT '',
             academy_id  INTEGER DEFAULT 1,
             active      BOOLEAN DEFAULT 1,
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -356,6 +357,7 @@ def init_db():
         "ALTER TABLE messages ADD COLUMN dropped INTEGER DEFAULT 0",
         "ALTER TABLE messages ADD COLUMN spam INTEGER DEFAULT 0",
         "ALTER TABLE members ADD COLUMN pin TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT ''",
         "ALTER TABLE members ADD COLUMN webauthn_credential_id TEXT DEFAULT ''",
         "ALTER TABLE members ADD COLUMN webauthn_public_key TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN interested_in TEXT DEFAULT ''",
@@ -483,7 +485,7 @@ def create_user(username, password, name='', email='', phone='', role='user', ac
 
 def update_user(user_id, **kwargs):
     conn = get_db()
-    allowed = ['username', 'name', 'email', 'phone', 'role', 'academy_id', 'active']
+    allowed = ['username', 'name', 'email', 'phone', 'role', 'permissions', 'academy_id', 'active']
     fields = []
     values = []
     for k, v in kwargs.items():
