@@ -269,6 +269,15 @@ def init_db():
             ip_address  TEXT DEFAULT '',
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+
+        -- Performance indexes
+        CREATE INDEX IF NOT EXISTS idx_members_academy ON members(academy_id);
+        CREATE INDEX IF NOT EXISTS idx_checkins_member ON check_ins(member_id, check_in_time DESC);
+        CREATE INDEX IF NOT EXISTS idx_checkins_academy ON check_ins(academy_id, check_in_time DESC);
+        CREATE INDEX IF NOT EXISTS idx_memberships_member ON memberships(member_id, start_date DESC);
+        CREATE INDEX IF NOT EXISTS idx_payments_member ON payments(member_id);
+        CREATE INDEX IF NOT EXISTS idx_payments_academy ON payments(academy_id);
     """)
 
     conn.commit()
@@ -392,7 +401,7 @@ def get_all_users():
     conn = get_db()
     rows = conn.execute("SELECT * FROM users ORDER BY id").fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_user_by_id(user_id):
@@ -457,7 +466,7 @@ def get_all_academies():
     conn = get_db()
     rows = conn.execute("SELECT * FROM academies ORDER BY id").fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_academy_by_id(academy_id):
@@ -529,7 +538,36 @@ def get_all_members(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
+
+
+def get_all_members_enriched(academy_id=1):
+    """Get all members with membership and last check-in in a single query."""
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT m.*, b.name as belt_name, b.color as belt_color,
+                  mp.name as plan_name, mp.id as plan_id,
+                  ms_sub.end_date as ms_end_date,
+                  ci_sub.last_checkin
+           FROM members m
+           LEFT JOIN belt_ranks b ON m.belt_rank_id = b.id
+           LEFT JOIN (
+               SELECT ms.member_id, ms.plan_id, ms.end_date,
+                      ROW_NUMBER() OVER (PARTITION BY ms.member_id ORDER BY ms.start_date DESC) as rn
+               FROM memberships ms
+           ) ms_sub ON ms_sub.member_id = m.id AND ms_sub.rn = 1
+           LEFT JOIN membership_plans mp ON ms_sub.plan_id = mp.id
+           LEFT JOIN (
+               SELECT member_id, MAX(check_in_time) as last_checkin
+               FROM check_ins
+               GROUP BY member_id
+           ) ci_sub ON ci_sub.member_id = m.id
+           WHERE m.academy_id = ?
+           ORDER BY m.last_name, m.first_name""",
+        (academy_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def get_member_by_id(member_id):
@@ -613,7 +651,7 @@ def search_members(query, academy_id=1):
         (academy_id, search, search, search, search)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -627,7 +665,7 @@ def get_all_membership_plans(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_membership_plan_by_id(plan_id):
@@ -696,7 +734,7 @@ def get_all_memberships(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_membership_by_id(membership_id):
@@ -724,7 +762,7 @@ def get_memberships_by_member(member_id):
         (member_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_membership(member_id, plan_id, **kwargs):
@@ -780,7 +818,7 @@ def get_all_classes(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_class_by_id(class_id):
@@ -850,7 +888,7 @@ def get_all_class_schedules(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_class_schedule_by_id(schedule_id):
@@ -877,7 +915,7 @@ def get_schedule_by_day(day_of_week, academy_id=1):
         (day_of_week, academy_id, True)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_class_schedule(class_id, day_of_week, start_time, end_time):
@@ -939,7 +977,7 @@ def get_all_checkins(academy_id=1, limit=100):
         (academy_id, limit)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_checkin_by_id(checkin_id):
@@ -967,7 +1005,7 @@ def get_checkins_by_member(member_id, limit=50):
         (member_id, limit)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_checkin(member_id, class_id=None, academy_id=1, method='manual'):
@@ -1005,7 +1043,7 @@ def get_today_checkins(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1016,7 +1054,7 @@ def get_all_belt_ranks():
     conn = get_db()
     rows = conn.execute("SELECT * FROM belt_ranks ORDER BY sort_order").fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_belt_rank_by_id(belt_id):
@@ -1084,7 +1122,7 @@ def get_all_promotions(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_promotion_by_id(promotion_id):
@@ -1116,7 +1154,7 @@ def get_promotions_by_member(member_id):
         (member_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_promotion(member_id, from_belt_id, to_belt_id, from_stripes=0, to_stripes=0, **kwargs):
@@ -1183,7 +1221,7 @@ def get_all_payments(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_payment_by_id(payment_id):
@@ -1206,7 +1244,7 @@ def get_payments_by_member(member_id):
         (member_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_payment(member_id, amount, academy_id=1, **kwargs):
@@ -1268,7 +1306,7 @@ def get_payment_alerts(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1282,7 +1320,7 @@ def get_all_payment_methods(member_id):
         (member_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_payment_method_by_id(pm_id):
@@ -1345,7 +1383,7 @@ def get_all_prospects(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_prospect_by_id(prospect_id):
@@ -1430,7 +1468,7 @@ def get_all_events(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_event_by_id(event_id):
@@ -1450,7 +1488,7 @@ def get_upcoming_events(academy_id=1, limit=10):
         (academy_id, True, limit)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_event(academy_id=1, **kwargs):
@@ -1510,7 +1548,7 @@ def get_all_media(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_media_by_id(media_id):
@@ -1527,7 +1565,7 @@ def get_media_by_category(category, academy_id=1):
         (academy_id, category)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_media(academy_id=1, **kwargs):
@@ -1588,7 +1626,7 @@ def get_all_bug_reports():
            ORDER BY br.created_at DESC"""
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_bug_report_by_id(report_id):
@@ -1661,7 +1699,7 @@ def get_all_notifications(academy_id=1, limit=50):
         (academy_id, limit)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_notification_by_id(notif_id):
@@ -1682,7 +1720,7 @@ def get_unread_notifications(academy_id=1):
         (academy_id, False)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_notification(academy_id=1, **kwargs):
@@ -1741,7 +1779,7 @@ def get_audit_log(limit=100):
         (limit,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def create_audit_entry(user_id, user_name, action, entity_type, entity_id=None, details='', ip_address=''):
@@ -1863,7 +1901,7 @@ def get_expiring_memberships(academy_id=1, days=30):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_belt_distribution(academy_id=1):
@@ -1895,7 +1933,7 @@ def get_monthly_revenue(academy_id=1, months=12):
         (academy_id, months)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]
 
 
 def get_revenue_by_method(academy_id=1):
@@ -1910,4 +1948,4 @@ def get_revenue_by_method(academy_id=1):
         (academy_id,)
     ).fetchall()
     conn.close()
-    return rows
+    return [dict(r) for r in rows]

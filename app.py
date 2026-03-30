@@ -424,17 +424,29 @@ def members_list():
     try:
         if search:
             raw_members = models.search_members(search, academy_id)
+            # search_members doesn't have enriched data, enrich lightly
+            members = []
+            for m in (raw_members or []):
+                member = dict(m) if not isinstance(m, dict) else m
+                member['belt'] = member.get('belt_name', 'White')
+                member['status'] = member.get('membership_status', 'active')
+                member['membership_name'] = ''
+                member['membership_id'] = ''
+                member['last_checkin'] = ''
+                members.append(member)
         else:
-            raw_members = models.get_all_members(academy_id)
+            raw_members = models.get_all_members_enriched(academy_id)
+            members = []
+            for m in (raw_members or []):
+                m['belt'] = m.get('belt_name', 'White')
+                m['status'] = m.get('membership_status', 'active')
+                m['membership_name'] = m.get('plan_name', '') or ''
+                m['membership_id'] = m.get('plan_id', '') or ''
+                m['last_checkin'] = str(m.get('last_checkin', '') or '')[:16]
+                members.append(m)
     except Exception as e:
         print(f"[Members] Error: {e}")
-        raw_members = []
-
-    # Enrich members with computed fields
-    members = []
-    for m in (raw_members or []):
-        enriched = _enrich_member(m)
-        members.append(enriched)
+        members = []
 
     # Pagination
     total = len(members)
