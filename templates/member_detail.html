@@ -54,7 +54,7 @@
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                     <span class="belt-badge belt-{{ member.belt|lower }}"><i class="bi bi-award-fill"></i> {{ member.belt }}{% if member.stripes %} · {{ member.stripes }} {{ t('stripes') }}{% endif %}</span>
                     <span class="badge-pill badge-{{ member.status|lower }}">{{ t('status_' + member.status|lower) }}</span>
-                    {% if member.pin %}<span style="padding:4px 12px;border-radius:8px;background:rgba(99,102,241,.1);color:#6366f1;font-size:13px;font-weight:700;font-family:'Space Grotesk';letter-spacing:2px;"><i class="bi bi-key"></i> PIN {{ member.pin }}</span>{% endif %}
+                    {% if member.pin %}<span style="padding:4px 12px;border-radius:8px;background:rgba(234,179,8,.15);color:#eab308;font-size:13px;font-weight:700;font-family:'Space Grotesk';letter-spacing:2px;"><i class="bi bi-key-fill"></i> PIN {{ member.pin }}</span>{% endif %}
                 </div>
                 <div style="font-size:13px;color:var(--text-muted);margin-top:8px;">
                     {{ t('member_since') }} {{ member.join_date|default('—') }}
