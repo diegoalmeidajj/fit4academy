@@ -1977,10 +1977,25 @@ def belt_promote():
     except Exception:
         belt_ranks = []
 
+    try:
+        all_users = models.get_all_users()
+        instructors = [u for u in (all_users or []) if u.get('role') in ('admin', 'instructor') and u.get('active')]
+    except Exception:
+        instructors = []
+
+    # Enrich members with DOB for age detection
+    enriched_members = []
+    for m in (members or []):
+        em = _enrich_member(m)
+        em['dob_raw'] = str(m.get('date_of_birth', '') or '')[:10]
+        enriched_members.append(em)
+
     return render_template('promotion_form.html',
-        members=members,
+        members=enriched_members,
         belt_ranks=belt_ranks,
         pre_member=pre_member,
+        instructors=instructors,
+        today=str(date.today()),
     )
 
 

@@ -1,104 +1,101 @@
 {% extends "base.html" %}
-{% block title %}{{ t('belts_record_promotion') }}{% endblock %}
+{% block title %}New Belt{% endblock %}
 
 {% block extra_css %}
 .current-rank { display: flex; align-items: center; gap: 16px; padding: 20px; background: rgba(99,102,241,.05); border-radius: 14px; border: 1px solid rgba(99,102,241,.12); margin-bottom: 20px; }
 .rank-arrow { font-size: 24px; color: var(--primary); }
-.promotion-preview { display: flex; align-items: center; gap: 16px; padding: 20px; background: rgba(16,185,129,.05); border-radius: 14px; border: 1px solid rgba(16,185,129,.12); }
+.new-belt-color { height: 6px; border-radius: 0 0 14px 14px; transition: background .3s; margin-top: -1px; }
 {% endblock %}
 
 {% block content %}
 <div class="topbar">
-    <h1><i class="bi bi-arrow-up-circle" style="color:var(--primary);"></i> {{ t('promotion_title') }}</h1>
+    <h1><i class="bi bi-arrow-up-circle" style="color:var(--primary);"></i> New Belt</h1>
     <div class="topbar-actions">
         <a href="/belts" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> {{ t('back') }}</a>
     </div>
 </div>
 
-<div class="card">
+<div class="card" style="overflow:hidden;border-radius:14px;">
+    <div id="newBeltColorBar" class="new-belt-color" style="background:var(--primary);height:6px;border-radius:14px 14px 0 0;"></div>
     <div class="card-body">
         <form method="post" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <!-- Select Member -->
             <div class="form-group mb-24">
-                <label class="form-label">{{ t('promotion_select_member') }} *</label>
-                <select name="member_id" class="form-select" id="promotionMember" onchange="updateCurrentBelt()" required>
-                    <option value="">{{ t('promotion_search_member') }}</option>
+                <label class="form-label">Select Member *</label>
+                <select name="member_id" class="form-select" id="promotionMember" onchange="onMemberSelect()" required>
+                    <option value="">Search member...</option>
                     {% for m in members|default([]) %}
-                    <option value="{{ m.id }}" data-belt="{{ m.belt }}" data-stripes="{{ m.stripes }}" {{ 'selected' if preselect_member == m.id }}>
-                        {{ m.first_name }} {{ m.last_name }} — {{ m.belt }} ({{ m.stripes }} {{ t('stripes') }})
+                    <option value="{{ m.id }}"
+                        data-belt="{{ m.belt }}"
+                        data-stripes="{{ m.stripes }}"
+                        data-belt-id="{{ m.belt_rank_id }}"
+                        data-dob="{{ m.dob_raw|default('') }}"
+                        {{ 'selected' if preselect_member and preselect_member == m.id }}>
+                        {{ m.first_name }} {{ m.last_name }} — {{ m.belt }} ({{ m.stripes }} str)
                     </option>
                     {% endfor %}
                 </select>
             </div>
 
-            <!-- Current rank display -->
+            <!-- Current → New preview -->
             <div class="current-rank" id="currentRank" style="display:none;">
                 <div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">{{ t('promotion_current') }}</div>
-                    <span class="belt-badge" id="currentBeltBadge" style="font-size:14px;">—</span>
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Current</div>
+                    <span class="belt-badge" id="currentBeltBadge" style="font-size:14px;padding:6px 14px;">—</span>
                 </div>
-                <div class="rank-arrow"><i class="bi bi-arrow-right"></i></div>
+                <div class="rank-arrow"><i class="bi bi-arrow-right-circle-fill"></i></div>
                 <div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">{{ t('promotion_new') }}</div>
-                    <span class="belt-badge" id="newBeltBadge" style="font-size:14px;">—</span>
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">New</div>
+                    <span class="belt-badge" id="newBeltBadge" style="font-size:14px;padding:6px 14px;">—</span>
                 </div>
+                <div id="ageInfo" style="margin-left:auto;font-size:12px;color:var(--text-muted);"></div>
             </div>
 
             <!-- New Belt & Stripes -->
             <div class="grid-2 mb-24">
                 <div class="form-group">
-                    <label class="form-label">{{ t('promotion_new_belt') }} *</label>
+                    <label class="form-label">New Belt *</label>
                     <select name="new_belt" class="form-select" id="newBelt" onchange="updatePreview()" required>
-                        <option value="White">{{ t('belt_white') }}</option>
-                        <option value="Blue">{{ t('belt_blue') }}</option>
-                        <option value="Purple">{{ t('belt_purple') }}</option>
-                        <option value="Brown">{{ t('belt_brown') }}</option>
-                        <option value="Black">{{ t('belt_black') }}</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">{{ t('promotion_new_stripes') }}</label>
+                    <label class="form-label">Stripes / Degrees</label>
                     <select name="new_stripes" class="form-select" id="newStripes" onchange="updatePreview()">
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
                     </select>
                 </div>
             </div>
 
             <div class="grid-2 mb-24">
                 <div class="form-group">
-                    <label class="form-label">{{ t('promotion_date') }}</label>
-                    <input type="date" name="date" class="form-control" value="{{ today }}">
+                    <label class="form-label">Promotion Date</label>
+                    <input type="date" name="promotion_date" class="form-control" value="{{ today }}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">{{ t('promotion_promoted_by') }}</label>
+                    <label class="form-label">Promoted By</label>
                     <select name="promoted_by" class="form-select">
                         <option value="">{{ t('select') }}</option>
                         {% for inst in instructors|default([]) %}
-                        <option value="{{ inst.id }}">{{ inst.name }}</option>
+                        <option value="{{ inst.name }}">{{ inst.name }} ({{ inst.role|capitalize }})</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
 
             <div class="form-group mb-24">
-                <label class="form-label">{{ t('promotion_notes') }}</label>
-                <textarea name="notes" class="form-control" placeholder="{{ t('promotion_notes_ph') }}"></textarea>
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" placeholder="Promotion notes..."></textarea>
             </div>
 
             <div class="form-group mb-24">
-                <label class="form-label">{{ t('promotion_photo') }}</label>
+                <label class="form-label">Photo</label>
                 <input type="file" name="photo" class="form-control" accept="image/*">
             </div>
 
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <a href="/belts" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
-                <button type="submit" class="btn btn-success"><i class="bi bi-award"></i> {{ t('promotion_submit') }}</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-award"></i> Confirm Promotion</button>
             </div>
         </form>
     </div>
@@ -107,29 +104,143 @@
 
 {% block extra_js %}
 <script>
-const beltClasses = { White:'belt-white', Blue:'belt-blue', Purple:'belt-purple', Brown:'belt-brown', Black:'belt-black' };
+const KIDS_BELTS = [
+    {name:'White', color:'#e2e8f0', text:'#334155', stripes:4},
+    {name:'Grey', color:'#808080', text:'#fff', stripes:4},
+    {name:'Yellow', color:'#FFD700', text:'#1a1a2e', stripes:4},
+    {name:'Orange', color:'#FF8C00', text:'#fff', stripes:4},
+    {name:'Green', color:'#228B22', text:'#fff', stripes:4},
+];
+const ADULT_BELTS = [
+    {name:'White', color:'#e2e8f0', text:'#334155', stripes:4},
+    {name:'Blue', color:'#0056B3', text:'#fff', stripes:4},
+    {name:'Purple', color:'#6F42C1', text:'#fff', stripes:4},
+    {name:'Brown', color:'#8B4513', text:'#fff', stripes:4},
+    {name:'Black', color:'#000000', text:'#fff', stripes:6},
+    {name:'Red/Black', color:'#8B0000', text:'#fff', stripes:0},
+    {name:'Red/White', color:'#DC143C', text:'#fff', stripes:0},
+    {name:'Red', color:'#FF0000', text:'#fff', stripes:0},
+];
 
-function updateCurrentBelt() {
+const BELT_COLORS = {};
+KIDS_BELTS.concat(ADULT_BELTS).forEach(b => { BELT_COLORS[b.name] = b.color; });
+
+function getAge(dob) {
+    if (!dob) return null;
+    const d = new Date(dob);
+    if (isNaN(d)) return null;
+    return Math.floor((new Date() - d) / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+function isKidsBelt(name) {
+    return ['Grey','Yellow','Orange','Green'].includes(name);
+}
+
+function onMemberSelect() {
     const sel = document.getElementById('promotionMember');
     const opt = sel.options[sel.selectedIndex];
     const rankDiv = document.getElementById('currentRank');
-    if (!opt.value) { rankDiv.style.display = 'none'; return; }
+
+    if (!opt.value) {
+        rankDiv.style.display = 'none';
+        return;
+    }
+
     rankDiv.style.display = 'flex';
     const belt = opt.dataset.belt;
     const stripes = opt.dataset.stripes;
+    const dob = opt.dataset.dob;
+    const age = getAge(dob);
+
+    // Show current belt
     const badge = document.getElementById('currentBeltBadge');
-    badge.className = 'belt-badge ' + (beltClasses[belt] || '');
+    badge.style.background = BELT_COLORS[belt] || '#ccc';
+    badge.style.color = (belt === 'White' || belt === 'Yellow') ? '#334155' : '#fff';
     badge.textContent = belt + ' (' + stripes + ' str)';
+
+    // Show age info
+    const ageInfo = document.getElementById('ageInfo');
+    if (age !== null) {
+        const cat = age < 16 ? 'Kids' : 'Adults';
+        ageInfo.innerHTML = '<i class="bi bi-person"></i> ' + age + ' years · <strong>' + cat + '</strong>';
+    } else {
+        ageInfo.innerHTML = '<span style="color:var(--warning);"><i class="bi bi-exclamation-triangle"></i> No DOB — showing all belts</span>';
+    }
+
+    // Populate belt options based on age
+    populateBelts(age, belt, isKidsBelt(belt));
+}
+
+function populateBelts(age, currentBelt, wasKids) {
+    const sel = document.getElementById('newBelt');
+    sel.innerHTML = '';
+
+    let belts;
+    if (age !== null && age < 16) {
+        belts = KIDS_BELTS;
+    } else if (age !== null && age >= 16) {
+        belts = ADULT_BELTS;
+    } else {
+        // No DOB — show all belts
+        belts = KIDS_BELTS.concat(ADULT_BELTS.filter(b => b.name !== 'White'));
+    }
+
+    belts.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.name;
+        opt.textContent = b.name;
+        opt.style.background = b.color;
+        opt.style.color = b.text;
+        opt.style.fontWeight = '700';
+        sel.appendChild(opt);
+    });
+
+    // Try to select next belt
+    const allBelts = belts.map(b => b.name);
+    const currentIdx = allBelts.indexOf(currentBelt);
+    if (currentIdx >= 0 && currentIdx < allBelts.length - 1) {
+        sel.value = allBelts[currentIdx + 1];
+    }
+
+    updateStripes();
     updatePreview();
 }
 
+function updateStripes() {
+    const beltName = document.getElementById('newBelt').value;
+    const allBelts = KIDS_BELTS.concat(ADULT_BELTS);
+    const belt = allBelts.find(b => b.name === beltName);
+    const maxStripes = belt ? belt.stripes : 4;
+
+    const sel = document.getElementById('newStripes');
+    sel.innerHTML = '';
+    for (let i = 0; i <= maxStripes; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        sel.appendChild(opt);
+    }
+}
+
 function updatePreview() {
+    updateStripes();
     const newBelt = document.getElementById('newBelt').value;
     const newStripes = document.getElementById('newStripes').value;
     const badge = document.getElementById('newBeltBadge');
-    badge.className = 'belt-badge ' + (beltClasses[newBelt] || '');
+    badge.style.background = BELT_COLORS[newBelt] || '#ccc';
+    badge.style.color = (newBelt === 'White' || newBelt === 'Yellow') ? '#334155' : '#fff';
     badge.textContent = newBelt + ' (' + newStripes + ' str)';
+
+    const bar = document.getElementById('newBeltColorBar');
+    if (bar) bar.style.background = BELT_COLORS[newBelt] || 'var(--primary)';
 }
-updateCurrentBelt();
+
+// Handle change on belt select
+document.getElementById('newBelt').addEventListener('change', updatePreview);
+
+// Init
+{% if preselect_member %}
+document.addEventListener('DOMContentLoaded', onMemberSelect);
+{% endif %}
 </script>
 {% endblock %}
