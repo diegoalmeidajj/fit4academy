@@ -819,13 +819,62 @@ def member_delete(member_id):
     if not validate_csrf():
         return redirect(url_for('members_list'))
     try:
-        # Soft delete — set inactive
         models.update_member(member_id, active=False, membership_status='inactive')
         flash('Member deleted.', 'success')
     except Exception as e:
         print(f"[Members] Delete error: {e}")
         flash('Error deleting member.', 'error')
     return redirect(url_for('members_list'))
+
+
+@app.route('/members/<int:member_id>/toggle-status', methods=['POST'])
+@login_required
+def member_toggle_status(member_id):
+    if not validate_csrf():
+        return redirect(url_for('members_list'))
+    academy_id = _get_academy_id()
+    try:
+        member = models.get_member_by_id(member_id)
+        if not member:
+            flash('Member not found.', 'error')
+            return redirect(url_for('members_list'))
+
+        current = member.get('membership_status', 'active')
+        if current == 'active':
+            # Deactivate → move to prospects as ex-student
+            models.update_member(member_id, membership_status='inactive')
+
+            # Check if already exists in prospects
+            existing_prospects = models.get_all_prospects(academy_id)
+            already = any(
+                p.get('member_id') == member_id
+                for p in (existing_prospects or [])
+            )
+            if not already:
+                enriched = _enrich_member(member)
+                belt = enriched.get('belt', 'White')
+                notes = f"Ex-student. Belt: {belt}. Joined: {member.get('join_date', '')}. PIN: {member.get('pin', '')}"
+                models.create_prospect(
+                    academy_id=academy_id,
+                    first_name=member.get('first_name', ''),
+                    last_name=member.get('last_name', ''),
+                    email=member.get('email', ''),
+                    phone=member.get('phone', ''),
+                    source='ex_student',
+                    status='lost',
+                    interested_in=belt,
+                    member_id=member_id,
+                    notes=notes,
+                )
+            flash(f"{member.get('first_name')} set to inactive. Added to Prospects.", 'success')
+        else:
+            # Reactivate
+            models.update_member(member_id, membership_status='active')
+            flash(f"{member.get('first_name')} reactivated!", 'success')
+    except Exception as e:
+        print(f"[Members] Toggle status error: {e}")
+        flash('Error updating status.', 'error')
+    return redirect(request.referrer or url_for('members_list'))
 
 
 @app.route('/members/bulk-delete', methods=['POST'])
@@ -1892,10 +1941,14 @@ def prospects_list():
         'trial': [],
         'converted': [],
         'lost': [],
+        'ex_student': [],
     }
     for p in (all_prospects or []):
         stage = p.get('status', 'new')
-        if stage in prospects_by_stage:
+        # Ex-students: source=ex_student OR status=lost with member_id
+        if p.get('source') == 'ex_student' or (stage == 'lost' and p.get('member_id')):
+            prospects_by_stage['ex_student'].append(p)
+        elif stage in prospects_by_stage:
             prospects_by_stage[stage].append(p)
         else:
             prospects_by_stage['new'].append(p)

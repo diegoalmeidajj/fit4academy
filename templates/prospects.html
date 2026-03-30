@@ -12,6 +12,7 @@
 .pipeline-trial .pipeline-header { background: #f59e0b; color: #1e293b; }
 .pipeline-converted .pipeline-header { background: #10b981; color: #fff; }
 .pipeline-lost .pipeline-header { background: #6b7280; color: #fff; }
+.pipeline-ex_student .pipeline-header { background: linear-gradient(135deg, #eab308, #f59e0b); color: #1e293b; }
 
 .prospect-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all .2s; }
 .prospect-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); border-color: var(--primary); }
@@ -41,7 +42,8 @@
         ('new', 'pipeline-new'),
         ('contacted', 'pipeline-contacted'),
         ('trial', 'pipeline-trial'),
-        ('converted', 'pipeline-converted')
+        ('converted', 'pipeline-converted'),
+        ('ex_student', 'pipeline-lost')
     ] %}
     {% for stage, css_class in stages %}
     <div class="pipeline-col {{ css_class }}">
@@ -60,13 +62,23 @@
                 {% if prospect.interested_in %}
                 <div class="prospect-meta" style="margin-top:4px;"><i class="bi bi-bookmark"></i> {{ prospect.interested_in }}</div>
                 {% endif %}
-                {% if prospect.source %}
+                {% if prospect.source == 'ex_student' %}
+                <div class="prospect-source" style="background:rgba(234,179,8,.15);color:#eab308;">{{ t('stage_ex_student') }}</div>
+                {% elif prospect.source %}
                 <div class="prospect-source">{{ prospect.source }}</div>
                 {% endif %}
                 {% if prospect.follow_up_date %}
                 <div class="prospect-followup"><i class="bi bi-clock"></i> {{ t('prospects_followup') }}: {{ prospect.follow_up_date }}</div>
                 {% endif %}
-                {% if stage != 'converted' and stage != 'lost' %}
+                {% if stage == 'ex_student' and prospect.member_id %}
+                <div style="margin-top:8px;display:flex;gap:6px;">
+                    <a href="/members/{{ prospect.member_id }}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();"><i class="bi bi-eye"></i> {{ t('view_profile') }}</a>
+                    <form method="post" action="/members/{{ prospect.member_id }}/toggle-status" style="display:inline;" onclick="event.stopPropagation();">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-person-check"></i> {{ t('members_reactivate') }}</button>
+                    </form>
+                </div>
+                {% elif stage != 'converted' and stage != 'lost' and stage != 'ex_student' %}
                 <div style="margin-top:8px;">
                     {% if stage == 'trial' %}
                     <form method="post" action="/prospects/{{ prospect.id }}/convert" style="display:inline;" onclick="event.stopPropagation();">

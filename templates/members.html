@@ -179,7 +179,14 @@
                         </div>
                     </td>
                     <td><span class="belt-badge belt-{{ member.belt|lower }}"><i class="bi bi-award-fill"></i> {{ member.belt }}{% if member.stripes %} ({{ member.stripes }}{{ t('stripes_abbr') }}){% endif %}</span></td>
-                    <td><span class="badge-pill badge-{{ member.status|lower }}"><span class="status-dot {{ member.status|lower }}"></span> {{ t('status_' + member.status|lower) }}</span></td>
+                    <td>
+                        <form method="post" action="/members/{{ member.id }}/toggle-status" style="display:inline;" onclick="event.stopPropagation();">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="badge-pill badge-{{ member.status|lower }}" style="border:none;cursor:pointer;font-size:11px;padding:4px 10px;" title="{{ t('members_toggle_status') }}">
+                                <span class="status-dot {{ member.status|lower }}"></span> {{ t('status_' + member.status|lower) }}
+                            </button>
+                        </form>
+                    </td>
                     <td>{{ member.membership_name|default('—') }}</td>
                     <td>{{ member.phone|default('—') }}</td>
                     <td>{{ member.last_checkin|default('—') }}</td>

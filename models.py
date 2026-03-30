@@ -200,6 +200,8 @@ def init_db():
             phone           TEXT DEFAULT '',
             source          TEXT DEFAULT '',
             status          TEXT DEFAULT 'new',
+            interested_in   TEXT DEFAULT '',
+            member_id       INTEGER,
             follow_up_date  DATE,
             notes           TEXT DEFAULT '',
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -352,6 +354,8 @@ def init_db():
         "ALTER TABLE messages ADD COLUMN dropped INTEGER DEFAULT 0",
         "ALTER TABLE messages ADD COLUMN spam INTEGER DEFAULT 0",
         "ALTER TABLE members ADD COLUMN pin TEXT DEFAULT ''",
+        "ALTER TABLE prospects ADD COLUMN interested_in TEXT DEFAULT ''",
+        "ALTER TABLE prospects ADD COLUMN member_id INTEGER",
     ]:
         try:
             conn.execute(alter)
@@ -1449,11 +1453,12 @@ def create_prospect(academy_id=1, **kwargs):
     conn = get_db()
     cur = conn.execute(
         """INSERT INTO prospects (academy_id, first_name, last_name, email, phone,
-           source, status, follow_up_date, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           source, status, interested_in, member_id, follow_up_date, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (academy_id, kwargs.get('first_name', ''), kwargs.get('last_name', ''),
          kwargs.get('email', ''), kwargs.get('phone', ''),
          kwargs.get('source', ''), kwargs.get('status', 'new'),
+         kwargs.get('interested_in', ''), kwargs.get('member_id'),
          kwargs.get('follow_up_date'), kwargs.get('notes', ''))
     )
     conn.commit()

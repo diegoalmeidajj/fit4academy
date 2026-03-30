@@ -68,6 +68,14 @@
                         <input type="hidden" name="member_id" value="{{ member.id }}">
                         <button type="submit" class="btn btn-outline-primary"><i class="bi bi-qr-code-scan"></i> {{ t('member_checkin') }}</button>
                     </form>
+                    <form method="post" action="/members/{{ member.id }}/toggle-status" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% if member.status == 'active' %}
+                        <button type="submit" class="btn btn-outline-danger" onclick="return confirm('{{ t('members_deactivate_confirm') }}')"><i class="bi bi-person-dash"></i> {{ t('members_deactivate') }}</button>
+                        {% else %}
+                        <button type="submit" class="btn btn-success"><i class="bi bi-person-check"></i> {{ t('members_reactivate') }}</button>
+                        {% endif %}
+                    </form>
                 </div>
             </div>
         </div>
