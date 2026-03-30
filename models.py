@@ -75,6 +75,7 @@ def init_db():
             emergency_phone TEXT DEFAULT '',
             medical_notes   TEXT DEFAULT '',
             photo           TEXT DEFAULT '',
+            pin             TEXT DEFAULT '',
             qr_code         TEXT DEFAULT '',
             source          TEXT DEFAULT '',
             notes           TEXT DEFAULT '',
@@ -350,6 +351,7 @@ def init_db():
         "ALTER TABLE messages ADD COLUMN bounced INTEGER DEFAULT 0",
         "ALTER TABLE messages ADD COLUMN dropped INTEGER DEFAULT 0",
         "ALTER TABLE messages ADD COLUMN spam INTEGER DEFAULT 0",
+        "ALTER TABLE members ADD COLUMN pin TEXT DEFAULT ''",
     ]:
         try:
             conn.execute(alter)
@@ -626,14 +628,21 @@ def get_member_by_id(member_id):
     return row
 
 
+def _generate_pin():
+    """Generate a unique 4-digit PIN."""
+    import random
+    return str(random.randint(1000, 9999))
+
+
 def create_member(academy_id=1, **kwargs):
     conn = get_db()
+    pin = kwargs.get('pin', '') or _generate_pin()
     cur = conn.execute(
         """INSERT INTO members (academy_id, first_name, last_name, email, phone,
            date_of_birth, gender, belt_rank_id, stripes, membership_status,
            join_date, emergency_contact, emergency_phone, medical_notes, photo,
-           qr_code, source, notes, active)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           pin, qr_code, source, notes, active)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (academy_id, kwargs.get('first_name', ''), kwargs.get('last_name', ''),
          kwargs.get('email', ''), kwargs.get('phone', ''),
          kwargs.get('date_of_birth'), kwargs.get('gender', ''),
@@ -641,7 +650,7 @@ def create_member(academy_id=1, **kwargs):
          kwargs.get('membership_status', 'active'), kwargs.get('join_date', str(date.today())),
          kwargs.get('emergency_contact', ''), kwargs.get('emergency_phone', ''),
          kwargs.get('medical_notes', ''), kwargs.get('photo', ''),
-         kwargs.get('qr_code', ''), kwargs.get('source', ''),
+         pin, kwargs.get('qr_code', ''), kwargs.get('source', ''),
          kwargs.get('notes', ''), True)
     )
     conn.commit()
@@ -655,7 +664,7 @@ def update_member(member_id, **kwargs):
     allowed = ['first_name', 'last_name', 'email', 'phone', 'date_of_birth',
                'gender', 'belt_rank_id', 'stripes', 'membership_status', 'join_date',
                'emergency_contact', 'emergency_phone', 'medical_notes', 'photo',
-               'qr_code', 'source', 'notes', 'active']
+               'pin', 'qr_code', 'source', 'notes', 'active']
     fields = []
     values = []
     for k, v in kwargs.items():

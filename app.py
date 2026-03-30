@@ -885,7 +885,7 @@ def members_export_csv():
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        'First Name', 'Last Name', 'Email', 'Phone', 'Date of Birth', 'Gender',
+        'First Name', 'Last Name', 'Email', 'Phone', 'PIN', 'Date of Birth', 'Gender',
         'Belt', 'Belt Color', 'Stripes', 'Max Stripes',
         'Status', 'Membership Plan', 'Join Date',
         'Emergency Contact', 'Emergency Phone', 'Medical Notes',
@@ -936,7 +936,7 @@ def members_export_csv():
 
         writer.writerow([
             m.get('first_name', ''), m.get('last_name', ''), m.get('email', ''),
-            m.get('phone', ''), m.get('date_of_birth', ''), m.get('gender', ''),
+            m.get('phone', ''), m.get('pin', ''), m.get('date_of_birth', ''), m.get('gender', ''),
             belt_name, belt_color, stripes, max_stripes,
             m.get('membership_status', ''), m.get('plan_name', '') or '',
             join_str,
@@ -1028,6 +1028,9 @@ def members_import_csv():
         # notes
         'notes': 'notes', 'notas': 'notes', 'observacoes': 'notes',
         'comments': 'notes', 'comentarios': 'notes', 'obs': 'notes',
+        # pin
+        'pin': 'pin', 'pin_code': 'pin', 'codigo': 'pin', 'code': 'pin',
+        'member_pin': 'pin', 'access_code': 'pin', 'codigo_acesso': 'pin',
     }
 
     belt_map = {
@@ -1150,6 +1153,7 @@ def members_import_csv():
                 med_val = get_field(row, 'medical_notes')
                 src_val = get_field(row, 'source') or 'csv_import'
                 notes_val = get_field(row, 'notes')
+                pin_val = get_field(row, 'pin')
 
                 # Check if member already exists (match by name)
                 existing = existing_lookup.get((first_name.lower().strip(), last_name.lower().strip()))
@@ -1181,6 +1185,8 @@ def members_import_csv():
                         update_data['notes'] = notes_val
                     if src_val and src_val != 'csv_import':
                         update_data['source'] = src_val
+                    if pin_val:
+                        update_data['pin'] = pin_val
 
                     if update_data:
                         models.update_member(existing['id'], **update_data)
@@ -1203,6 +1209,7 @@ def members_import_csv():
                         medical_notes=med_val,
                         source=src_val,
                         notes=notes_val,
+                        pin=pin_val,
                     )
                     imported += 1
             except Exception as e:
