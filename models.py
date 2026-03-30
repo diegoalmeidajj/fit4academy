@@ -324,22 +324,49 @@ def init_db():
     conn.commit()
 
     # ─── Seed Belt Ranks ────────────────────────────────────────
+    all_belts = [
+        # Kids belts
+        ('White', '#FFFFFF', 1, 4, 0),
+        ('Grey', '#808080', 2, 4, 0),
+        ('Yellow', '#FFD700', 3, 4, 0),
+        ('Orange', '#FF8C00', 4, 4, 0),
+        ('Green', '#228B22', 5, 4, 0),
+        # Adult belts
+        ('Blue', '#0056B3', 6, 4, 24),
+        ('Purple', '#6F42C1', 7, 4, 18),
+        ('Brown', '#8B4513', 8, 4, 12),
+        ('Black', '#000000', 9, 6, 24),
+        # Coral/Red belts
+        ('Red/Black', '#8B0000', 10, 0, 0),
+        ('Red/White', '#DC143C', 11, 0, 0),
+        ('Red', '#FF0000', 12, 0, 0),
+    ]
     row = conn.execute("SELECT COUNT(*) as cnt FROM belt_ranks").fetchone()
     count = row['cnt'] if isinstance(row, dict) else row[0]
     if count == 0:
-        belts = [
-            ('White', '#FFFFFF', 1, 4, 0),
-            ('Blue', '#0056B3', 2, 4, 12),
-            ('Purple', '#6F42C1', 3, 4, 18),
-            ('Brown', '#8B4513', 4, 4, 18),
-            ('Black', '#000000', 5, 6, 24),
-        ]
-        for name, color, sort_order, max_stripes, min_months in belts:
+        for name, color, sort_order, max_stripes, min_months in all_belts:
             conn.execute(
                 "INSERT INTO belt_ranks (name, color, sort_order, max_stripes, min_months) VALUES (?, ?, ?, ?, ?)",
                 (name, color, sort_order, max_stripes, min_months)
             )
         print("[Seed] Belt ranks created")
+    else:
+        # Insert any missing belts (don't touch existing ones)
+        for name, color, sort_order, max_stripes, min_months in all_belts:
+            existing = conn.execute("SELECT id FROM belt_ranks WHERE name = ?", (name,)).fetchone()
+            if not existing:
+                conn.execute(
+                    "INSERT INTO belt_ranks (name, color, sort_order, max_stripes, min_months) VALUES (?, ?, ?, ?, ?)",
+                    (name, color, sort_order, max_stripes, min_months)
+                )
+                print(f"[Seed] Added missing belt rank: {name}")
+        # Update sort_order for existing belts to match IBJJF order
+        for name, color, sort_order, max_stripes, min_months in all_belts:
+            conn.execute(
+                "UPDATE belt_ranks SET sort_order = ?, color = ?, max_stripes = ?, min_months = ? WHERE name = ?",
+                (sort_order, color, max_stripes, min_months, name)
+            )
+    conn.commit()
 
     # ─── Seed Admin User ────────────────────────────────────────
     # ─── Add missing columns safely (PostgreSQL needs commit per ALTER) ─

@@ -9,7 +9,8 @@
     </div>
 </div>
 
-<div class="card">
+<div class="card" style="overflow:hidden;border-radius:14px;">
+    <div id="classColorBar" style="height:4px;border-radius:14px 14px 0 0;background:#6366f1;transition:background .3s;"></div>
     <div class="card-body">
         <form method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -21,7 +22,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">{{ t('class_type') }} *</label>
-                    <select name="type" class="form-select" required>
+                    <select name="type" class="form-select" required onchange="updateClassColor()">
                         <option value="Gi" {{ 'selected' if cls and cls.type == 'Gi' }}>{{ t('class_gi') }}</option>
                         <option value="NoGi" {{ 'selected' if cls and cls.type == 'NoGi' }}>{{ t('class_nogi') }}</option>
                         <option value="Kids" {{ 'selected' if cls and cls.type == 'Kids' }}>{{ t('class_kids') }}</option>
@@ -122,6 +123,14 @@
 
 {% block extra_js %}
 <script>
+function updateClassColor() {
+    const type = document.querySelector('[name=type]').value.toLowerCase();
+    const colors = {gi:'#1d4ed8', nogi:'#eab308', kids:'#10b981', open:'#7c3aed'};
+    const bar = document.getElementById('classColorBar');
+    if (bar) bar.style.background = colors[type] || '#6366f1';
+}
+document.addEventListener('DOMContentLoaded', updateClassColor);
+
 function autoEndTime() {
     const start = document.getElementById('startTime').value;
     if (!start) return;

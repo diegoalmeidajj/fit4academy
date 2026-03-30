@@ -1860,18 +1860,31 @@ def belts_page():
         belt_ranks = []
 
     # Get members for each belt
+    kids_belts_names = {'White', 'Grey', 'Yellow', 'Orange', 'Green'}
+    adult_belts_names = {'White', 'Blue', 'Purple', 'Brown', 'Black'}
+    coral_belts_names = {'Red/Black', 'Red/White', 'Red'}
     belts = []
     try:
         all_members = models.get_all_members(academy_id)
         for b in (belt_ranks or []):
             belt_members = [m for m in (all_members or []) if m.get('belt_rank_id') == b.get('id')]
+            bname = b.get('name', '')
+            category = 'adults'
+            if bname in coral_belts_names:
+                category = 'coral'
+            elif bname in ('Grey', 'Yellow', 'Orange', 'Green'):
+                category = 'kids'
+            elif bname == 'White':
+                category = 'kids_adults'
             belts.append({
                 'id': b.get('id'),
-                'name': b.get('name', ''),
+                'name': bname,
                 'color': b.get('color', '#000'),
                 'count': len(belt_members),
                 'max_stripes': b.get('max_stripes', 4),
                 'min_months': b.get('min_months', 0),
+                'sort_order': b.get('sort_order', 0),
+                'category': category,
                 'members': belt_members[:20],
             })
     except Exception as e:

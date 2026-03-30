@@ -2,24 +2,76 @@
 {% block title %}{{ t('nav_belts') }}{% endblock %}
 
 {% block extra_css %}
-.belt-card { border-radius: 14px; overflow: hidden; transition: all .2s; cursor: pointer; }
+.belt-tabs { display: flex; gap: 6px; margin-bottom: 24px; }
+.belt-tab {
+    padding: 8px 20px; border-radius: 10px; font-size: 13px; font-weight: 600;
+    font-family: 'Space Grotesk'; cursor: pointer; border: 1.5px solid var(--border);
+    background: var(--card-bg); color: var(--text-primary); transition: all .2s;
+    user-select: none;
+}
+.belt-tab:hover { border-color: var(--primary); }
+.belt-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.belt-tab .tab-count {
+    display: inline-block; background: rgba(255,255,255,.2); border-radius: 6px;
+    padding: 1px 7px; font-size: 11px; margin-left: 6px;
+}
+
+.belt-section-title {
+    font-family: 'Space Grotesk'; font-size: 14px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted);
+    margin: 24px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+
+.belt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-bottom: 24px; }
+
+.belt-card {
+    border-radius: 14px; overflow: hidden; transition: all .2s; cursor: pointer;
+    background: var(--card-bg); border: 1px solid var(--border);
+}
 .belt-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
-.belt-card-swatch { height: 8px; }
-.belt-card-body { padding: 18px; background: var(--card-bg); border: 1px solid var(--border); border-top: none; border-radius: 0 0 14px 14px; }
-.belt-card-name { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-.belt-card-stats { display: flex; gap: 20px; }
-.belt-card-stat-num { font-family: 'Space Grotesk'; font-size: 22px; font-weight: 700; }
-.belt-card-stat-label { font-size: 11px; color: var(--text-muted); }
-.belt-members-list { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
-.belt-members-list.show { display: block; }
-.belt-member-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+
+.belt-card-top {
+    display: flex; align-items: center; gap: 14px; padding: 16px 18px;
+}
+.belt-swatch {
+    width: 52px; height: 52px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid rgba(0,0,0,.08); position: relative;
+}
+.belt-swatch-inner {
+    width: 100%; height: 10px; border-radius: 3px; position: absolute; bottom: 12px;
+}
+
+.belt-info { flex: 1; min-width: 0; }
+.belt-name { font-family: 'Space Grotesk'; font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+.belt-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+.belt-meta span { white-space: nowrap; }
+
+.belt-count-badge {
+    font-family: 'Space Grotesk'; font-size: 20px; font-weight: 800;
+    color: var(--primary); text-align: center; min-width: 40px;
+}
+.belt-count-label { font-size: 10px; color: var(--text-muted); text-align: center; }
+
+.belt-bar-track {
+    height: 4px; background: var(--border); border-radius: 2px; margin: 0 18px 14px;
+}
+.belt-bar-fill {
+    height: 100%; border-radius: 2px; transition: width .4s ease;
+}
+
+.belt-members-list {
+    display: none; padding: 0 18px 14px; border-top: 1px solid var(--border); margin-top: 0;
+}
+.belt-members-list.show { display: block; padding-top: 12px; }
+.belt-member-item {
+    display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px;
+}
 .belt-member-item .name { font-weight: 600; }
 .belt-member-item .stripes { font-size: 11px; color: var(--text-muted); }
 
-.requirements-section { margin-top: 24px; }
-.req-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-.req-card .req-belt { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-.req-card .req-details { font-size: 12px; color: var(--text-muted); }
+.belt-category-group { display: none; }
+.belt-category-group.visible { display: block; }
 {% endblock %}
 
 {% block content %}
@@ -30,71 +82,178 @@
     </div>
 </div>
 
-<!-- Belt cards -->
-<div class="grid-3 mb-24">
-    {% set belt_colors = {'White':'#e2e8f0','Blue':'#1d4ed8','Purple':'#7c3aed','Brown':'#78350f','Black':'#0f172a'} %}
-    {% for belt in belts|default([]) %}
-    <div class="belt-card" onclick="toggleBeltMembers('belt-{{ belt.name|lower }}')">
-        <div class="belt-card-swatch" style="background:{{ belt_colors.get(belt.name, '#6366f1') }};"></div>
-        <div class="belt-card-body">
-            <div class="belt-card-name">
-                <span class="belt-badge belt-{{ belt.name|lower }}" style="font-size:13px;">{{ t('belt_' + belt.name|lower) }}</span>
-            </div>
-            <div class="belt-card-stats">
-                <div>
-                    <div class="belt-card-stat-num">{{ belt.count }}</div>
-                    <div class="belt-card-stat-label">{{ t('belts_members') }}</div>
+<!-- Tabs -->
+{% set kids_count = belts|selectattr('category', 'in', ['kids', 'kids_adults'])|map(attribute='count')|sum %}
+{% set adults_count = belts|selectattr('category', 'in', ['adults', 'kids_adults', 'coral'])|map(attribute='count')|sum %}
+{% set total_count = belts|map(attribute='count')|sum %}
+
+<div class="belt-tabs">
+    <div class="belt-tab active" onclick="switchBeltTab('all')" id="tab-all">
+        <i class="bi bi-grid"></i> All
+        <span class="tab-count">{{ total_count }}</span>
+    </div>
+    <div class="belt-tab" onclick="switchBeltTab('kids')" id="tab-kids">
+        <i class="bi bi-emoji-smile"></i> Kids (4-15)
+        <span class="tab-count">{{ kids_count }}</span>
+    </div>
+    <div class="belt-tab" onclick="switchBeltTab('adults')" id="tab-adults">
+        <i class="bi bi-person"></i> Adults (16+)
+        <span class="tab-count">{{ adults_count }}</span>
+    </div>
+</div>
+
+{% set max_count = belts|map(attribute='count')|max if belts else 1 %}
+{% set max_count = max_count if max_count > 0 else 1 %}
+
+<!-- Kids Section -->
+<div class="belt-category-group visible" data-category="kids">
+    <div class="belt-section-title"><i class="bi bi-emoji-smile"></i> Kids Belts (4-15 years)</div>
+    <div class="belt-grid">
+        {% for belt in belts if belt.category in ['kids', 'kids_adults'] %}
+        <div class="belt-card" onclick="toggleBeltMembers('belt-{{ belt.name|lower|replace('/','-') }}')">
+            <div class="belt-card-top">
+                <div class="belt-swatch" style="background:{{ belt.color }};{% if belt.name == 'White' %}border-color:#ccc;{% endif %}">
+                </div>
+                <div class="belt-info">
+                    <div class="belt-name" style="{% if belt.name == 'White' %}color:var(--text-primary);{% endif %}">{{ belt.name }}</div>
+                    <div class="belt-meta">
+                        <span><i class="bi bi-hash"></i> {{ belt.max_stripes }} stripes max</span>
+                        {% if belt.min_months > 0 %}
+                        <span><i class="bi bi-clock"></i> {{ belt.min_months }} months min</span>
+                        {% else %}
+                        <span><i class="bi bi-clock"></i> Entry level</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <div>
-                    <div class="belt-card-stat-num">{{ belt.avg_months|default('—') }}</div>
-                    <div class="belt-card-stat-label">{{ t('belts_avg_time') }}</div>
+                    <div class="belt-count-badge">{{ belt.count }}</div>
+                    <div class="belt-count-label">members</div>
                 </div>
             </div>
-            <div class="belt-members-list" id="belt-{{ belt.name|lower }}">
+            <div class="belt-bar-track">
+                <div class="belt-bar-fill" style="width:{{ (belt.count / max_count * 100)|round }}%;background:{{ belt.color }};{% if belt.name == 'White' %}background:#94a3b8;{% endif %}"></div>
+            </div>
+            <div class="belt-members-list" id="belt-{{ belt.name|lower|replace('/','-') }}">
                 {% for m in belt.members|default([]) %}
                 <div class="belt-member-item">
                     <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
-                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.initials }}{% endif %}
+                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
                     </div>
-                    <span class="name">{{ m.name }}</span>
-                    <span class="stripes">{{ m.stripes }} {{ t('stripes') }}</span>
+                    <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
+                    <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
                 </div>
                 {% endfor %}
                 {% if not belt.members %}
-                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">{{ t('belts_no_members') }}</div>
+                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No members at this belt</div>
                 {% endif %}
             </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
-
-    {% if not belts %}
-    <div class="card" style="grid-column:1/-1;"><div class="card-body empty-state"><i class="bi bi-award"></i><p>{{ t('belts_empty') }}</p></div></div>
-    {% endif %}
 </div>
 
-<!-- Belt Requirements / Customization -->
-<div class="requirements-section">
-    <div style="font-family:'Space Grotesk';font-size:16px;font-weight:600;margin-bottom:14px;"><i class="bi bi-sliders" style="color:var(--primary);"></i> {{ t('belts_requirements') }}</div>
-    <div class="card">
-        <div class="card-body">
-            {% for belt_name in ['Blue','Purple','Brown','Black'] %}
-            <div class="req-card">
-                <div class="req-belt">
-                    <span class="belt-badge belt-{{ belt_name|lower }}" style="font-size:11px;padding:2px 8px;">{{ t('belt_' + belt_name|lower) }}</span>
+<!-- Adults Section -->
+<div class="belt-category-group visible" data-category="adults">
+    <div class="belt-section-title"><i class="bi bi-person"></i> Adult Belts (16+)</div>
+    <div class="belt-grid">
+        {% for belt in belts if belt.category in ['adults', 'kids_adults'] %}
+        <div class="belt-card" onclick="toggleBeltMembers('belt-adult-{{ belt.name|lower|replace('/','-') }}')">
+            <div class="belt-card-top">
+                <div class="belt-swatch" style="background:{{ belt.color }};{% if belt.name == 'White' %}border-color:#ccc;{% endif %}">
                 </div>
-                <div class="req-details">
-                    {% set req = requirements.get(belt_name, {}) if requirements else {} %}
-                    {{ t('belts_min_months') }}: <strong>{{ req.get('min_months', '—') }}</strong> ·
-                    {{ t('belts_min_classes') }}: <strong>{{ req.get('min_classes', '—') }}</strong> ·
-                    {{ t('belts_max_stripes') }}: <strong>{{ req.get('max_stripes', 4) }}</strong>
+                <div class="belt-info">
+                    <div class="belt-name" style="{% if belt.color == '#000000' or belt.color == '#0056B3' %}{% endif %}">{{ belt.name }}</div>
+                    <div class="belt-meta">
+                        {% if belt.name == 'Black' %}
+                        <span><i class="bi bi-hash"></i> {{ belt.max_stripes }} degrees</span>
+                        {% else %}
+                        <span><i class="bi bi-hash"></i> {{ belt.max_stripes }} stripes max</span>
+                        {% endif %}
+                        {% if belt.min_months > 0 %}
+                        <span><i class="bi bi-clock"></i> {{ belt.min_months }} months min</span>
+                        {% else %}
+                        <span><i class="bi bi-clock"></i> Entry level</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <a href="/settings#belt-requirements" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                <div>
+                    <div class="belt-count-badge">{{ belt.count }}</div>
+                    <div class="belt-count-label">members</div>
+                </div>
             </div>
-            {% endfor %}
+            <div class="belt-bar-track">
+                <div class="belt-bar-fill" style="width:{{ (belt.count / max_count * 100)|round }}%;background:{{ belt.color }};{% if belt.name == 'White' %}background:#94a3b8;{% endif %}"></div>
+            </div>
+            <div class="belt-members-list" id="belt-adult-{{ belt.name|lower|replace('/','-') }}">
+                {% for m in belt.members|default([]) %}
+                <div class="belt-member-item">
+                    <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
+                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                    </div>
+                    <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
+                    <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
+                </div>
+                {% endfor %}
+                {% if not belt.members %}
+                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No members at this belt</div>
+                {% endif %}
+            </div>
         </div>
+        {% endfor %}
     </div>
 </div>
+
+<!-- Coral/Red Section -->
+<div class="belt-category-group visible" data-category="coral">
+    <div class="belt-section-title"><i class="bi bi-star"></i> Coral / Red Belts (Masters)</div>
+    <div class="belt-grid">
+        {% for belt in belts if belt.category == 'coral' %}
+        <div class="belt-card" onclick="toggleBeltMembers('belt-{{ belt.name|lower|replace('/','-') }}')">
+            <div class="belt-card-top">
+                <div class="belt-swatch" style="background:{{ belt.color }};">
+                </div>
+                <div class="belt-info">
+                    <div class="belt-name">{{ belt.name }}</div>
+                    <div class="belt-meta">
+                        {% if belt.name == 'Red/Black' %}
+                        <span><i class="bi bi-trophy"></i> 7th Degree</span>
+                        {% elif belt.name == 'Red/White' %}
+                        <span><i class="bi bi-trophy"></i> 8th Degree</span>
+                        {% elif belt.name == 'Red' %}
+                        <span><i class="bi bi-trophy"></i> 9th-10th Degree</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div class="belt-count-badge">{{ belt.count }}</div>
+                    <div class="belt-count-label">members</div>
+                </div>
+            </div>
+            <div class="belt-bar-track">
+                <div class="belt-bar-fill" style="width:{{ (belt.count / max_count * 100)|round }}%;background:{{ belt.color }};"></div>
+            </div>
+            <div class="belt-members-list" id="belt-{{ belt.name|lower|replace('/','-') }}">
+                {% for m in belt.members|default([]) %}
+                <div class="belt-member-item">
+                    <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
+                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                    </div>
+                    <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
+                    <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
+                </div>
+                {% endfor %}
+                {% if not belt.members %}
+                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No members at this belt</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if not belts %}
+<div class="card"><div class="card-body empty-state"><i class="bi bi-award"></i><p>{{ t('belts_empty') }}</p></div></div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -102,6 +261,25 @@
 function toggleBeltMembers(id) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('show');
+}
+
+function switchBeltTab(tab) {
+    // Update tab active state
+    document.querySelectorAll('.belt-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+
+    // Show/hide category groups
+    const groups = document.querySelectorAll('.belt-category-group');
+    groups.forEach(g => {
+        const cat = g.dataset.category;
+        if (tab === 'all') {
+            g.classList.add('visible');
+        } else if (tab === 'kids') {
+            g.classList.toggle('visible', cat === 'kids');
+        } else if (tab === 'adults') {
+            g.classList.toggle('visible', cat === 'adults' || cat === 'coral');
+        }
+    });
 }
 </script>
 {% endblock %}
