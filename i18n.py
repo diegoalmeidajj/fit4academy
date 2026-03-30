@@ -677,6 +677,13 @@ TRANSLATIONS = {
         'en': 'English',
         'help_report': 'Help & Report',
 
+        # Import CSV
+        'import_csv': 'Import CSV',
+        'import_csv_drag': 'Click or drag a CSV file here',
+        'import_csv_format': 'CSV file with member data',
+        'import_csv_columns': 'Expected columns:',
+        'import_csv_btn': 'Import',
+
         # Sidebar menu
         'menu_settings': 'Settings',
         'menu_staff': 'Staff',
@@ -1373,6 +1380,13 @@ TRANSLATIONS = {
         'en': 'Ingles',
         'help_report': 'Ayuda y Reportes',
 
+        # Import CSV
+        'import_csv': 'Importar CSV',
+        'import_csv_drag': 'Haz clic o arrastra un archivo CSV aqui',
+        'import_csv_format': 'Archivo CSV con datos de miembros',
+        'import_csv_columns': 'Columnas esperadas:',
+        'import_csv_btn': 'Importar',
+
         # Sidebar menu
         'menu_settings': 'Ajustes',
         'menu_staff': 'Personal',
@@ -2068,6 +2082,13 @@ TRANSLATIONS = {
         'role': 'Funcao',
         'en': 'Ingles',
         'help_report': 'Ajuda e Relatorios',
+
+        # Import CSV
+        'import_csv': 'Importar CSV',
+        'import_csv_drag': 'Clique ou arraste um arquivo CSV aqui',
+        'import_csv_format': 'Arquivo CSV com dados dos membros',
+        'import_csv_columns': 'Colunas esperadas:',
+        'import_csv_btn': 'Importar',
 
         # Sidebar menu
         'menu_settings': 'Configuracoes',

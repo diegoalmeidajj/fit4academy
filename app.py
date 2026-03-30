@@ -687,6 +687,73 @@ def member_delete(member_id):
     return redirect(url_for('members_list'))
 
 
+@app.route('/members/import-csv', methods=['POST'])
+@login_required
+def members_import_csv():
+    if not validate_csrf():
+        return redirect(url_for('members_list'))
+
+    academy_id = _get_academy_id()
+    csv_file = request.files.get('csv_file')
+    if not csv_file or not csv_file.filename.endswith('.csv'):
+        flash('Please upload a valid CSV file.', 'error')
+        return redirect(url_for('members_list'))
+
+    import csv
+    import io
+
+    belt_map = {'white': 1, 'blue': 2, 'purple': 3, 'brown': 4, 'black': 5}
+    imported = 0
+    errors = 0
+
+    try:
+        stream = io.StringIO(csv_file.stream.read().decode('utf-8-sig'))
+        reader = csv.DictReader(stream)
+
+        # Normalize header names (strip spaces, lowercase)
+        if reader.fieldnames:
+            reader.fieldnames = [f.strip().lower().replace(' ', '_') for f in reader.fieldnames]
+
+        for row in reader:
+            try:
+                first_name = row.get('first_name', '').strip()
+                last_name = row.get('last_name', '').strip()
+                if not first_name:
+                    errors += 1
+                    continue
+
+                belt_str = row.get('belt', 'white').strip().lower()
+                belt_id = belt_map.get(belt_str, 1)
+
+                models.create_member(
+                    academy_id=academy_id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=row.get('email', '').strip(),
+                    phone=row.get('phone', '').strip(),
+                    date_of_birth=row.get('date_of_birth', '').strip() or None,
+                    gender=row.get('gender', '').strip(),
+                    belt_rank_id=belt_id,
+                    stripes=int(row.get('stripes', 0) or 0),
+                    membership_status=row.get('status', 'active').strip() or 'active',
+                    source=row.get('source', 'csv_import').strip() or 'csv_import',
+                )
+                imported += 1
+            except Exception as e:
+                print(f"[CSV Import] Row error: {e}")
+                errors += 1
+
+        if imported:
+            flash(f'{imported} members imported successfully!' + (f' ({errors} rows skipped)' if errors else ''), 'success')
+        else:
+            flash(f'No members imported. {errors} rows had errors.', 'warning')
+    except Exception as e:
+        print(f"[CSV Import] Error: {e}")
+        flash('Error reading CSV file. Check the format.', 'error')
+
+    return redirect(url_for('members_list'))
+
+
 # ═══════════════════════════════════════════════════════════════
 #  MEMBERSHIPS
 # ═══════════════════════════════════════════════════════════════

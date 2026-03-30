@@ -15,6 +15,7 @@
 <div class="topbar">
     <h1><i class="bi bi-people" style="color:var(--primary);"></i> {{ t('members_title') }}</h1>
     <div class="topbar-actions">
+        <button class="btn btn-outline-primary" onclick="document.getElementById('csvModal').style.display='flex'"><i class="bi bi-file-earmark-arrow-up"></i> {{ t('import_csv') }}</button>
         <a href="/members/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('members_add') }}</a>
     </div>
 </div>
@@ -118,10 +119,44 @@
     {% if page < total_pages %}<a href="?page={{ page + 1 }}">&raquo;</a>{% endif %}
 </div>
 {% endif %}
+<!-- Import CSV Modal -->
+<div id="csvModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:520px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-file-earmark-arrow-up" style="color:var(--primary);"></i> {{ t('import_csv') }}</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('csvModal').style.display='none'">&times;</button>
+        </div>
+        <form method="post" action="/members/import-csv" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="border:2px dashed var(--border);border-radius:12px;padding:30px;text-align:center;margin-bottom:16px;cursor:pointer;transition:all .2s;" id="csvDropZone" onclick="document.getElementById('csvFile').click()">
+                <i class="bi bi-cloud-arrow-up" style="font-size:36px;color:var(--primary);display:block;margin-bottom:8px;"></i>
+                <p style="font-size:14px;font-weight:600;margin:0 0 4px;">{{ t('import_csv_drag') }}</p>
+                <p style="font-size:11px;color:var(--text-muted);margin:0;">{{ t('import_csv_format') }}</p>
+                <p style="font-size:12px;color:var(--success);font-weight:600;margin:8px 0 0;display:none;" id="csvFileName"></p>
+                <input type="file" name="csv_file" id="csvFile" accept=".csv" required style="display:none;" onchange="showFileName(this)">
+            </div>
+            <div style="background:rgba(99,102,241,.06);border-radius:10px;padding:14px;margin-bottom:16px;">
+                <p style="font-size:12px;font-weight:700;margin:0 0 6px;color:var(--primary);">{{ t('import_csv_columns') }}</p>
+                <code style="font-size:11px;color:var(--text-muted);word-break:break-all;">first_name, last_name, email, phone, date_of_birth, gender, belt, stripes, status, source</code>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('csvModal').style.display='none'">{{ t('cancel') }}</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> {{ t('import_csv_btn') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+function showFileName(input) {
+    const label = document.getElementById('csvFileName');
+    if (input.files.length) {
+        label.textContent = input.files[0].name;
+        label.style.display = 'block';
+    }
+}
 function filterMembers() {
     const search = document.getElementById('memberSearch').value.toLowerCase();
     const belt = document.getElementById('filterBelt').value;
