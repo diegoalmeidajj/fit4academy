@@ -136,8 +136,13 @@
                 <input type="file" name="csv_file" id="csvFile" accept=".csv" required style="display:none;" onchange="showFileName(this)">
             </div>
             <div style="background:rgba(99,102,241,.06);border-radius:10px;padding:14px;margin-bottom:16px;">
-                <p style="font-size:12px;font-weight:700;margin:0 0 6px;color:var(--primary);">{{ t('import_csv_columns') }}</p>
-                <code style="font-size:11px;color:var(--text-muted);word-break:break-all;">first_name, last_name, email, phone, date_of_birth, gender, belt, stripes, status, source</code>
+                <p style="font-size:12px;font-weight:700;margin:0 0 8px;color:var(--primary);">{{ t('import_csv_columns') }}</p>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                    {% for col in ['first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'gender', 'belt', 'stripes', 'status', 'join_date', 'emergency_contact', 'emergency_phone', 'medical_notes', 'source', 'notes'] %}
+                    <span style="font-size:10px;padding:3px 8px;border-radius:6px;background:var(--card-bg);border:1px solid var(--border);font-weight:600;color:var(--text-muted);">{{ col }}</span>
+                    {% endfor %}
+                </div>
+                <p style="font-size:10px;color:var(--text-muted);margin:8px 0 0;">{{ t('import_csv_flex') }}</p>
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('csvModal').style.display='none'">{{ t('cancel') }}</button>

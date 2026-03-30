@@ -703,41 +703,164 @@ def members_import_csv():
     import csv
     import io
 
-    belt_map = {'white': 1, 'blue': 2, 'purple': 3, 'brown': 4, 'black': 5}
+    # Flexible column mapping — maps many possible header names to our field
+    COLUMN_MAP = {
+        # first_name
+        'first_name': 'first_name', 'firstname': 'first_name', 'first': 'first_name',
+        'nome': 'first_name', 'primer_nombre': 'first_name', 'name': 'first_name',
+        'primeiro_nome': 'first_name',
+        # last_name
+        'last_name': 'last_name', 'lastname': 'last_name', 'last': 'last_name',
+        'sobrenome': 'last_name', 'apellido': 'last_name', 'surname': 'last_name',
+        'family_name': 'last_name', 'segundo_nome': 'last_name',
+        # email
+        'email': 'email', 'email_address': 'email', 'e-mail': 'email',
+        'correo': 'email', 'e_mail': 'email', 'emailaddress': 'email',
+        # phone
+        'phone': 'phone', 'phone_number': 'phone', 'telefone': 'phone',
+        'telefono': 'phone', 'celular': 'phone', 'cell': 'phone',
+        'mobile': 'phone', 'tel': 'phone', 'whatsapp': 'phone',
+        'phonenumber': 'phone', 'cell_phone': 'phone', 'mobile_phone': 'phone',
+        # date_of_birth
+        'date_of_birth': 'date_of_birth', 'dob': 'date_of_birth', 'birth': 'date_of_birth',
+        'birthday': 'date_of_birth', 'birthdate': 'date_of_birth', 'birth_date': 'date_of_birth',
+        'data_nascimento': 'date_of_birth', 'fecha_nacimiento': 'date_of_birth',
+        'data_de_nascimento': 'date_of_birth', 'fecha_de_nacimiento': 'date_of_birth',
+        'nascimento': 'date_of_birth',
+        # gender
+        'gender': 'gender', 'genero': 'gender', 'sexo': 'gender', 'sex': 'gender',
+        # belt
+        'belt': 'belt', 'belt_rank': 'belt', 'rank': 'belt', 'faixa': 'belt',
+        'cinturon': 'belt', 'graduation': 'belt', 'graduacao': 'belt', 'graduación': 'belt',
+        'belt_color': 'belt', 'color_faixa': 'belt',
+        # stripes
+        'stripes': 'stripes', 'stripe': 'stripes', 'graus': 'stripes',
+        'grau': 'stripes', 'rayas': 'stripes', 'degrees': 'stripes',
+        # status
+        'status': 'status', 'membership_status': 'status', 'estado': 'status',
+        'situacao': 'status',
+        # join_date
+        'join_date': 'join_date', 'joined': 'join_date', 'start_date': 'join_date',
+        'data_ingresso': 'join_date', 'fecha_ingreso': 'join_date',
+        'enrollment_date': 'join_date', 'registration_date': 'join_date',
+        'data_de_entrada': 'join_date', 'data_cadastro': 'join_date',
+        # emergency_contact
+        'emergency_contact': 'emergency_contact', 'emergency_name': 'emergency_contact',
+        'contato_emergencia': 'emergency_contact', 'contacto_emergencia': 'emergency_contact',
+        'emergencia': 'emergency_contact', 'emergency': 'emergency_contact',
+        # emergency_phone
+        'emergency_phone': 'emergency_phone', 'emergency_tel': 'emergency_phone',
+        'telefone_emergencia': 'emergency_phone', 'telefono_emergencia': 'emergency_phone',
+        # medical_notes
+        'medical_notes': 'medical_notes', 'medical': 'medical_notes',
+        'health_notes': 'medical_notes', 'notas_medicas': 'medical_notes',
+        'health': 'medical_notes', 'medical_info': 'medical_notes',
+        'observacoes_medicas': 'medical_notes', 'saude': 'medical_notes',
+        # source
+        'source': 'source', 'origem': 'source', 'origen': 'source',
+        'referral': 'source', 'how_found': 'source', 'indicacao': 'source',
+        # notes
+        'notes': 'notes', 'notas': 'notes', 'observacoes': 'notes',
+        'comments': 'notes', 'comentarios': 'notes', 'obs': 'notes',
+    }
+
+    belt_map = {
+        'white': 1, 'branca': 1, 'blanco': 1, 'blanca': 1,
+        'blue': 2, 'azul': 2,
+        'purple': 3, 'roxa': 3, 'morado': 3, 'morada': 3, 'purpura': 3,
+        'brown': 4, 'marrom': 4, 'marron': 4, 'cafe': 4,
+        'black': 5, 'preta': 5, 'negro': 5, 'negra': 5,
+    }
+
     imported = 0
     errors = 0
 
     try:
-        stream = io.StringIO(csv_file.stream.read().decode('utf-8-sig'))
+        raw = csv_file.stream.read()
+        # Try utf-8-sig first, then latin-1 as fallback
+        try:
+            text = raw.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = raw.decode('latin-1')
+
+        stream = io.StringIO(text)
         reader = csv.DictReader(stream)
 
-        # Normalize header names (strip spaces, lowercase)
+        # Normalize header names
         if reader.fieldnames:
-            reader.fieldnames = [f.strip().lower().replace(' ', '_') for f in reader.fieldnames]
+            reader.fieldnames = [f.strip().lower().replace(' ', '_').replace('-', '_') for f in reader.fieldnames]
+
+        # Build mapping from CSV columns to our fields
+        col_mapping = {}
+        for csv_col in (reader.fieldnames or []):
+            mapped = COLUMN_MAP.get(csv_col)
+            if mapped and mapped not in col_mapping.values():
+                col_mapping[csv_col] = mapped
+
+        print(f"[CSV Import] Detected columns: {reader.fieldnames}")
+        print(f"[CSV Import] Mapped to: {col_mapping}")
+
+        def get_field(row, field):
+            """Get a field value using the column mapping."""
+            for csv_col, mapped_field in col_mapping.items():
+                if mapped_field == field:
+                    val = row.get(csv_col, '')
+                    return val.strip() if val else ''
+            return ''
 
         for row in reader:
             try:
-                first_name = row.get('first_name', '').strip()
-                last_name = row.get('last_name', '').strip()
+                first_name = get_field(row, 'first_name')
+                last_name = get_field(row, 'last_name')
+
+                # If no last_name column, try splitting name
+                if first_name and not last_name:
+                    parts = first_name.split(None, 1)
+                    if len(parts) == 2:
+                        first_name, last_name = parts
+
                 if not first_name:
                     errors += 1
                     continue
 
-                belt_str = row.get('belt', 'white').strip().lower()
+                # Belt parsing
+                belt_str = get_field(row, 'belt').lower()
                 belt_id = belt_map.get(belt_str, 1)
+
+                # Stripes parsing
+                stripes_str = get_field(row, 'stripes')
+                try:
+                    stripes_val = int(stripes_str) if stripes_str else 0
+                except ValueError:
+                    stripes_val = 0
+
+                # Status parsing
+                status_raw = get_field(row, 'status').lower()
+                status_map = {
+                    'active': 'active', 'ativo': 'active', 'activo': 'active',
+                    'inactive': 'inactive', 'inativo': 'inactive', 'inactivo': 'inactive',
+                    'expired': 'expired', 'expirado': 'expired', 'vencido': 'expired',
+                    'trial': 'trial', 'teste': 'trial', 'prueba': 'trial',
+                }
+                status = status_map.get(status_raw, 'active')
 
                 models.create_member(
                     academy_id=academy_id,
                     first_name=first_name,
                     last_name=last_name,
-                    email=row.get('email', '').strip(),
-                    phone=row.get('phone', '').strip(),
-                    date_of_birth=row.get('date_of_birth', '').strip() or None,
-                    gender=row.get('gender', '').strip(),
+                    email=get_field(row, 'email'),
+                    phone=get_field(row, 'phone'),
+                    date_of_birth=get_field(row, 'date_of_birth') or None,
+                    gender=get_field(row, 'gender'),
                     belt_rank_id=belt_id,
-                    stripes=int(row.get('stripes', 0) or 0),
-                    membership_status=row.get('status', 'active').strip() or 'active',
-                    source=row.get('source', 'csv_import').strip() or 'csv_import',
+                    stripes=stripes_val,
+                    membership_status=status,
+                    join_date=get_field(row, 'join_date') or str(date.today()),
+                    emergency_contact=get_field(row, 'emergency_contact'),
+                    emergency_phone=get_field(row, 'emergency_phone'),
+                    medical_notes=get_field(row, 'medical_notes'),
+                    source=get_field(row, 'source') or 'csv_import',
+                    notes=get_field(row, 'notes'),
                 )
                 imported += 1
             except Exception as e:

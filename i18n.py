@@ -683,6 +683,7 @@ TRANSLATIONS = {
         'import_csv_format': 'CSV file with member data',
         'import_csv_columns': 'Expected columns:',
         'import_csv_btn': 'Import',
+        'import_csv_flex': 'Accepts variations like "Nome", "Telefone", "Faixa", "Phone Number", etc.',
 
         # Sidebar menu
         'menu_settings': 'Settings',
@@ -1386,6 +1387,7 @@ TRANSLATIONS = {
         'import_csv_format': 'Archivo CSV con datos de miembros',
         'import_csv_columns': 'Columnas esperadas:',
         'import_csv_btn': 'Importar',
+        'import_csv_flex': 'Aceita variacoes como "Nome", "Telefone", "Faixa", "Phone Number", etc.',
 
         # Sidebar menu
         'menu_settings': 'Ajustes',
@@ -2089,6 +2091,7 @@ TRANSLATIONS = {
         'import_csv_format': 'Arquivo CSV com dados dos membros',
         'import_csv_columns': 'Colunas esperadas:',
         'import_csv_btn': 'Importar',
+        'import_csv_flex': 'Aceita variacoes como "Nome", "Telefone", "Faixa", "Phone Number", etc.',
 
         # Sidebar menu
         'menu_settings': 'Configuracoes',
