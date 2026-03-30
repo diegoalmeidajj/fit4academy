@@ -738,6 +738,10 @@ TRANSLATIONS = {
         'msg_stat_open_rate': 'open rate',
         'msg_stat_click_rate': 'click rate',
         'msg_delivery_overview': 'Delivery Overview',
+        'msg_ai_title': 'Write with Artificial Intelligence',
+        'msg_ai_placeholder': 'Describe what you want to write... e.g. "announce Saturday open mat at 10am"',
+        'msg_ai_generate': 'Generate',
+        'msg_ai_loading': 'AI is writing...',
 
         # Sidebar menu
         'menu_settings': 'Settings',
@@ -1496,6 +1500,10 @@ TRANSLATIONS = {
         'msg_stat_open_rate': 'tasa de apertura',
         'msg_stat_click_rate': 'tasa de clicks',
         'msg_delivery_overview': 'Resumen de Entrega',
+        'msg_ai_title': 'Escribir con Inteligencia Artificial',
+        'msg_ai_placeholder': 'Describe lo que quieres escribir... ej. "anunciar open mat el sabado a las 10am"',
+        'msg_ai_generate': 'Generar',
+        'msg_ai_loading': 'La IA esta escribiendo...',
 
         # Sidebar menu
         'menu_settings': 'Ajustes',
@@ -2254,6 +2262,10 @@ TRANSLATIONS = {
         'msg_stat_open_rate': 'taxa de abertura',
         'msg_stat_click_rate': 'taxa de cliques',
         'msg_delivery_overview': 'Visao Geral de Entrega',
+        'msg_ai_title': 'Escrever com Inteligencia Artificial',
+        'msg_ai_placeholder': 'Descreva o que voce quer escrever... ex. "anunciar open mat no sabado as 10h"',
+        'msg_ai_generate': 'Gerar',
+        'msg_ai_loading': 'A IA esta escrevendo...',
 
         # Sidebar menu
         'menu_settings': 'Configuracoes',

@@ -2644,6 +2644,82 @@ def api_messaging_preview():
         return jsonify({'count': 0, 'total': 0})
 
 
+@app.route('/api/messaging/ai-write', methods=['POST'])
+@login_required
+def api_messaging_ai_write():
+    """Use Gemini free API to generate email/SMS content."""
+    import requests as http_requests
+
+    data = request.get_json() or {}
+    user_prompt = data.get('prompt', '').strip()
+    channel = data.get('channel', 'email')
+
+    if not user_prompt:
+        return jsonify({'error': 'Please describe what you want to write.'})
+
+    api_key = os.environ.get('GEMINI_API_KEY', '')
+    if not api_key:
+        return jsonify({'error': 'AI not configured. Add GEMINI_API_KEY in settings.'})
+
+    # Build system prompt
+    if channel == 'sms':
+        system = (
+            "You are an assistant for a Jiu-Jitsu academy. "
+            "Write a short SMS message (max 160 characters). "
+            "Be direct, friendly, professional. No emojis unless asked. "
+            "Reply ONLY with the SMS text, nothing else."
+        )
+    else:
+        system = (
+            "You are an assistant for a Jiu-Jitsu academy. "
+            "Write a professional email for the academy to send to its members. "
+            "Reply in this exact format:\n"
+            "SUBJECT: (the email subject line)\n"
+            "BODY:\n(the email body text)\n\n"
+            "Be friendly, professional, concise. No emojis unless asked. "
+            "Write in the same language as the user's request."
+        )
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        resp = http_requests.post(url, json={
+            "contents": [
+                {"role": "user", "parts": [{"text": f"{system}\n\nUser request: {user_prompt}"}]}
+            ],
+            "generationConfig": {"temperature": 0.7, "maxOutputTokens": 500}
+        }, timeout=15)
+
+        if resp.status_code != 200:
+            print(f"[AI] Gemini error: {resp.status_code} {resp.text[:200]}")
+            return jsonify({'error': f'AI service error ({resp.status_code})'})
+
+        result = resp.json()
+        text = result['candidates'][0]['content']['parts'][0]['text'].strip()
+
+        if channel == 'sms':
+            return jsonify({'body': text[:160], 'subject': ''})
+        else:
+            # Parse SUBJECT: and BODY: from response
+            subject = ''
+            body = text
+            if 'SUBJECT:' in text and 'BODY:' in text:
+                parts = text.split('BODY:', 1)
+                subject_part = parts[0]
+                body = parts[1].strip() if len(parts) > 1 else text
+                if 'SUBJECT:' in subject_part:
+                    subject = subject_part.split('SUBJECT:', 1)[1].strip()
+            elif text.startswith('SUBJECT:'):
+                lines = text.split('\n', 1)
+                subject = lines[0].replace('SUBJECT:', '').strip()
+                body = lines[1].strip() if len(lines) > 1 else ''
+
+            return jsonify({'subject': subject, 'body': body})
+
+    except Exception as e:
+        print(f"[AI] Error: {e}")
+        return jsonify({'error': f'AI error: {str(e)}'})
+
+
 # ═══════════════════════════════════════════════════════════════
 #  STATIC FILES
 # ═══════════════════════════════════════════════════════════════

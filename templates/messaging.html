@@ -282,6 +282,25 @@
                         {{ t('msg_body') }}
                     </label>
                     <textarea name="body" id="msgBody" class="form-control" rows="10" placeholder="{{ t('msg_body') }}..." style="resize:vertical;min-height:200px;" required></textarea>
+
+                    <!-- AI Writer -->
+                    <div style="margin-top:12px;border:1.5px solid var(--border);border-radius:12px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,.04),rgba(139,92,246,.04));">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                            <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;">
+                                <i class="bi bi-stars" style="color:#fff;font-size:14px;"></i>
+                            </div>
+                            <span style="font-size:13px;font-weight:700;font-family:'Space Grotesk';">{{ t('msg_ai_title') }}</span>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <input type="text" id="aiPrompt" class="form-control" placeholder="{{ t('msg_ai_placeholder') }}" style="flex:1;font-size:13px;">
+                            <button type="button" class="btn btn-primary" onclick="generateWithAI()" id="aiBtn" style="white-space:nowrap;">
+                                <i class="bi bi-stars"></i> {{ t('msg_ai_generate') }}
+                            </button>
+                        </div>
+                        <div id="aiLoading" style="display:none;margin-top:10px;font-size:12px;color:var(--primary);font-weight:600;">
+                            <i class="bi bi-hourglass-split"></i> {{ t('msg_ai_loading') }}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -504,5 +523,44 @@ document.getElementById('composeForm').addEventListener('submit', function(e) {
 
 // Initial preview load
 updatePreview();
+
+/* ===== AI Writer ===== */
+function generateWithAI() {
+    const prompt = document.getElementById('aiPrompt').value.trim();
+    if (!prompt) {
+        document.getElementById('aiPrompt').focus();
+        return;
+    }
+    const btn = document.getElementById('aiBtn');
+    const loading = document.getElementById('aiLoading');
+    btn.disabled = true;
+    loading.style.display = 'block';
+
+    const channel = document.querySelector('input[name="channel"]:checked').value;
+
+    fetch('/api/messaging/ai-write', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ prompt: prompt, channel: channel })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.subject) document.getElementById('msgSubject').value = data.subject;
+        if (data.body) document.getElementById('msgBody').value = data.body;
+        if (data.error) alert(data.error);
+    })
+    .catch(err => {
+        alert('AI error: ' + err.message);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        loading.style.display = 'none';
+    });
+}
+
+// Allow Enter key in AI prompt
+document.getElementById('aiPrompt').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); generateWithAI(); }
+});
 </script>
 {% endblock %}
