@@ -589,6 +589,7 @@ def member_add():
                 photo=photo_url,
                 source=request.form.get('source', ''),
                 notes=request.form.get('notes', ''),
+                pin=request.form.get('pin', '').strip() or None,
             )
 
             # Assign membership plan if selected
@@ -778,6 +779,7 @@ def member_edit(member_id):
             'medical_notes': request.form.get('medical_notes', ''),
             'source': request.form.get('source', ''),
             'notes': request.form.get('notes', ''),
+            'pin': request.form.get('pin', '').strip(),
         }
 
         # Photo upload
