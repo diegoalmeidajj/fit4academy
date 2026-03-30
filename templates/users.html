@@ -2,35 +2,143 @@
 {% block title %}{{ t('nav_users') }}{% endblock %}
 
 {% block extra_css %}
-.user-card { display: flex; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; background: var(--card-bg); transition: all .2s; }
-.user-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.user-card { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 10px; background: var(--card-bg); transition: all .2s; }
+.user-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.06); }
 .user-avatar { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg,#6366f1,#a855f7); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 18px; font-family: 'Space Grotesk'; flex-shrink: 0; }
+.user-avatar.inactive { opacity: .4; filter: grayscale(1); }
 .user-info { flex: 1; }
 .user-name { font-weight: 700; font-size: 15px; }
-.user-role { font-size: 12px; color: var(--text-muted); }
-.user-email { font-size: 12px; color: var(--text-muted); }
-.role-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-.role-admin { background: #ede9fe; color: #5b21b6; }
-.role-instructor { background: #dbeafe; color: #1e40af; }
-.role-staff { background: #f1f5f9; color: #475569; }
+.user-name.inactive { opacity: .5; text-decoration: line-through; }
+.user-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; margin-top: 2px; }
+.role-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.role-admin { background: rgba(139,92,246,.15); color: #8b5cf6; }
+.role-instructor { background: rgba(59,130,246,.15); color: #3b82f6; }
+.role-staff { background: rgba(100,116,139,.15); color: #64748b; }
+.status-active { color: var(--success); font-size: 11px; font-weight: 600; }
+.status-inactive { color: var(--danger); font-size: 11px; font-weight: 600; }
+
+/* Access control badges */
+.access-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.access-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.access-badge.on { background: rgba(16,185,129,.12); color: var(--success); }
+.access-badge.off { background: rgba(100,116,139,.08); color: var(--text-muted); opacity: .5; }
+
+@media (max-width: 768px) {
+    .user-card { flex-wrap: wrap; gap: 10px; }
+    .user-actions { width: 100%; display: flex; gap: 6px; justify-content: flex-end; }
+}
 {% endblock %}
 
 {% block content %}
 <div class="topbar">
-    <h1><i class="bi bi-person-gear" style="color:var(--primary);"></i> {{ t('users_title') }}</h1>
+    <h1><i class="bi bi-person-gear" style="color:var(--primary);"></i> {{ t('users_title') }} <span style="font-size:14px;font-weight:600;color:var(--text-muted);vertical-align:middle;">({{ users|default([])|length }})</span></h1>
+</div>
+
+<!-- Access Control Legend -->
+<div style="margin-bottom:16px;padding:12px 16px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.1);border-radius:10px;font-size:12px;color:var(--text-muted);">
+    <strong style="color:var(--text);">Access by Role:</strong>
+    <span style="margin-left:12px;"><span class="role-badge role-admin" style="font-size:10px;">Admin</span> Full access — members, classes, payments, settings, users</span>
+    <span style="margin-left:12px;"><span class="role-badge role-instructor" style="font-size:10px;">Instructor</span> Check-in, classes, attendance, member profiles</span>
+    <span style="margin-left:12px;"><span class="role-badge role-staff" style="font-size:10px;">Staff</span> Check-in, members, prospects only</span>
 </div>
 
 <!-- User list -->
 <div class="mb-24">
     {% for user in users|default([]) %}
+    {% set is_active = user.active if user.active is defined else true %}
     <div class="user-card">
-        <div class="user-avatar">{{ user.initials }}</div>
+        <div class="user-avatar {{ '' if is_active else 'inactive' }}">{{ user.initials }}</div>
         <div class="user-info">
-            <div class="user-name">{{ user.name }}</div>
-            <div class="user-email">{{ user.email|default(user.username) }}</div>
+            <div class="user-name {{ '' if is_active else 'inactive' }}">{{ user.name }}</div>
+            <div class="user-meta">
+                <span><i class="bi bi-at"></i> {{ user.username }}</span>
+                {% if user.email %}<span><i class="bi bi-envelope"></i> {{ user.email }}</span>{% endif %}
+                {% if user.phone %}<span><i class="bi bi-phone"></i> {{ user.phone }}</span>{% endif %}
+            </div>
+            <div class="access-badges">
+                {% if user.role == 'admin' %}
+                <span class="access-badge on"><i class="bi bi-check"></i> Members</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Classes</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Payments</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Finance</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Settings</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Users</span>
+                {% elif user.role == 'instructor' %}
+                <span class="access-badge on"><i class="bi bi-check"></i> Check-in</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Classes</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Attendance</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Members</span>
+                <span class="access-badge off"><i class="bi bi-x"></i> Payments</span>
+                <span class="access-badge off"><i class="bi bi-x"></i> Settings</span>
+                {% else %}
+                <span class="access-badge on"><i class="bi bi-check"></i> Check-in</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Members</span>
+                <span class="access-badge on"><i class="bi bi-check"></i> Prospects</span>
+                <span class="access-badge off"><i class="bi bi-x"></i> Classes</span>
+                <span class="access-badge off"><i class="bi bi-x"></i> Payments</span>
+                <span class="access-badge off"><i class="bi bi-x"></i> Settings</span>
+                {% endif %}
+            </div>
         </div>
-        <span class="role-badge role-{{ user.role|lower }}">{{ t('role_' + user.role|lower) }}</span>
-        <a href="#" class="btn btn-sm btn-outline-secondary" onclick="editUser({{ user.id }})"><i class="bi bi-pencil"></i></a>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span class="role-badge role-{{ user.role|lower }}">{{ t('role_' + user.role|lower) }}</span>
+            {% if is_active %}
+            <span class="status-active"><i class="bi bi-check-circle-fill"></i> Active</span>
+            {% else %}
+            <span class="status-inactive"><i class="bi bi-x-circle-fill"></i> Inactive</span>
+            {% endif %}
+        </div>
+        <div class="user-actions" style="display:flex;gap:6px;">
+            <form method="post" action="/users/{{ user.id }}/toggle" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if is_active %}
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Deactivate" onclick="return confirm('Deactivate {{ user.name }}?')"><i class="bi bi-person-dash"></i></button>
+                {% else %}
+                <button type="submit" class="btn btn-sm btn-success" title="Activate"><i class="bi bi-person-check"></i></button>
+                {% endif %}
+            </form>
+            <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('editUser{{ user.id }}').style.display=document.getElementById('editUser{{ user.id }}').style.display==='none'?'block':'none'" title="Edit"><i class="bi bi-pencil"></i></button>
+        </div>
+    </div>
+    <!-- Inline edit form -->
+    <div id="editUser{{ user.id }}" style="display:none;margin-bottom:10px;margin-top:-6px;">
+        <div class="card" style="border-radius:0 0 14px 14px;">
+            <div class="card-body" style="padding:16px;">
+                <form method="post" action="/users/{{ user.id }}/edit">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="grid-3" style="gap:12px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:11px;">Name</label>
+                            <input type="text" name="name" class="form-control form-control-sm" value="{{ user.name }}" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:11px;">Email</label>
+                            <input type="email" name="email" class="form-control form-control-sm" value="{{ user.email|default('') }}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:11px;">Phone</label>
+                            <input type="tel" name="phone" class="form-control form-control-sm" value="{{ user.phone|default('') }}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:11px;">Role</label>
+                            <select name="role" class="form-select form-select-sm">
+                                <option value="instructor" {{ 'selected' if user.role == 'instructor' }}>{{ t('role_instructor') }}</option>
+                                <option value="staff" {{ 'selected' if user.role == 'staff' }}>{{ t('role_staff') }}</option>
+                                <option value="admin" {{ 'selected' if user.role == 'admin' }}>{{ t('role_admin') }}</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:11px;">New Password <span style="color:var(--text-muted);">(leave blank to keep)</span></label>
+                            <input type="password" name="password" class="form-control form-control-sm" placeholder="••••••••">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="font-size:11px;">&nbsp;</label>
+                            <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-check"></i> Save</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
     {% endfor %}
     {% if not users %}
@@ -44,7 +152,6 @@
     <div class="card-body">
         <form method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
             <div class="grid-2 mb-24">
                 <div class="form-group">
                     <label class="form-label">{{ t('users_name') }} *</label>
@@ -55,16 +162,21 @@
                     <input type="text" name="username" class="form-control" required>
                 </div>
             </div>
-
             <div class="grid-3 mb-24">
                 <div class="form-group">
                     <label class="form-label">{{ t('users_email') }}</label>
                     <input type="email" name="email" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">{{ t('users_password') }} *</label>
-                    <input type="password" name="password" class="form-control" required minlength="8">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" class="form-control" placeholder="+1 000 000 0000">
                 </div>
+                <div class="form-group">
+                    <label class="form-label">{{ t('users_password') }} *</label>
+                    <input type="password" name="password" class="form-control" required minlength="6">
+                </div>
+            </div>
+            <div class="grid-2 mb-24">
                 <div class="form-group">
                     <label class="form-label">{{ t('users_role') }} *</label>
                     <select name="role" class="form-select" required>
@@ -73,10 +185,10 @@
                         <option value="admin">{{ t('role_admin') }}</option>
                     </select>
                 </div>
-            </div>
-
-            <div style="display:flex;justify-content:flex-end;">
-                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> {{ t('users_add_btn') }}</button>
+                <div class="form-group">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-person-plus"></i> {{ t('users_add_btn') }}</button>
+                </div>
             </div>
         </form>
     </div>

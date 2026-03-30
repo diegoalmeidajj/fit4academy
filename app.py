@@ -2487,6 +2487,55 @@ def users_page():
     return render_template('users.html', users=users)
 
 
+@app.route('/users/<int:user_id>/toggle', methods=['POST'])
+@login_required
+def user_toggle(user_id):
+    if session.get('role') != 'admin':
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    if not validate_csrf():
+        return redirect(url_for('users_page'))
+    if user_id == session.get('user_id'):
+        flash('Cannot deactivate your own account.', 'error')
+        return redirect(url_for('users_page'))
+    try:
+        user = models.get_user(user_id)
+        if user:
+            new_active = not user.get('active', True)
+            models.update_user(user_id, active=new_active)
+            flash(f"User {'activated' if new_active else 'deactivated'}.", 'success')
+    except Exception as e:
+        print(f"[Users] Toggle error: {e}")
+        flash('Error toggling user.', 'error')
+    return redirect(url_for('users_page'))
+
+
+@app.route('/users/<int:user_id>/edit', methods=['POST'])
+@login_required
+def user_edit(user_id):
+    if session.get('role') != 'admin':
+        flash('Admin access required.', 'error')
+        return redirect(url_for('dashboard'))
+    if not validate_csrf():
+        return redirect(url_for('users_page'))
+    try:
+        update_data = {
+            'name': request.form.get('name', '').strip(),
+            'email': request.form.get('email', '').strip(),
+            'phone': request.form.get('phone', ''),
+            'role': request.form.get('role', 'staff'),
+        }
+        pw = request.form.get('password', '').strip()
+        if pw:
+            update_data['password'] = pw
+        models.update_user(user_id, **update_data)
+        flash('User updated!', 'success')
+    except Exception as e:
+        print(f"[Users] Edit error: {e}")
+        flash('Error updating user.', 'error')
+    return redirect(url_for('users_page'))
+
+
 # ═══════════════════════════════════════════════════════════════
 #  NOTIFICATIONS
 # ═══════════════════════════════════════════════════════════════
