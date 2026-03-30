@@ -1487,7 +1487,14 @@ def class_add():
             print(f"[Classes] Create error: {e}")
             flash('Error creating class.', 'error')
 
-    return render_template('class_form.html', cls=None)
+    # Get instructors (admins + instructors) for dropdown
+    try:
+        all_users = models.get_all_users()
+        instructors = [u for u in (all_users or []) if u.get('role') in ('admin', 'instructor') and u.get('active')]
+    except Exception:
+        instructors = []
+
+    return render_template('class_form.html', cls=None, instructors=instructors)
 
 
 @app.route('/classes/<int:class_id>/edit', methods=['GET', 'POST'])
@@ -1521,7 +1528,13 @@ def class_edit(class_id):
             print(f"[Classes] Update error: {e}")
             flash('Error updating class.', 'error')
 
-    return render_template('class_form.html', cls=cls)
+    try:
+        all_users = models.get_all_users()
+        instructors = [u for u in (all_users or []) if u.get('role') in ('admin', 'instructor') and u.get('active')]
+    except Exception:
+        instructors = []
+
+    return render_template('class_form.html', cls=cls, instructors=instructors)
 
 
 @app.route('/classes/<int:class_id>/delete', methods=['POST'])
