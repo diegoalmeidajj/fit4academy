@@ -122,6 +122,59 @@
     </div>
 </div>
 
+<!-- Belt Progression + Attendance Chart -->
+<div class="grid-2 mb-24">
+    <!-- Belt Progression -->
+    <div class="card">
+        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+            <i class="bi bi-rocket-takeoff" style="color:var(--primary);"></i> {{ t('profile_progression') }}
+        </div>
+        <div class="card-body" style="padding:20px;">
+            <!-- Stripes progress -->
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <span style="font-size:12px;font-weight:700;">{{ t('profile_stripes') }}</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--primary);">{{ member.stripes|default(0) }} / {{ max_stripes }}</span>
+                </div>
+                <div style="height:12px;background:var(--border);border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:{{ stripe_pct }}%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:6px;transition:width .6s ease;"></div>
+                </div>
+            </div>
+            {% if next_belt_name %}
+            <!-- Time to next belt -->
+            <div style="margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <span style="font-size:12px;font-weight:700;">{{ t('profile_next_belt') }} <span class="belt-badge belt-{{ next_belt_name|lower }}" style="font-size:10px;padding:2px 8px;">{{ next_belt_name }}</span></span>
+                    <span style="font-size:12px;font-weight:700;color:var(--primary);">{{ months_at_belt }} / {{ min_months_next }} {{ t('profile_months') }}</span>
+                </div>
+                <div style="height:12px;background:var(--border);border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:{{ time_pct }}%;background:linear-gradient(90deg,#10b981,#34d399);border-radius:6px;transition:width .6s ease;"></div>
+                </div>
+                {% if time_pct >= 100 and stripe_pct >= 100 %}
+                <div style="margin-top:10px;padding:10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:12px;font-weight:600;color:var(--success);display:flex;align-items:center;gap:6px;">
+                    <i class="bi bi-check-circle-fill"></i> {{ t('profile_ready_promote') }}
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div style="padding:10px;background:rgba(99,102,241,.06);border-radius:8px;font-size:12px;font-weight:600;color:var(--primary);display:flex;align-items:center;gap:6px;">
+                <i class="bi bi-trophy-fill"></i> {{ t('profile_highest_belt') }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Attendance Chart -->
+    <div class="card">
+        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+            <i class="bi bi-bar-chart-line" style="color:var(--primary);"></i> {{ t('profile_attendance_chart') }}
+        </div>
+        <div class="card-body" style="padding:16px;">
+            <canvas id="attendanceChart" height="180"></canvas>
+        </div>
+    </div>
+</div>
+
 <!-- Belt Timeline -->
 <div class="grid-2 mb-24">
     <div>
@@ -203,4 +256,47 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#cbd5e1' : '#475569';
+    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+
+    const el = document.getElementById('attendanceChart');
+    if (!el) return;
+
+    const data = {{ checkin_months|default([])|tojson }};
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.label),
+            datasets: [{
+                label: '{{ t("profile_checkins") }}',
+                data: data.map(d => d.count),
+                backgroundColor: 'rgba(99,102,241,.7)',
+                borderRadius: 8,
+                borderSkipped: false,
+                maxBarThickness: 36,
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: gridColor },
+                    ticks: { stepSize: 1, color: textColor, font: { size: 11, weight: 600 } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: textColor, font: { size: 11, weight: 600 } }
+                }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

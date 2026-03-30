@@ -623,11 +623,70 @@ def member_detail(member_id):
     except Exception:
         pass
 
+    # Belt progression data
+    belt_ranks = []
+    try:
+        belt_ranks = models.get_all_belt_ranks()
+    except Exception:
+        pass
+    belt_map = {b['id']: b for b in (belt_ranks or [])}
+    belt_order = {1: 2, 2: 3, 3: 4, 4: 5}
+
+    current_belt = belt_map.get(member.get('belt_rank_id', 1), {})
+    max_stripes = current_belt.get('max_stripes', 4)
+    stripes = member.get('stripes', 0) or 0
+    next_belt_id = belt_order.get(member.get('belt_rank_id', 1))
+    next_belt = belt_map.get(next_belt_id, {})
+    min_months_next = next_belt.get('min_months', 0)
+
+    # Months at belt (from join_date as approximation)
+    months_at_belt = 0
+    join_str = str(member.get('join_date', '') or '')[:10]
+    if join_str:
+        try:
+            join_dt = datetime.strptime(join_str, '%Y-%m-%d').date()
+            today = date.today()
+            months_at_belt = (today.year - join_dt.year) * 12 + (today.month - join_dt.month)
+            if months_at_belt < 0:
+                months_at_belt = 0
+        except Exception:
+            pass
+
+    stripe_pct = int(stripes / max_stripes * 100) if max_stripes else 0
+    time_pct = int(months_at_belt / min_months_next * 100) if min_months_next else (100 if next_belt_id else 0)
+    if time_pct > 100:
+        time_pct = 100
+
+    # Checkin history by month (last 6 months)
+    checkin_months = []
+    try:
+        all_checkins = models.get_checkins_by_member(member_id, limit=999)
+        today = date.today()
+        for i in range(5, -1, -1):
+            m = today.month - i
+            y = today.year
+            while m <= 0:
+                m += 12
+                y -= 1
+            month_key = f"{y}-{m:02d}"
+            count = sum(1 for c in (all_checkins or [])
+                        if str(c.get('check_in_time', ''))[:7] == month_key)
+            checkin_months.append({'label': month_key, 'count': count})
+    except Exception:
+        pass
+
     return render_template('member_detail.html',
         member=member,
         recent_checkins=recent_checkins,
         promotions=promotions,
         payments=payments,
+        max_stripes=max_stripes,
+        stripe_pct=stripe_pct,
+        time_pct=time_pct,
+        months_at_belt=months_at_belt,
+        min_months_next=min_months_next,
+        next_belt_name=next_belt.get('name', ''),
+        checkin_months=checkin_months,
     )
 
 
