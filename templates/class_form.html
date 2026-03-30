@@ -69,15 +69,23 @@
 
             <div style="font-family:'Space Grotesk';font-size:15px;font-weight:600;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);"><i class="bi bi-clock" style="color:var(--primary);"></i> {{ t('class_schedule') }}</div>
 
-            <div class="grid-4 mb-24">
-                <div class="form-group">
-                    <label class="form-label">{{ t('class_day') }} *</label>
-                    <select name="day_of_week" class="form-select" required>
-                        {% for day in ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
-                        <option value="{{ day }}" {{ 'selected' if cls and cls.day_of_week == day }}>{{ t('day_' + day) }}</option>
-                        {% endfor %}
-                    </select>
+            <!-- Days selection -->
+            <div class="form-group mb-24">
+                <label class="form-label">{{ t('class_day') }} * <span style="font-size:10px;color:var(--text-muted);font-weight:400;">(select multiple)</span></label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    {% set existing_days = cls.schedule_days if cls and cls.schedule_days else [] %}
+                    {% set day_nums = {'monday':0,'tuesday':1,'wednesday':2,'thursday':3,'friday':4,'saturday':5,'sunday':6} %}
+                    {% for day in ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
+                    <label style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;border:1.5px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;background:var(--input-bg);transition:all .15s;user-select:none;" class="day-label">
+                        <input type="checkbox" name="days" value="{{ day_nums[day] }}" {{ 'checked' if day_nums[day] in existing_days else '' }} style="accent-color:var(--primary);width:16px;height:16px;">
+                        {{ t('day_' + day) }}
+                    </label>
+                    {% endfor %}
                 </div>
+            </div>
+
+            <!-- Time + Room -->
+            <div class="grid-3 mb-24">
                 <div class="form-group">
                     <label class="form-label">{{ t('class_start_time') }} *</label>
                     <input type="time" name="start_time" class="form-control" value="{{ cls.start_time if cls else '09:00' }}" required>

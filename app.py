@@ -1522,6 +1522,23 @@ def class_edit(class_id):
                 max_capacity=int(request.form.get('max_capacity', 30)),
                 belt_level=request.form.get('belt_level', 'all'),
             )
+
+            # Update schedule: delete old, create new
+            try:
+                models.delete_class_schedules(class_id)
+                days = request.form.getlist('days')
+                start_time = request.form.get('start_time', '')
+                end_time = request.form.get('end_time', '')
+                for day in days:
+                    models.create_class_schedule(
+                        class_id=class_id,
+                        day_of_week=int(day),
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+            except Exception as e:
+                print(f"[Classes] Schedule update error: {e}")
+
             flash('Class updated!', 'success')
             return redirect(url_for('classes_list'))
         except Exception as e:
@@ -1533,6 +1550,16 @@ def class_edit(class_id):
         instructors = [u for u in (all_users or []) if u.get('role') in ('admin', 'instructor') and u.get('active')]
     except Exception:
         instructors = []
+
+    # Get existing schedule days for this class
+    try:
+        schedules = models.get_schedules_for_class(class_id)
+        cls['schedule_days'] = [s.get('day_of_week') for s in (schedules or [])]
+        if schedules:
+            cls['start_time'] = schedules[0].get('start_time', '')
+            cls['end_time'] = schedules[0].get('end_time', '')
+    except Exception:
+        cls['schedule_days'] = []
 
     return render_template('class_form.html', cls=cls, instructors=instructors)
 

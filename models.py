@@ -981,6 +981,23 @@ def get_schedule_by_day(day_of_week, academy_id=1):
     return [dict(r) for r in rows]
 
 
+def get_schedules_for_class(class_id):
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM class_schedule WHERE class_id = ? ORDER BY day_of_week",
+        (class_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_class_schedules(class_id):
+    conn = get_db()
+    conn.execute("DELETE FROM class_schedule WHERE class_id = ?", (class_id,))
+    conn.commit()
+    conn.close()
+
+
 def create_class_schedule(class_id, day_of_week, start_time, end_time):
     conn = get_db()
     cur = conn.execute(
