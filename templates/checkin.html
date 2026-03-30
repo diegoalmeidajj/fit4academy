@@ -247,7 +247,10 @@
 
 <!-- ===== TAB SWITCHER ===== -->
 <div class="kiosk-tabs" id="kioskTabs">
-    <button class="kiosk-tab active" data-tab="pin" onclick="switchTab('pin')">
+    <button class="kiosk-tab active" data-tab="biometric" onclick="switchTab('biometric')">
+        <i class="bi bi-fingerprint"></i> <span>FaceID</span>
+    </button>
+    <button class="kiosk-tab" data-tab="pin" onclick="switchTab('pin')">
         <i class="bi bi-grid-3x3-gap-fill"></i> <span>PIN</span>
     </button>
     <button class="kiosk-tab" data-tab="qr" onclick="switchTab('qr')">
@@ -256,13 +259,10 @@
     <button class="kiosk-tab" data-tab="tap" onclick="switchTab('tap')">
         <i class="bi bi-hand-index-thumb-fill"></i> <span>Quick Tap</span>
     </button>
-    <button class="kiosk-tab" data-tab="biometric" onclick="switchTab('biometric')">
-        <i class="bi bi-fingerprint"></i> <span>FaceID</span>
-    </button>
 </div>
 
 <!-- ===== PIN PANEL ===== -->
-<div class="kiosk-panel active" id="panelPin">
+<div class="kiosk-panel" id="panelPin">
     <div class="pin-container">
         <div class="pin-display">
             <div class="pin-label">Enter Your 4-Digit PIN</div>
@@ -350,7 +350,7 @@
 </div>
 
 <!-- ===== BIOMETRIC PANEL ===== -->
-<div class="kiosk-panel" id="panelBiometric">
+<div class="kiosk-panel active" id="panelBiometric">
     <div style="max-width:400px;margin:0 auto;text-align:center;padding:40px 20px;">
         <div style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.15));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid rgba(99,102,241,.2);">
             <i class="bi bi-fingerprint" style="font-size:48px;color:var(--primary);"></i>
