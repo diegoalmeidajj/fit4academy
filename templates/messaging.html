@@ -94,30 +94,30 @@
 <div class="grid-4 mb-16">
     <div class="card" style="padding:16px;">
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_total_sent') }}</div>
-        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;">{{ stats.total_sent|default(0) }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;">{{ stats.get('total_sent', 0) }}</div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;">
-            <i class="bi bi-envelope" style="color:#6366f1;"></i> {{ stats.total_email|default(0) }} email
+            <i class="bi bi-envelope" style="color:#6366f1;"></i> {{ stats.get('total_email', 0) }} email
             &nbsp;·&nbsp;
-            <i class="bi bi-chat-text" style="color:#10b981;"></i> {{ stats.total_sms|default(0) }} sms
+            <i class="bi bi-chat-text" style="color:#10b981;"></i> {{ stats.get('total_sms', 0) }} sms
         </div>
     </div>
     <div class="card" style="padding:16px;">
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_delivered') }}</div>
-        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:var(--success);">{{ stats.delivered|default(0) }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:var(--success);">{{ stats.get('delivered', 0) }}</div>
         <div style="font-size:11px;color:var(--success);font-weight:600;">
             {% if stats.get('total_sent', 0) > 0 %}{{ ((stats.get('delivered', 0)) / stats.get('total_sent', 1) * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_rate') }}
         </div>
     </div>
     <div class="card" style="padding:16px;">
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_opened') }}</div>
-        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#6366f1;">{{ stats.opened|default(0) }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#6366f1;">{{ stats.get('opened', 0) }}</div>
         <div style="font-size:11px;color:#6366f1;font-weight:600;">
             {% if stats.get('delivered', 0) > 0 %}{{ ((stats.get('opened', 0)) / stats.get('delivered', 1) * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_open_rate') }}
         </div>
     </div>
     <div class="card" style="padding:16px;">
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_clicked') }}</div>
-        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#f59e0b;">{{ stats.clicked|default(0) }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#f59e0b;">{{ stats.get('clicked', 0) }}</div>
         <div style="font-size:11px;color:#f59e0b;font-weight:600;">
             {% if stats.get('opened', 0) > 0 %}{{ ((stats.get('clicked', 0)) / stats.get('opened', 1) * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_click_rate') }}
         </div>
@@ -328,7 +328,7 @@
                     <td style="font-weight:600;">{{ msg.recipient_count }}</td>
                     <td><span class="msg-status {{ msg.status }}">{{ msg.status }}</span></td>
                     <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-muted);">{{ msg.body[:80] }}{% if msg.body|length > 80 %}...{% endif %}</td>
-                    <td style="white-space:nowrap;font-size:12px;color:var(--text-muted);">{{ msg.created_at[:16] if msg.created_at else '' }}</td>
+                    <td style="white-space:nowrap;font-size:12px;color:var(--text-muted);">{{ (msg.created_at|string)[:16] if msg.created_at else '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
