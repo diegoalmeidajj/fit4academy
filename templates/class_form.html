@@ -88,11 +88,11 @@
             <div class="grid-3 mb-24">
                 <div class="form-group">
                     <label class="form-label">{{ t('class_start_time') }} *</label>
-                    <input type="time" name="start_time" class="form-control" value="{{ cls.start_time if cls else '09:00' }}" required>
+                    <input type="time" name="start_time" id="startTime" class="form-control" value="{{ cls.start_time if cls else '09:00' }}" required onchange="autoEndTime()">
                 </div>
                 <div class="form-group">
                     <label class="form-label">{{ t('class_end_time') }} *</label>
-                    <input type="time" name="end_time" class="form-control" value="{{ cls.end_time if cls else '10:00' }}" required>
+                    <input type="time" name="end_time" id="endTime" class="form-control" value="{{ cls.end_time if cls else '10:00' }}" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">{{ t('class_room') }}</label>
@@ -118,4 +118,16 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function autoEndTime() {
+    const start = document.getElementById('startTime').value;
+    if (!start) return;
+    const [h, m] = start.split(':').map(Number);
+    const endH = (h + 1) % 24;
+    document.getElementById('endTime').value = String(endH).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+</script>
 {% endblock %}
