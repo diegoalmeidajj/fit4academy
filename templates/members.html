@@ -9,6 +9,31 @@
 .status-dot.active { background: var(--success); }
 .status-dot.inactive { background: var(--text-muted); }
 .status-dot.expired { background: var(--danger); }
+
+/* Selection checkbox */
+.member-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border); cursor: pointer; accent-color: #6366f1; }
+.member-check:checked { border-color: #6366f1; }
+
+/* Bulk action bar */
+.bulk-bar {
+    display: none; position: sticky; top: 0; z-index: 50;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+    border-radius: 12px; padding: 12px 20px; margin-bottom: 16px;
+    align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(99,102,241,.35);
+    animation: slideDown .2s ease;
+}
+.bulk-bar.show { display: flex; }
+@keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+.bulk-count { font-family: 'Space Grotesk'; font-size: 15px; font-weight: 700; }
+.bulk-actions { display: flex; gap: 8px; margin-left: auto; }
+.bulk-btn {
+    padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    border: 1.5px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1);
+    color: #fff; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all .2s;
+}
+.bulk-btn:hover { background: rgba(255,255,255,.2); }
+.bulk-btn.danger { border-color: rgba(255,100,100,.5); background: rgba(255,50,50,.15); }
+.bulk-btn.danger:hover { background: rgba(255,50,50,.3); }
 {% endblock %}
 
 {% block content %}
@@ -17,6 +42,16 @@
     <div class="topbar-actions">
         <button class="btn btn-outline-primary" onclick="document.getElementById('csvModal').style.display='flex'"><i class="bi bi-file-earmark-arrow-up"></i> {{ t('import_csv') }}</button>
         <a href="/members/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('members_add') }}</a>
+    </div>
+</div>
+
+<!-- Bulk action bar -->
+<div class="bulk-bar" id="bulkBar">
+    <span class="bulk-count"><span id="selectedCount">0</span> {{ t('members_selected') }}</span>
+    <div class="bulk-actions">
+        <button class="bulk-btn" onclick="bulkExport()"><i class="bi bi-download"></i> {{ t('export') }}</button>
+        <button class="bulk-btn" onclick="clearSelection()"><i class="bi bi-x-lg"></i> {{ t('members_deselect') }}</button>
+        <button class="bulk-btn danger" onclick="bulkDelete()"><i class="bi bi-trash3"></i> {{ t('delete') }}</button>
     </div>
 </div>
 
@@ -63,6 +98,7 @@
         <table class="data-table" id="membersTable">
             <thead>
                 <tr>
+                    <th style="width:40px;"><input type="checkbox" class="member-check" id="selectAll" onchange="toggleSelectAll(this)"></th>
                     <th>{{ t('members_col_member') }}</th>
                     <th>{{ t('members_col_belt') }}</th>
                     <th>{{ t('members_col_status') }}</th>
@@ -74,7 +110,8 @@
             </thead>
             <tbody>
                 {% for member in members|default([]) %}
-                <tr data-belt="{{ member.belt|lower }}" data-status="{{ member.status|lower }}" data-membership="{{ member.membership_id }}" data-name="{{ member.first_name }} {{ member.last_name }}">
+                <tr data-id="{{ member.id }}" data-belt="{{ member.belt|lower }}" data-status="{{ member.status|lower }}" data-membership="{{ member.membership_id }}" data-name="{{ member.first_name }} {{ member.last_name }}">
+                    <td><input type="checkbox" class="member-check row-check" value="{{ member.id }}" onchange="updateSelection()"></td>
                     <td>
                         <div class="member-row">
                             <div class="member-photo">
@@ -119,6 +156,13 @@
     {% if page < total_pages %}<a href="?page={{ page + 1 }}">&raquo;</a>{% endif %}
 </div>
 {% endif %}
+
+<!-- Bulk delete form (hidden) -->
+<form id="bulkDeleteForm" method="post" action="/members/bulk-delete" style="display:none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="member_ids" id="bulkDeleteIds">
+</form>
+
 <!-- Import CSV Modal -->
 <div id="csvModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
     <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:520px;width:90%;border:1px solid var(--border);">
@@ -162,6 +206,67 @@ function showFileName(input) {
         label.style.display = 'block';
     }
 }
+
+/* ===== Selection logic ===== */
+function getVisibleCheckboxes() {
+    return [...document.querySelectorAll('.row-check')].filter(cb => cb.closest('tr').style.display !== 'none');
+}
+
+function getSelectedIds() {
+    return [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+}
+
+function toggleSelectAll(master) {
+    const visible = getVisibleCheckboxes();
+    visible.forEach(cb => cb.checked = master.checked);
+    updateSelection();
+}
+
+function updateSelection() {
+    const selected = getSelectedIds();
+    const count = selected.length;
+    const bar = document.getElementById('bulkBar');
+    const countEl = document.getElementById('selectedCount');
+
+    countEl.textContent = count;
+    if (count > 0) {
+        bar.classList.add('show');
+    } else {
+        bar.classList.remove('show');
+    }
+
+    // Update "select all" checkbox state
+    const visible = getVisibleCheckboxes();
+    const allChecked = visible.length > 0 && visible.every(cb => cb.checked);
+    const someChecked = visible.some(cb => cb.checked);
+    const selectAll = document.getElementById('selectAll');
+    selectAll.checked = allChecked;
+    selectAll.indeterminate = someChecked && !allChecked;
+}
+
+function clearSelection() {
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    updateSelection();
+}
+
+function bulkDelete() {
+    const ids = getSelectedIds();
+    if (!ids.length) return;
+    if (!confirm('{{ t("members_bulk_delete_confirm") }}'.replace('{count}', ids.length))) return;
+
+    document.getElementById('bulkDeleteIds').value = ids.join(',');
+    document.getElementById('bulkDeleteForm').submit();
+}
+
+function bulkExport() {
+    const ids = getSelectedIds();
+    if (!ids.length) return;
+    window.location.href = '/members/export-csv?ids=' + ids.join(',');
+}
+
+/* ===== Filters ===== */
 function filterMembers() {
     const search = document.getElementById('memberSearch').value.toLowerCase();
     const belt = document.getElementById('filterBelt').value;
@@ -175,6 +280,9 @@ function filterMembers() {
         const matchMembership = !membership || row.dataset.membership === membership;
         row.style.display = (matchSearch && matchBelt && matchStatus && matchMembership) ? '' : 'none';
     });
+    // Reset select all when filtering
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
 }
 </script>
 {% endblock %}

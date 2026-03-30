@@ -74,6 +74,9 @@ TRANSLATIONS = {
         'members_col_phone': 'Phone',
         'members_col_last_checkin': 'Last Check-in',
         'members_empty': 'No members found.',
+        'members_selected': 'selected',
+        'members_deselect': 'Deselect',
+        'members_bulk_delete_confirm': 'Delete {count} selected members?',
         'stripes_abbr': 'str',
 
         # Member form
@@ -778,6 +781,9 @@ TRANSLATIONS = {
         'members_col_phone': 'Telefono',
         'members_col_last_checkin': 'Ultimo Registro',
         'members_empty': 'No se encontraron miembros.',
+        'members_selected': 'seleccionados',
+        'members_deselect': 'Deseleccionar',
+        'members_bulk_delete_confirm': 'Eliminar {count} miembros seleccionados?',
         'stripes_abbr': 'gr',
 
         # Member form
@@ -1482,6 +1488,9 @@ TRANSLATIONS = {
         'members_col_phone': 'Telefone',
         'members_col_last_checkin': 'Ultimo Check-in',
         'members_empty': 'Nenhum membro encontrado.',
+        'members_selected': 'selecionados',
+        'members_deselect': 'Desmarcar',
+        'members_bulk_delete_confirm': 'Excluir {count} membros selecionados?',
         'stripes_abbr': 'gr',
 
         # Member form

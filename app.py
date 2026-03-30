@@ -688,6 +688,73 @@ def member_delete(member_id):
     return redirect(url_for('members_list'))
 
 
+@app.route('/members/bulk-delete', methods=['POST'])
+@login_required
+def members_bulk_delete():
+    if not validate_csrf():
+        return redirect(url_for('members_list'))
+    ids_str = request.form.get('member_ids', '')
+    if not ids_str:
+        return redirect(url_for('members_list'))
+    count = 0
+    for mid in ids_str.split(','):
+        try:
+            mid = int(mid.strip())
+            models.update_member(mid, active=False, membership_status='inactive')
+            count += 1
+        except Exception as e:
+            print(f"[Bulk Delete] Error for id {mid}: {e}")
+    flash(f'{count} members deleted.', 'success')
+    return redirect(url_for('members_list'))
+
+
+@app.route('/members/export-csv')
+@login_required
+def members_export_csv():
+    import csv
+    import io
+    academy_id = _get_academy_id()
+    ids_str = request.args.get('ids', '')
+
+    try:
+        all_members = models.get_all_members(academy_id)
+    except Exception:
+        all_members = []
+
+    if ids_str:
+        id_set = set()
+        for x in ids_str.split(','):
+            try:
+                id_set.add(int(x.strip()))
+            except ValueError:
+                pass
+        all_members = [m for m in all_members if m.get('id') in id_set]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['first_name', 'last_name', 'email', 'phone', 'date_of_birth',
+                     'gender', 'belt', 'stripes', 'status', 'join_date',
+                     'emergency_contact', 'emergency_phone', 'medical_notes', 'source', 'notes'])
+
+    belt_names = {1: 'White', 2: 'Blue', 3: 'Purple', 4: 'Brown', 5: 'Black'}
+    for m in all_members:
+        writer.writerow([
+            m.get('first_name', ''), m.get('last_name', ''), m.get('email', ''),
+            m.get('phone', ''), m.get('date_of_birth', ''), m.get('gender', ''),
+            belt_names.get(m.get('belt_rank_id', 1), 'White'), m.get('stripes', 0),
+            m.get('membership_status', ''), m.get('join_date', ''),
+            m.get('emergency_contact', ''), m.get('emergency_phone', ''),
+            m.get('medical_notes', ''), m.get('source', ''), m.get('notes', ''),
+        ])
+
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=members_export.csv'}
+    )
+
+
 @app.route('/members/import-csv', methods=['POST'])
 @login_required
 def members_import_csv():
