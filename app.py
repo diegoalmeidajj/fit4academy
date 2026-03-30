@@ -947,19 +947,36 @@ def members_import_csv():
         stream = io.StringIO(text)
         reader = csv.DictReader(stream)
 
-        # Normalize header names
+        # Normalize header names — strip all whitespace, BOM, quotes, special chars
         if reader.fieldnames:
-            reader.fieldnames = [f.strip().lower().replace(' ', '_').replace('-', '_') for f in reader.fieldnames]
+            cleaned = []
+            for f in reader.fieldnames:
+                # Remove BOM, quotes, extra whitespace
+                c = f.strip().strip('\ufeff').strip('"').strip("'").strip()
+                c = c.lower().replace(' ', '_').replace('-', '_').replace('.', '_')
+                # Remove duplicate underscores
+                while '__' in c:
+                    c = c.replace('__', '_')
+                c = c.strip('_')
+                cleaned.append(c)
+            reader.fieldnames = cleaned
 
         # Build mapping from CSV columns to our fields
         col_mapping = {}
         for csv_col in (reader.fieldnames or []):
             mapped = COLUMN_MAP.get(csv_col)
+            if not mapped:
+                # Try partial matching — if csv header contains a known key
+                for key, field in COLUMN_MAP.items():
+                    if key in csv_col or csv_col in key:
+                        if field not in col_mapping.values():
+                            mapped = field
+                            break
             if mapped and mapped not in col_mapping.values():
                 col_mapping[csv_col] = mapped
 
-        print(f"[CSV Import] Detected columns: {reader.fieldnames}")
-        print(f"[CSV Import] Mapped to: {col_mapping}")
+        print(f"[CSV Import] Raw headers: {reader.fieldnames}")
+        print(f"[CSV Import] Mapped: {col_mapping}")
 
         def get_field(row, field):
             """Get a field value using the column mapping."""
@@ -967,7 +984,20 @@ def members_import_csv():
                 if mapped_field == field:
                     val = row.get(csv_col, '')
                     return val.strip() if val else ''
-            return ''
+            # Fallback: try direct field name in row
+            val = row.get(field, '')
+            return val.strip() if val else ''
+
+        # Pre-load existing members for upsert matching
+        try:
+            existing_members = models.get_all_members(academy_id)
+        except Exception:
+            existing_members = []
+        # Build lookup by lowercase name
+        existing_lookup = {}
+        for ex in (existing_members or []):
+            key = (ex.get('first_name', '').lower().strip(), ex.get('last_name', '').lower().strip())
+            existing_lookup[key] = ex
 
         for row in reader:
             try:
@@ -1005,25 +1035,71 @@ def members_import_csv():
                 }
                 status = status_map.get(status_raw, 'active')
 
-                models.create_member(
-                    academy_id=academy_id,
-                    first_name=first_name,
-                    last_name=last_name,
-                    email=get_field(row, 'email'),
-                    phone=get_field(row, 'phone'),
-                    date_of_birth=get_field(row, 'date_of_birth') or None,
-                    gender=get_field(row, 'gender'),
-                    belt_rank_id=belt_id,
-                    stripes=stripes_val,
-                    membership_status=status,
-                    join_date=get_field(row, 'join_date') or str(date.today()),
-                    emergency_contact=get_field(row, 'emergency_contact'),
-                    emergency_phone=get_field(row, 'emergency_phone'),
-                    medical_notes=get_field(row, 'medical_notes'),
-                    source=get_field(row, 'source') or 'csv_import',
-                    notes=get_field(row, 'notes'),
-                )
-                imported += 1
+                email_val = get_field(row, 'email')
+                phone_val = get_field(row, 'phone')
+                dob_val = get_field(row, 'date_of_birth') or None
+                gender_val = get_field(row, 'gender')
+                join_val = get_field(row, 'join_date') or str(date.today())
+                ec_val = get_field(row, 'emergency_contact')
+                ep_val = get_field(row, 'emergency_phone')
+                med_val = get_field(row, 'medical_notes')
+                src_val = get_field(row, 'source') or 'csv_import'
+                notes_val = get_field(row, 'notes')
+
+                # Check if member already exists (match by name)
+                existing = existing_lookup.get((first_name.lower().strip(), last_name.lower().strip()))
+
+                if existing:
+                    # Update existing member — only fill in non-empty fields
+                    update_data = {}
+                    if email_val and not existing.get('email'):
+                        update_data['email'] = email_val
+                    elif email_val:
+                        update_data['email'] = email_val
+                    if phone_val:
+                        update_data['phone'] = phone_val
+                    if dob_val and not existing.get('date_of_birth'):
+                        update_data['date_of_birth'] = dob_val
+                    if gender_val and not existing.get('gender'):
+                        update_data['gender'] = gender_val
+                    if belt_id != 1 or not existing.get('belt_rank_id'):
+                        update_data['belt_rank_id'] = belt_id
+                    if stripes_val:
+                        update_data['stripes'] = stripes_val
+                    if ec_val:
+                        update_data['emergency_contact'] = ec_val
+                    if ep_val:
+                        update_data['emergency_phone'] = ep_val
+                    if med_val:
+                        update_data['medical_notes'] = med_val
+                    if notes_val:
+                        update_data['notes'] = notes_val
+                    if src_val and src_val != 'csv_import':
+                        update_data['source'] = src_val
+
+                    if update_data:
+                        models.update_member(existing['id'], **update_data)
+                    imported += 1
+                else:
+                    models.create_member(
+                        academy_id=academy_id,
+                        first_name=first_name,
+                        last_name=last_name,
+                        email=email_val,
+                        phone=phone_val,
+                        date_of_birth=dob_val,
+                        gender=gender_val,
+                        belt_rank_id=belt_id,
+                        stripes=stripes_val,
+                        membership_status=status,
+                        join_date=join_val,
+                        emergency_contact=ec_val,
+                        emergency_phone=ep_val,
+                        medical_notes=med_val,
+                        source=src_val,
+                        notes=notes_val,
+                    )
+                    imported += 1
             except Exception as e:
                 print(f"[CSV Import] Row error: {e}")
                 errors += 1
