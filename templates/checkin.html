@@ -324,7 +324,7 @@
 
     <div class="member-grid" id="memberGrid">
         {% for member in members|default([]) %}
-        <form method="post" action="/checkin" class="member-tap-card" data-name="{{ member.first_name }} {{ member.last_name }}" data-belt="{{ member.belt|lower }}" onclick="this.submit();">
+        <form method="post" action="/checkin/quick" class="member-tap-card" data-name="{{ member.first_name }} {{ member.last_name }}" data-belt="{{ member.belt|lower }}" onclick="this.submit();">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="member_id" value="{{ member.id }}">
             {% if current_class %}<input type="hidden" name="class_id" value="{{ current_class.id }}">{% endif %}
