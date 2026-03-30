@@ -62,7 +62,7 @@
             <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;">{{ t('memberships_add') }}</h3>
             <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('addPlanModal').style.display='none'">&times;</button>
         </div>
-        <form method="post" action="/memberships/new">
+        <form method="post" action="/memberships/plans/add">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label class="form-label">{{ t('memberships_plan_name') }} *</label>
@@ -70,7 +70,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">{{ t('memberships_type') }}</label>
-                <select name="type" class="form-select">
+                <select name="plan_type" class="form-select">
                     <option value="Standard">{{ t('memberships_standard') }}</option>
                     <option value="Premium">{{ t('memberships_premium') }}</option>
                     <option value="Kids">{{ t('memberships_kids') }}</option>
@@ -85,10 +85,10 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">{{ t('memberships_cycle') }} *</label>
-                    <select name="cycle" class="form-select" required>
-                        <option value="month">{{ t('memberships_monthly') }}</option>
-                        <option value="quarter">{{ t('memberships_quarterly') }}</option>
-                        <option value="year">{{ t('memberships_yearly') }}</option>
+                    <select name="billing_cycle" class="form-select" required>
+                        <option value="monthly">{{ t('memberships_monthly') }}</option>
+                        <option value="quarterly">{{ t('memberships_quarterly') }}</option>
+                        <option value="yearly">{{ t('memberships_yearly') }}</option>
                         <option value="one-time">{{ t('memberships_onetime') }}</option>
                     </select>
                 </div>

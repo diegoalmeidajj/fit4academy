@@ -76,10 +76,13 @@
         <div class="stat-value">{{ stats.today_checkins|default(0) }}</div>
         <div class="stat-label">{{ t('dash_today_checkins') }}</div>
     </div>
-    <div class="stat-card stat-purple">
+    <div class="stat-card stat-purple" style="position:relative;">
         <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
+        <div class="stat-value" id="revenueValue">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
         <div class="stat-label">{{ t('dash_monthly_revenue') }}</div>
+        <button onclick="toggleRevenue()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:14px;backdrop-filter:blur(4px);transition:all .2s;" title="Show/Hide">
+            <i class="bi bi-eye" id="revenueEyeIcon"></i>
+        </button>
     </div>
     <div class="stat-card stat-orange">
         <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
@@ -204,4 +207,29 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const REAL_REVENUE = document.getElementById('revenueValue').textContent;
+let revenueHidden = localStorage.getItem('f4a_hide_revenue') === '1';
+
+function toggleRevenue() {
+    revenueHidden = !revenueHidden;
+    localStorage.setItem('f4a_hide_revenue', revenueHidden ? '1' : '0');
+    updateRevenueUI();
+}
+function updateRevenueUI() {
+    const val = document.getElementById('revenueValue');
+    const icon = document.getElementById('revenueEyeIcon');
+    if (revenueHidden) {
+        val.textContent = '******';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        val.textContent = REAL_REVENUE;
+        icon.className = 'bi bi-eye';
+    }
+}
+updateRevenueUI();
+</script>
 {% endblock %}
