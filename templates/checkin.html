@@ -324,10 +324,7 @@
 
     <div class="member-grid" id="memberGrid">
         {% for member in members|default([]) %}
-        <form method="post" action="/checkin/quick" class="member-tap-card" data-name="{{ member.first_name }} {{ member.last_name }}" data-belt="{{ member.belt|lower }}" onclick="this.submit();">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="member_id" value="{{ member.id }}">
-            {% if current_class %}<input type="hidden" name="class_id" value="{{ current_class.id }}">{% endif %}
+        <div class="member-tap-card" data-name="{{ member.first_name }} {{ member.last_name }}" data-belt="{{ member.belt|lower }}" onclick="quickCheckin({{ member.id }}, '{{ member.first_name }} {{ member.last_name }}', '{{ member.belt }}')">
             <div class="tap-photo">
                 {% if member.photo %}<img src="{{ member.photo }}" alt="">{% else %}{{ member.first_name[0] }}{{ member.last_name[0] }}{% endif %}
             </div>
@@ -336,7 +333,7 @@
             {% if member.streak is defined and member.streak and member.streak > 0 %}
             <div class="tap-streak">&#x1F525; Week {{ member.streak }}</div>
             {% endif %}
-        </form>
+        </div>
         {% endfor %}
     </div>
     {% if not members %}
@@ -444,8 +441,25 @@ function updatePinDots() {
 
 function pinSubmit() {
     if (pinDigits.length === 0) return;
-    document.getElementById('pinInput').value = pinDigits;
-    document.getElementById('pinForm').submit();
+    fetch('/api/checkin/pin', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pin: pinDigits, class_id: '{{ current_class.id if current_class else "" }}'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess(data.name || 'Member');
+            pinClear();
+        } else {
+            document.getElementById('pinError').style.display = 'block';
+            pinClear();
+        }
+    })
+    .catch(() => {
+        document.getElementById('pinInput').value = pinDigits;
+        document.getElementById('pinForm').submit();
+    });
 }
 
 /* Keyboard support for PIN */
@@ -471,6 +485,31 @@ document.addEventListener('keydown', function(e) {
 });
 
 /* ===== QUICK TAP SEARCH ===== */
+function quickCheckin(memberId, name, belt) {
+    fetch('/api/checkin', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({member_id: memberId, class_id: '{{ current_class.id if current_class else "" }}'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess(name);
+        } else {
+            alert(data.error || 'Check-in failed');
+        }
+    })
+    .catch(() => {
+        // Fallback: submit via form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/checkin/quick';
+        form.innerHTML = '<input name="csrf_token" value="{{ csrf_token() }}"><input name="member_id" value="' + memberId + '">';
+        document.body.appendChild(form);
+        form.submit();
+    });
+}
+
 function filterKioskMembers(query) {
     const q = query.toLowerCase();
     document.querySelectorAll('#memberGrid .member-tap-card').forEach(card => {

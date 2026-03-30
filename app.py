@@ -1868,6 +1868,41 @@ def api_checkin():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/checkin/pin', methods=['POST'])
+@login_required
+def api_checkin_pin():
+    academy_id = _get_academy_id()
+    data = request.get_json() or {}
+    pin = data.get('pin', '').strip()
+    class_id = data.get('class_id') or None
+
+    if not pin or len(pin) != 4:
+        return jsonify({'success': False, 'error': 'Invalid PIN'}), 400
+
+    try:
+        all_members = models.get_all_members(academy_id)
+        member = None
+        for m in (all_members or []):
+            if m.get('pin') == pin:
+                member = m
+                break
+
+        if not member:
+            return jsonify({'success': False, 'error': 'PIN not found'}), 404
+
+        models.create_checkin(
+            member_id=member['id'],
+            class_id=int(class_id) if class_id else None,
+            academy_id=academy_id,
+            method='pin',
+        )
+
+        name = f"{member.get('first_name', '')} {member.get('last_name', '')}"
+        return jsonify({'success': True, 'name': name})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ═══════════════════════════════════════════════════════════════
 #  BELTS
 # ═══════════════════════════════════════════════════════════════
@@ -1934,25 +1969,44 @@ def belt_promote():
             return redirect(url_for('belt_promote'))
         try:
             member_id = int(request.form.get('member_id', 0))
-            from_belt_id = int(request.form.get('from_belt_id', 1))
-            to_belt_id = int(request.form.get('to_belt_id', 1))
-            from_stripes = int(request.form.get('from_stripes', 0))
-            to_stripes = int(request.form.get('to_stripes', 0))
+            new_belt_name = request.form.get('new_belt', '').strip()
+            new_stripes = int(request.form.get('new_stripes', 0))
             promotion_date = request.form.get('promotion_date') or str(date.today())
             promoted_by = request.form.get('promoted_by', '')
             notes = request.form.get('notes', '')
 
+            # Get current member belt
+            member = models.get_member_by_id(member_id)
+            from_belt_id = member.get('belt_rank_id', 1) if member else 1
+            from_stripes = member.get('stripes', 0) if member else 0
+
+            # Find new belt ID by name
+            belt_ranks = models.get_all_belt_ranks()
+            to_belt_id = from_belt_id
+            for b in (belt_ranks or []):
+                if b.get('name') == new_belt_name:
+                    to_belt_id = b['id']
+                    break
+
+            # Record promotion
             models.create_promotion(
                 member_id=member_id,
                 from_belt_id=from_belt_id,
                 to_belt_id=to_belt_id,
                 from_stripes=from_stripes,
-                to_stripes=to_stripes,
+                to_stripes=new_stripes,
                 promotion_date=promotion_date,
                 promoted_by=promoted_by,
                 notes=notes,
             )
-            flash('Promotion recorded!', 'success')
+
+            # UPDATE THE MEMBER'S BELT AND STRIPES
+            models.update_member(member_id,
+                belt_rank_id=to_belt_id,
+                stripes=new_stripes,
+            )
+
+            flash(f'Promoted to {new_belt_name}!', 'success')
             return redirect(url_for('belts_page'))
         except Exception as e:
             print(f"[Belts] Promote error: {e}")
