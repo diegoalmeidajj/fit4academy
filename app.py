@@ -1428,7 +1428,7 @@ def classes_list():
                 'type': s.get('class_type', 'gi'),
                 'instructor': s.get('instructor', ''),
                 'enrolled': 0,
-                'capacity': 30,
+                'capacity': s.get('max_capacity', 30),
             })
     except Exception as e:
         print(f"[Classes] Error: {e}")
@@ -1438,9 +1438,11 @@ def classes_list():
     except Exception:
         classes = []
 
+    from datetime import datetime as dt
     return render_template('classes.html',
         schedule=schedule,
         classes=classes,
+        now_dow=dt.now().weekday(),
     )
 
 

@@ -2,28 +2,49 @@
 {% block title %}{{ t('nav_classes') }}{% endblock %}
 
 {% block extra_css %}
+/* Stats */
+.class-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.class-stat { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: center; }
+.class-stat-num { font-family: 'Space Grotesk'; font-size: 24px; font-weight: 700; }
+.class-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Weekly grid */
 .schedule-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
 .day-col { min-width: 0; }
 .day-header { text-align: center; font-family: 'Space Grotesk'; font-weight: 700; font-size: 13px; padding: 10px 4px; background: var(--table-head); border-radius: 10px 10px 0 0; border: 1px solid var(--border); border-bottom: none; }
-.day-body { border: 1px solid var(--border); border-radius: 0 0 10px 10px; min-height: 300px; padding: 6px; background: var(--card-bg); }
-.class-block { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; transition: all .2s; border-left: 3px solid var(--primary); }
-.class-block:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.class-block.gi { border-left-color: #1d4ed8; }
-.class-block.nogi { border-left-color: #eab308; }
-.class-block.kids { border-left-color: #10b981; }
-.class-block.open { border-left-color: #7c3aed; }
-.class-block-time { font-family: 'Space Grotesk'; font-size: 12px; font-weight: 700; color: var(--primary); }
-.class-block-name { font-weight: 600; font-size: 12px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.class-block-meta { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.day-header.today { background: var(--primary); color: #fff; }
+.day-body { border: 1px solid var(--border); border-radius: 0 0 10px 10px; min-height: 200px; padding: 6px; background: var(--card-bg); }
 
+/* Class cards */
+.class-block { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; cursor: pointer; transition: all .2s; text-decoration: none; color: inherit; display: block; position: relative; overflow: hidden; }
+.class-block::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 10px 0 0 10px; }
+.class-block:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); border-color: var(--primary); }
+.class-block.gi::before { background: #1d4ed8; }
+.class-block.nogi::before { background: #eab308; }
+.class-block.kids::before { background: #10b981; }
+.class-block.open::before { background: #7c3aed; }
+
+.class-block-time { font-family: 'Space Grotesk'; font-size: 13px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 4px; }
+.class-block-name { font-weight: 700; font-size: 13px; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.class-block-meta { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.class-block-instructor { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+
+.type-badge { padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.type-gi { background: rgba(29,78,216,.12); color: #1d4ed8; }
+.type-nogi { background: rgba(234,179,8,.12); color: #b45309; }
+.type-kids { background: rgba(16,185,129,.12); color: #059669; }
+.type-open { background: rgba(124,58,237,.12); color: #7c3aed; }
+
+/* Filters */
 .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-.filter-pill { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all .2s; }
+.filter-pill { padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all .2s; }
 .filter-pill:hover { border-color: var(--primary); color: var(--primary); }
-.filter-pill.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+.filter-pill.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.filter-pill .pill-count { font-size: 10px; opacity: .7; margin-left: 4px; }
 
 @media (max-width: 768px) {
     .schedule-grid { grid-template-columns: 1fr; }
-    .day-col { margin-bottom: 12px; }
+    .class-stats { grid-template-columns: repeat(2, 1fr); }
     .day-header { border-radius: 10px 10px 0 0; }
     .day-body { border-radius: 0 0 10px 10px; min-height: auto; }
 }
@@ -37,40 +58,78 @@
     </div>
 </div>
 
+<!-- Stats -->
+{% set total_classes = 0 %}
+{% set gi_count = 0 %}
+{% set nogi_count = 0 %}
+{% set kids_count = 0 %}
+{% for day, classes in schedule.items() %}
+    {% for cls in classes %}
+        {% set total_classes = total_classes + 1 %}
+    {% endfor %}
+{% endfor %}
+<div class="class-stats">
+    <div class="class-stat">
+        <div class="class-stat-num" style="color:var(--primary);" id="statTotal">0</div>
+        <div class="class-stat-label">Total Classes / Week</div>
+    </div>
+    <div class="class-stat">
+        <div class="class-stat-num" style="color:#1d4ed8;" id="statGi">0</div>
+        <div class="class-stat-label">Gi</div>
+    </div>
+    <div class="class-stat">
+        <div class="class-stat-num" style="color:#b45309;" id="statNogi">0</div>
+        <div class="class-stat-label">No-Gi</div>
+    </div>
+    <div class="class-stat">
+        <div class="class-stat-num" style="color:#059669;" id="statKids">0</div>
+        <div class="class-stat-label">Kids / Open</div>
+    </div>
+</div>
+
 <!-- Filter by type -->
-<div class="filter-bar mb-16">
+<div style="margin-bottom:16px;">
     <div class="filter-pills">
         <button class="filter-pill active" onclick="filterClasses('all', this)">{{ t('all') }}</button>
-        <button class="filter-pill" onclick="filterClasses('gi', this)">{{ t('class_gi') }}</button>
-        <button class="filter-pill" onclick="filterClasses('nogi', this)">{{ t('class_nogi') }}</button>
-        <button class="filter-pill" onclick="filterClasses('kids', this)">{{ t('class_kids') }}</button>
-        <button class="filter-pill" onclick="filterClasses('open', this)">{{ t('class_open') }}</button>
+        <button class="filter-pill" onclick="filterClasses('gi', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1d4ed8;margin-right:4px;"></span> {{ t('class_gi') }}</button>
+        <button class="filter-pill" onclick="filterClasses('nogi', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#eab308;margin-right:4px;"></span> {{ t('class_nogi') }}</button>
+        <button class="filter-pill" onclick="filterClasses('kids', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:4px;"></span> {{ t('class_kids') }}</button>
+        <button class="filter-pill" onclick="filterClasses('open', this)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7c3aed;margin-right:4px;"></span> {{ t('class_open') }}</button>
     </div>
 </div>
 
 <!-- Weekly Grid -->
 <div class="schedule-grid">
     {% set days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] %}
+    {% set today_dow = now_dow|default(-1) %}
+    {% set day_nums = {'monday':0,'tuesday':1,'wednesday':2,'thursday':3,'friday':4,'saturday':5,'sunday':6} %}
     {% for day in days %}
     <div class="day-col">
-        <div class="day-header">{{ t('day_' + day) }}</div>
+        <div class="day-header {{ 'today' if day_nums[day] == today_dow else '' }}">
+            {{ t('day_' + day) }}
+            {% if schedule.get(day) %}<span style="font-size:10px;opacity:.6;"> ({{ schedule.get(day)|length }})</span>{% endif %}
+        </div>
         <div class="day-body">
-            {% for cls in schedule.get(day, []) %}
-            <a href="/classes/{{ cls.id }}/edit" class="class-block {{ cls.type|lower }}" data-type="{{ cls.type|lower }}" style="text-decoration:none;color:inherit;">
-                <div class="class-block-time">{{ cls.start_time }} - {{ cls.end_time }}</div>
-                <div class="class-block-name">{{ cls.name }}</div>
-                <div class="class-block-meta">
-                    <span class="badge-pill badge-{{ cls.type|lower }}" style="padding:1px 6px;font-size:9px;">{{ cls.type }}</span>
+            {% for cls in schedule.get(day, [])|sort(attribute='start_time') %}
+            <a href="/classes/{{ cls.id }}/edit" class="class-block {{ cls.type|lower }}" data-type="{{ cls.type|lower }}">
+                <div class="class-block-time">
+                    <i class="bi bi-clock" style="font-size:11px;"></i> {{ cls.start_time }} - {{ cls.end_time }}
                 </div>
-                <div class="class-block-meta" style="margin-top:3px;">
-                    <i class="bi bi-person"></i> {{ cls.instructor }}
-                    <span>·</span>
-                    <i class="bi bi-people"></i> {{ cls.enrolled }}/{{ cls.capacity }}
+                <div class="class-block-name">{{ cls.name }}</div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+                    <span class="type-badge type-{{ cls.type|lower }}">{{ cls.type }}</span>
+                    <span class="class-block-meta"><i class="bi bi-people"></i> {{ cls.capacity }}</span>
+                </div>
+                <div class="class-block-instructor">
+                    <i class="bi bi-person-fill"></i> {{ cls.instructor or 'TBA' }}
                 </div>
             </a>
             {% endfor %}
             {% if not schedule.get(day) %}
-            <div style="text-align:center;padding:20px 4px;color:var(--text-muted);font-size:11px;">{{ t('classes_none') }}</div>
+            <div style="text-align:center;padding:30px 4px;color:var(--text-muted);font-size:11px;opacity:.5;">
+                <i class="bi bi-calendar-x" style="font-size:20px;display:block;margin-bottom:4px;"></i>
+                {{ t('classes_none') }}
+            </div>
             {% endif %}
         </div>
     </div>
@@ -87,5 +146,22 @@ function filterClasses(type, btn) {
         block.style.display = (type === 'all' || block.dataset.type === type) ? '' : 'none';
     });
 }
+
+// Count stats
+(function() {
+    const blocks = document.querySelectorAll('.class-block');
+    let total = 0, gi = 0, nogi = 0, kids = 0;
+    blocks.forEach(b => {
+        total++;
+        const t = b.dataset.type;
+        if (t === 'gi') gi++;
+        else if (t === 'nogi') nogi++;
+        else kids++;
+    });
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statGi').textContent = gi;
+    document.getElementById('statNogi').textContent = nogi;
+    document.getElementById('statKids').textContent = kids;
+})();
 </script>
 {% endblock %}
