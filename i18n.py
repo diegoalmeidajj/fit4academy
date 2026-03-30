@@ -730,6 +730,14 @@ TRANSLATIONS = {
         'msg_tpl_payment': 'Payment Reminder',
         'msg_tpl_event': 'Event Notification',
         'msg_tpl_custom': 'Custom Message',
+        'msg_total_sent': 'Total Sent',
+        'msg_stat_delivered': 'Delivered',
+        'msg_stat_opened': 'Opened',
+        'msg_stat_clicked': 'Clicked',
+        'msg_stat_rate': 'delivery rate',
+        'msg_stat_open_rate': 'open rate',
+        'msg_stat_click_rate': 'click rate',
+        'msg_delivery_overview': 'Delivery Overview',
 
         # Sidebar menu
         'menu_settings': 'Settings',
@@ -1480,6 +1488,14 @@ TRANSLATIONS = {
         'msg_tpl_payment': 'Recordatorio de Pago',
         'msg_tpl_event': 'Notificacion de Evento',
         'msg_tpl_custom': 'Mensaje Personalizado',
+        'msg_total_sent': 'Total Enviados',
+        'msg_stat_delivered': 'Entregados',
+        'msg_stat_opened': 'Abiertos',
+        'msg_stat_clicked': 'Clicks',
+        'msg_stat_rate': 'tasa de entrega',
+        'msg_stat_open_rate': 'tasa de apertura',
+        'msg_stat_click_rate': 'tasa de clicks',
+        'msg_delivery_overview': 'Resumen de Entrega',
 
         # Sidebar menu
         'menu_settings': 'Ajustes',
@@ -2230,6 +2246,14 @@ TRANSLATIONS = {
         'msg_tpl_payment': 'Lembrete de Pagamento',
         'msg_tpl_event': 'Notificacao de Evento',
         'msg_tpl_custom': 'Mensagem Personalizada',
+        'msg_total_sent': 'Total Enviados',
+        'msg_stat_delivered': 'Entregues',
+        'msg_stat_opened': 'Abertos',
+        'msg_stat_clicked': 'Cliques',
+        'msg_stat_rate': 'taxa de entrega',
+        'msg_stat_open_rate': 'taxa de abertura',
+        'msg_stat_click_rate': 'taxa de cliques',
+        'msg_delivery_overview': 'Visao Geral de Entrega',
 
         # Sidebar menu
         'menu_settings': 'Configuracoes',

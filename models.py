@@ -266,10 +266,32 @@ def init_db():
             channel         TEXT DEFAULT 'email',
             recipient_filter TEXT DEFAULT 'all',
             recipient_count INTEGER DEFAULT 0,
+            total           INTEGER DEFAULT 0,
+            delivered       INTEGER DEFAULT 0,
+            opened          INTEGER DEFAULT 0,
+            clicked         INTEGER DEFAULT 0,
+            deferred        INTEGER DEFAULT 0,
+            bounced         INTEGER DEFAULT 0,
+            dropped         INTEGER DEFAULT 0,
+            spam            INTEGER DEFAULT 0,
             sent_by         INTEGER REFERENCES users(id),
             status          TEXT DEFAULT 'sent',
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS message_recipients (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id      INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+            member_id       INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+            channel         TEXT DEFAULT 'email',
+            status          TEXT DEFAULT 'sent',
+            delivered_at    TIMESTAMP,
+            opened_at       TIMESTAMP,
+            clicked_at      TIMESTAMP,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_msg_recipients_msg ON message_recipients(message_id);
+        CREATE INDEX IF NOT EXISTS idx_msg_recipients_member ON message_recipients(member_id);
 
         CREATE TABLE IF NOT EXISTS audit_log (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1787,19 +1809,61 @@ def delete_notification(notif_id):
 
 def create_message(academy_id=1, **kwargs):
     conn = get_db()
+    total = kwargs.get('recipient_count', 0)
     cur = conn.execute(
         """INSERT INTO messages (academy_id, subject, body, channel, recipient_filter,
-           recipient_count, sent_by, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+           recipient_count, total, delivered, sent_by, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (academy_id, kwargs.get('subject', ''), kwargs.get('body', ''),
          kwargs.get('channel', 'email'), kwargs.get('recipient_filter', 'all'),
-         kwargs.get('recipient_count', 0), kwargs.get('sent_by'),
-         kwargs.get('status', 'sent'))
+         total, total, kwargs.get('delivered', total),
+         kwargs.get('sent_by'), kwargs.get('status', 'sent'))
     )
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
     return new_id
+
+
+def get_messaging_stats(academy_id=1):
+    """Get aggregate messaging stats across all messages."""
+    conn = get_db()
+    row = conn.execute(
+        """SELECT
+            COUNT(*) as total_messages,
+            COALESCE(SUM(total), 0) as total_sent,
+            COALESCE(SUM(CASE WHEN channel = 'email' THEN total ELSE 0 END), 0) as total_email,
+            COALESCE(SUM(CASE WHEN channel = 'sms' THEN total ELSE 0 END), 0) as total_sms,
+            COALESCE(SUM(CASE WHEN channel = 'both' THEN total ELSE 0 END), 0) as total_both,
+            COALESCE(SUM(delivered), 0) as delivered,
+            COALESCE(SUM(opened), 0) as opened,
+            COALESCE(SUM(clicked), 0) as clicked,
+            COALESCE(SUM(deferred), 0) as deferred,
+            COALESCE(SUM(bounced), 0) as bounced,
+            COALESCE(SUM(dropped), 0) as dropped,
+            COALESCE(SUM(spam), 0) as spam
+           FROM messages WHERE academy_id = ?""",
+        (academy_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def update_message_stats(message_id, **kwargs):
+    """Update delivery stats on a message."""
+    conn = get_db()
+    allowed = ['total', 'delivered', 'opened', 'clicked', 'deferred', 'bounced', 'dropped', 'spam', 'status']
+    fields = []
+    values = []
+    for k, v in kwargs.items():
+        if k in allowed:
+            fields.append(f"{k} = ?")
+            values.append(v)
+    if fields:
+        values.append(message_id)
+        conn.execute(f"UPDATE messages SET {', '.join(fields)} WHERE id = ?", values)
+        conn.commit()
+    conn.close()
 
 
 def get_all_messages(academy_id=1, limit=50):

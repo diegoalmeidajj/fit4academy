@@ -90,6 +90,71 @@
     <h1><i class="bi bi-megaphone" style="color:var(--primary);"></i> {{ t('nav_messaging') }}</h1>
 </div>
 
+<!-- Stats Cards -->
+<div class="grid-4 mb-16">
+    <div class="card" style="padding:16px;">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_total_sent') }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;">{{ stats.total_sent|default(0) }}</div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;">
+            <i class="bi bi-envelope" style="color:#6366f1;"></i> {{ stats.total_email|default(0) }} email
+            &nbsp;·&nbsp;
+            <i class="bi bi-chat-text" style="color:#10b981;"></i> {{ stats.total_sms|default(0) }} sms
+        </div>
+    </div>
+    <div class="card" style="padding:16px;">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_delivered') }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:var(--success);">{{ stats.delivered|default(0) }}</div>
+        <div style="font-size:11px;color:var(--success);font-weight:600;">
+            {% if stats.total_sent|default(0) > 0 %}{{ ((stats.delivered|default(0)) / stats.total_sent * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_rate') }}
+        </div>
+    </div>
+    <div class="card" style="padding:16px;">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_opened') }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#6366f1;">{{ stats.opened|default(0) }}</div>
+        <div style="font-size:11px;color:#6366f1;font-weight:600;">
+            {% if stats.delivered|default(0) > 0 %}{{ ((stats.opened|default(0)) / stats.delivered * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_open_rate') }}
+        </div>
+    </div>
+    <div class="card" style="padding:16px;">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_clicked') }}</div>
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#f59e0b;">{{ stats.clicked|default(0) }}</div>
+        <div style="font-size:11px;color:#f59e0b;font-weight:600;">
+            {% if stats.opened|default(0) > 0 %}{{ ((stats.clicked|default(0)) / stats.opened * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_click_rate') }}
+        </div>
+    </div>
+</div>
+
+<!-- Delivery Chart -->
+<div class="card mb-24" style="padding:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h3 style="font-family:'Space Grotesk';font-size:16px;font-weight:700;margin:0;">
+            <i class="bi bi-bar-chart-line" style="color:var(--primary);"></i> {{ t('msg_delivery_overview') }}
+        </h3>
+    </div>
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+        <canvas id="deliveryChart" style="max-width:280px;max-height:280px;"></canvas>
+        <div style="flex:1;min-width:200px;">
+            {% set s = stats %}
+            {% set items = [
+                ('Delivered', s.delivered|default(0), '#10b981'),
+                ('Opened', s.opened|default(0), '#6366f1'),
+                ('Clicked', s.clicked|default(0), '#f59e0b'),
+                ('Deferred', s.deferred|default(0), '#94a3b8'),
+                ('Bounced', s.bounced|default(0), '#ef4444'),
+                ('Dropped', s.dropped|default(0), '#f97316'),
+                ('Spam', s.spam|default(0), '#dc2626')
+            ] %}
+            {% for label, val, color in items %}
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div style="width:10px;height:10px;border-radius:50%;background:{{ color }};flex-shrink:0;"></div>
+                <span style="flex:1;font-size:13px;font-weight:600;">{{ label }}</span>
+                <span style="font-family:'Space Grotesk';font-size:14px;font-weight:700;">{{ val }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
 <!-- Compose Section -->
 <div class="card mb-24">
     <div class="card-header">
@@ -281,6 +346,44 @@
 
 {% block extra_js %}
 <script>
+/* ===== Delivery Doughnut Chart ===== */
+(function() {
+    const el = document.getElementById('deliveryChart');
+    if (!el) return;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const data = [
+        {{ stats.delivered|default(0) }},
+        {{ stats.opened|default(0) }},
+        {{ stats.clicked|default(0) }},
+        {{ stats.deferred|default(0) }},
+        {{ stats.bounced|default(0) }},
+        {{ stats.dropped|default(0) }},
+        {{ stats.spam|default(0) }}
+    ];
+    const hasData = data.some(v => v > 0);
+    new Chart(el, {
+        type: 'doughnut',
+        data: {
+            labels: ['Delivered', 'Opened', 'Clicked', 'Deferred', 'Bounced', 'Dropped', 'Spam'],
+            datasets: [{
+                data: hasData ? data : [1],
+                backgroundColor: hasData
+                    ? ['#10b981','#6366f1','#f59e0b','#94a3b8','#ef4444','#f97316','#dc2626']
+                    : [isDark ? '#334155' : '#e2e8f0'],
+                borderWidth: 2,
+                borderColor: isDark ? '#1e293b' : '#fff',
+            }]
+        },
+        options: {
+            cutout: '65%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: hasData }
+            }
+        }
+    });
+})();
+
 const TEMPLATES = {
     announcement: {
         subject: 'Academy Announcement',

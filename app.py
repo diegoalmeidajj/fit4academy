@@ -2445,11 +2445,17 @@ def messaging_page():
     except Exception:
         belts = []
 
+    try:
+        stats = models.get_messaging_stats(academy_id)
+    except Exception:
+        stats = {}
+
     return render_template('messaging.html',
                            members=members,
                            plans=plans,
                            messages=messages,
-                           belts=belts)
+                           belts=belts,
+                           stats=stats)
 
 
 @app.route('/messaging/send', methods=['POST'])
