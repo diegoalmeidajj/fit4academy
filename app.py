@@ -461,6 +461,7 @@ def members_list():
         membership_plans=plans_display,
         page=page,
         total_pages=total_pages,
+        total_members=total,
         search=search,
     )
 

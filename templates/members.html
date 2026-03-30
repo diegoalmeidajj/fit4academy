@@ -13,7 +13,7 @@
 
 {% block content %}
 <div class="topbar">
-    <h1><i class="bi bi-people" style="color:var(--primary);"></i> {{ t('members_title') }}</h1>
+    <h1><i class="bi bi-people" style="color:var(--primary);"></i> {{ t('members_title') }} <span style="font-size:14px;font-weight:600;color:var(--text-muted);vertical-align:middle;">({{ total_members|default(0) }})</span></h1>
     <div class="topbar-actions">
         <button class="btn btn-outline-primary" onclick="document.getElementById('csvModal').style.display='flex'"><i class="bi bi-file-earmark-arrow-up"></i> {{ t('import_csv') }}</button>
         <a href="/members/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('members_add') }}</a>
