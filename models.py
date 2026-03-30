@@ -342,6 +342,14 @@ def init_db():
         "ALTER TABLE users ADD COLUMN academy_id INTEGER DEFAULT 1",
         "ALTER TABLE users ADD COLUMN trial_start TIMESTAMP",
         "ALTER TABLE academies ADD COLUMN logo_url TEXT DEFAULT ''",
+        "ALTER TABLE messages ADD COLUMN total INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN opened INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN clicked INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN deferred INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN bounced INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN dropped INTEGER DEFAULT 0",
+        "ALTER TABLE messages ADD COLUMN spam INTEGER DEFAULT 0",
     ]:
         try:
             conn.execute(alter)
