@@ -80,6 +80,8 @@ def init_db():
             source          TEXT DEFAULT '',
             notes           TEXT DEFAULT '',
             active          BOOLEAN DEFAULT 1,
+            webauthn_credential_id TEXT DEFAULT '',
+            webauthn_public_key TEXT DEFAULT '',
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -354,6 +356,8 @@ def init_db():
         "ALTER TABLE messages ADD COLUMN dropped INTEGER DEFAULT 0",
         "ALTER TABLE messages ADD COLUMN spam INTEGER DEFAULT 0",
         "ALTER TABLE members ADD COLUMN pin TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN webauthn_credential_id TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN webauthn_public_key TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN interested_in TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN member_id INTEGER",
     ]:
@@ -668,7 +672,8 @@ def update_member(member_id, **kwargs):
     allowed = ['first_name', 'last_name', 'email', 'phone', 'date_of_birth',
                'gender', 'belt_rank_id', 'stripes', 'membership_status', 'join_date',
                'emergency_contact', 'emergency_phone', 'medical_notes', 'photo',
-               'pin', 'qr_code', 'source', 'notes', 'active']
+               'pin', 'qr_code', 'source', 'notes', 'active',
+               'webauthn_credential_id', 'webauthn_public_key']
     fields = []
     values = []
     for k, v in kwargs.items():

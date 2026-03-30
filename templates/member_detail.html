@@ -143,6 +143,15 @@
             <div style="margin-top:8px;">
                 <a href="/members/{{ member.id }}/qr" download="checkin-{{ member.first_name }}.png" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i> Download QR</a>
             </div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+                <button class="btn btn-sm btn-outline-primary" onclick="registerBiometric({{ member.id }})" id="bioRegBtn">
+                    <i class="bi bi-fingerprint"></i> Register FaceID/TouchID
+                </button>
+                <span id="bioRegStatus" style="font-size:12px;margin-left:8px;"></span>
+                {% if member.webauthn_credential_id %}
+                <div style="margin-top:6px;font-size:11px;color:var(--success);"><i class="bi bi-check-circle"></i> Biometric registered</div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -285,6 +294,51 @@
 
 {% block extra_js %}
 <script>
+/* ===== BIOMETRIC REGISTRATION ===== */
+async function registerBiometric(memberId) {
+    const btn = document.getElementById('bioRegBtn');
+    const status = document.getElementById('bioRegStatus');
+
+    if (!window.PublicKeyCredential) {
+        status.innerHTML = '<span style="color:var(--danger);">Not supported on this device.</span>';
+        return;
+    }
+
+    btn.disabled = true;
+    status.innerHTML = '<span style="color:var(--primary);">Setting up...</span>';
+
+    try {
+        const optRes = await fetch('/api/webauthn/register-options', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ member_id: memberId })
+        });
+        const options = await optRes.json();
+
+        options.challenge = Uint8Array.from(atob(options.challenge.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+        options.user.id = Uint8Array.from(atob(options.user.id.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+
+        const credential = await navigator.credentials.create({ publicKey: options });
+
+        const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+        const saveRes = await fetch('/api/webauthn/register', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ credential_id: credId, public_key: '' })
+        });
+        const result = await saveRes.json();
+
+        if (result.success) {
+            status.innerHTML = '<span style="color:var(--success);"><i class="bi bi-check-circle"></i> Registered!</span>';
+        } else {
+            status.innerHTML = '<span style="color:var(--danger);">' + result.error + '</span>';
+        }
+    } catch (err) {
+        status.innerHTML = '<span style="color:var(--danger);">Error: ' + err.message + '</span>';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 (function() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const textColor = isDark ? '#cbd5e1' : '#475569';

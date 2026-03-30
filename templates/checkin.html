@@ -256,6 +256,9 @@
     <button class="kiosk-tab" data-tab="tap" onclick="switchTab('tap')">
         <i class="bi bi-hand-index-thumb-fill"></i> <span>Quick Tap</span>
     </button>
+    <button class="kiosk-tab" data-tab="biometric" onclick="switchTab('biometric')">
+        <i class="bi bi-fingerprint"></i> <span>FaceID</span>
+    </button>
 </div>
 
 <!-- ===== PIN PANEL ===== -->
@@ -344,6 +347,26 @@
         </div>
     </div>
     {% endif %}
+</div>
+
+<!-- ===== BIOMETRIC PANEL ===== -->
+<div class="kiosk-panel" id="panelBiometric">
+    <div style="max-width:400px;margin:0 auto;text-align:center;padding:40px 20px;">
+        <div style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.15));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid rgba(99,102,241,.2);">
+            <i class="bi bi-fingerprint" style="font-size:48px;color:var(--primary);"></i>
+        </div>
+        <h3 style="font-family:'Space Grotesk';font-size:20px;font-weight:700;margin-bottom:8px;">FaceID / TouchID</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:24px;">Use your device's biometric to check in instantly.</p>
+        <button class="btn btn-primary btn-lg" onclick="startBiometricCheckin()" id="biometricBtn" style="width:100%;padding:16px;font-size:16px;border-radius:14px;">
+            <i class="bi bi-fingerprint"></i> Authenticate
+        </button>
+        <div id="biometricStatus" style="margin-top:16px;font-size:13px;"></div>
+        <div style="margin-top:24px;padding:12px;background:rgba(99,102,241,.06);border-radius:10px;border:1px solid rgba(99,102,241,.12);">
+            <p style="font-size:11px;color:var(--text-muted);margin:0;">
+                <i class="bi bi-info-circle"></i> Members must register their biometric first in their profile page.
+            </p>
+        </div>
+    </div>
 </div>
 
 <!-- ===== SUCCESS OVERLAY ===== -->
@@ -496,6 +519,66 @@ function toggleFullscreen() {
         document.documentElement.requestFullscreen();
     } else {
         document.exitFullscreen();
+    }
+}
+
+/* ===== BIOMETRIC CHECK-IN ===== */
+async function startBiometricCheckin() {
+    const btn = document.getElementById('biometricBtn');
+    const status = document.getElementById('biometricStatus');
+
+    if (!window.PublicKeyCredential) {
+        status.innerHTML = '<span style="color:var(--danger);">Biometric not supported on this device.</span>';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Verifying...';
+    status.innerHTML = '';
+
+    try {
+        // Get auth options from server
+        const optRes = await fetch('/api/webauthn/auth-options', { method: 'POST', headers: {'Content-Type':'application/json'} });
+        const options = await optRes.json();
+
+        // Convert challenge
+        options.challenge = Uint8Array.from(atob(options.challenge.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+
+        // Convert credential IDs
+        if (options.allowCredentials) {
+            options.allowCredentials = options.allowCredentials.map(c => ({
+                ...c,
+                id: Uint8Array.from(atob(c.id.replace(/-/g,'+').replace(/_/g,'/')), ch => ch.charCodeAt(0))
+            }));
+        }
+
+        // Trigger biometric prompt
+        const credential = await navigator.credentials.get({ publicKey: options });
+
+        // Send to server
+        const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+        const authRes = await fetch('/api/webauthn/authenticate', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ credential_id: credId })
+        });
+        const result = await authRes.json();
+
+        if (result.success) {
+            showSuccess(result.name, result.belt);
+        } else {
+            status.innerHTML = '<span style="color:var(--danger);"><i class="bi bi-x-circle"></i> ' + (result.error || 'Not recognized') + '</span>';
+        }
+    } catch (err) {
+        if (err.name === 'NotAllowedError') {
+            status.innerHTML = '<span style="color:var(--warning);">Authentication cancelled.</span>';
+        } else {
+            status.innerHTML = '<span style="color:var(--danger);">Error: ' + err.message + '</span>';
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-fingerprint"></i> Authenticate';
     }
 }
 

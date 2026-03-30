@@ -2944,6 +2944,155 @@ def robots():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  WEBAUTHN (FaceID / TouchID) CHECK-IN
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/api/webauthn/register-options', methods=['POST'])
+@login_required
+def webauthn_register_options():
+    """Generate registration options for WebAuthn."""
+    import json, os, base64
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    if not member_id:
+        return jsonify({'error': 'member_id required'}), 400
+
+    member = models.get_member_by_id(int(member_id))
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Generate challenge
+    challenge = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+
+    # Store challenge in session
+    session['webauthn_challenge'] = challenge
+    session['webauthn_member_id'] = int(member_id)
+
+    options = {
+        'challenge': challenge,
+        'rp': {'name': 'Fit4Academy', 'id': request.host.split(':')[0]},
+        'user': {
+            'id': base64.urlsafe_b64encode(str(member_id).encode()).decode().rstrip('='),
+            'name': f"{member.get('first_name', '')} {member.get('last_name', '')}",
+            'displayName': f"{member.get('first_name', '')} {member.get('last_name', '')}",
+        },
+        'pubKeyCredParams': [
+            {'type': 'public-key', 'alg': -7},   # ES256
+            {'type': 'public-key', 'alg': -257},  # RS256
+        ],
+        'authenticatorSelection': {
+            'authenticatorAttachment': 'platform',  # Forces FaceID/TouchID (not USB key)
+            'userVerification': 'required',
+        },
+        'timeout': 60000,
+        'attestation': 'none',
+    }
+    return jsonify(options)
+
+
+@app.route('/api/webauthn/register', methods=['POST'])
+@login_required
+def webauthn_register():
+    """Save WebAuthn credential for a member."""
+    import json, base64
+    data = request.get_json() or {}
+
+    member_id = session.get('webauthn_member_id')
+    if not member_id:
+        return jsonify({'error': 'No registration in progress'}), 400
+
+    credential_id = data.get('credential_id', '')
+    public_key = data.get('public_key', '')
+
+    if not credential_id:
+        return jsonify({'error': 'Invalid credential'}), 400
+
+    # Store credential in member record
+    try:
+        models.update_member(member_id,
+            webauthn_credential_id=credential_id,
+            webauthn_public_key=public_key
+        )
+        return jsonify({'success': True, 'message': 'Biometric registered!'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/webauthn/auth-options', methods=['POST'])
+def webauthn_auth_options():
+    """Generate authentication options for check-in."""
+    import os, base64
+    academy_id = _get_academy_id()
+
+    challenge = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+    session['webauthn_auth_challenge'] = challenge
+
+    # Get all members with registered credentials
+    try:
+        members = models.get_all_members(academy_id)
+        allow_credentials = []
+        for m in (members or []):
+            cred_id = m.get('webauthn_credential_id', '')
+            if cred_id:
+                allow_credentials.append({
+                    'type': 'public-key',
+                    'id': cred_id,
+                })
+    except Exception:
+        allow_credentials = []
+
+    options = {
+        'challenge': challenge,
+        'rpId': request.host.split(':')[0],
+        'allowCredentials': allow_credentials,
+        'userVerification': 'required',
+        'timeout': 60000,
+    }
+    return jsonify(options)
+
+
+@app.route('/api/webauthn/authenticate', methods=['POST'])
+def webauthn_authenticate():
+    """Verify WebAuthn assertion and check-in the member."""
+    data = request.get_json() or {}
+    credential_id = data.get('credential_id', '')
+    academy_id = _get_academy_id()
+
+    if not credential_id:
+        return jsonify({'error': 'Invalid credential'}), 400
+
+    # Find member by credential_id
+    try:
+        members = models.get_all_members(academy_id)
+        member = None
+        for m in (members or []):
+            if m.get('webauthn_credential_id') == credential_id:
+                member = m
+                break
+
+        if not member:
+            return jsonify({'error': 'Biometric not recognized'}), 404
+
+        # Create check-in
+        models.create_checkin(
+            member_id=member['id'],
+            class_id=None,
+            academy_id=academy_id,
+            method='biometric'
+        )
+
+        name = f"{member.get('first_name', '')} {member.get('last_name', '')}"
+        return jsonify({
+            'success': True,
+            'name': name,
+            'belt': member.get('belt_name', 'White'),
+            'member_id': member['id']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════
 #  MAIN
 # ═══════════════════════════════════════════════════════════════
 
