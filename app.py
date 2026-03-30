@@ -700,7 +700,7 @@ def members_bulk_delete():
     for mid in ids_str.split(','):
         try:
             mid = int(mid.strip())
-            models.update_member(mid, active=False, membership_status='inactive')
+            models.delete_member(mid)
             count += 1
         except Exception as e:
             print(f"[Bulk Delete] Error for id {mid}: {e}")
