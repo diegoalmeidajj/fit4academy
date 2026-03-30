@@ -904,8 +904,8 @@ def member_qr_code(member_id):
             pin = str(random.randint(1000, 9999))
             models.update_member(member_id, pin=pin)
 
-        # QR contains: CHECKIN:{pin}
-        qr_data = f"CHECKIN:{pin}"
+        # QR contains the public biometric setup URL
+        qr_data = f"{request.host_url}setup-biometric/{pin}"
 
         qr = qrcode.QRCode(version=1, box_size=10, border=2)
         qr.add_data(qr_data)
@@ -3088,6 +3088,101 @@ def webauthn_authenticate():
             'belt': member.get('belt_name', 'White'),
             'member_id': member['id']
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════
+#  PUBLIC BIOMETRIC REGISTRATION (no login needed — PIN verification)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/setup-biometric/<pin>')
+def public_biometric_setup(pin):
+    """Public page where member registers FaceID/TouchID using their PIN."""
+    # Find member by PIN
+    member = None
+    try:
+        all_members = models.get_all_members(1)  # Default academy
+        for m in (all_members or []):
+            if m.get('pin') == pin:
+                member = m
+                break
+    except Exception:
+        pass
+
+    if not member:
+        return render_template('biometric_setup.html', error='Invalid PIN', member=None)
+
+    return render_template('biometric_setup.html', member=member, error=None)
+
+
+@app.route('/api/public/webauthn/register-options', methods=['POST'])
+def public_webauthn_register_options():
+    """Public WebAuthn registration — verifies by PIN."""
+    import os, base64
+    data = request.get_json() or {}
+    pin = data.get('pin', '').strip()
+
+    if not pin or len(pin) != 4:
+        return jsonify({'error': 'Invalid PIN'}), 400
+
+    member = None
+    try:
+        all_members = models.get_all_members(1)
+        for m in (all_members or []):
+            if m.get('pin') == pin:
+                member = m
+                break
+    except Exception:
+        pass
+
+    if not member:
+        return jsonify({'error': 'PIN not found'}), 404
+
+    challenge = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+    session['webauthn_challenge'] = challenge
+    session['webauthn_member_id'] = member['id']
+
+    options = {
+        'challenge': challenge,
+        'rp': {'name': 'Fit4Academy', 'id': request.host.split(':')[0]},
+        'user': {
+            'id': base64.urlsafe_b64encode(str(member['id']).encode()).decode().rstrip('='),
+            'name': f"{member.get('first_name', '')} {member.get('last_name', '')}",
+            'displayName': f"{member.get('first_name', '')} {member.get('last_name', '')}",
+        },
+        'pubKeyCredParams': [
+            {'type': 'public-key', 'alg': -7},
+            {'type': 'public-key', 'alg': -257},
+        ],
+        'authenticatorSelection': {
+            'authenticatorAttachment': 'platform',
+            'userVerification': 'required',
+        },
+        'timeout': 60000,
+        'attestation': 'none',
+    }
+    return jsonify(options)
+
+
+@app.route('/api/public/webauthn/register', methods=['POST'])
+def public_webauthn_register():
+    """Public save of WebAuthn credential — session must have member_id from register-options."""
+    data = request.get_json() or {}
+    member_id = session.get('webauthn_member_id')
+    if not member_id:
+        return jsonify({'error': 'No registration in progress'}), 400
+
+    credential_id = data.get('credential_id', '')
+    if not credential_id:
+        return jsonify({'error': 'Invalid credential'}), 400
+
+    try:
+        models.update_member(member_id,
+            webauthn_credential_id=credential_id,
+            webauthn_public_key=data.get('public_key', '')
+        )
+        return jsonify({'success': True, 'message': 'Biometric registered!'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
