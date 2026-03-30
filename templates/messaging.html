@@ -335,7 +335,7 @@
             </thead>
             <tbody>
                 {% for msg in messages %}
-                <tr>
+                <tr style="cursor:pointer;" onclick="openMsgDetail({{ loop.index0 }})">
                     <td>
                         <div style="font-weight:600;font-size:13px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ msg.subject or '(no subject)' }}</div>
                         <div style="font-size:11px;color:var(--text-muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ msg.body[:60] }}{% if msg.body|length > 60 %}...{% endif %}</div>
@@ -367,6 +367,54 @@
         <p style="margin-top:10px;color:var(--text-muted);">{{ t('msg_no_history') }}</p>
     </div>
     {% endif %}
+</div>
+
+<!-- Message Detail Modal -->
+<div id="msgDetailModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid var(--border);box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <!-- Header -->
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:start;">
+            <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                    <span class="msg-channel-badge" id="detailChannel"></span>
+                    <span class="msg-status" id="detailStatus"></span>
+                </div>
+                <h3 id="detailSubject" style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"></h3>
+                <div id="detailDate" style="font-size:12px;color:var(--text-muted);margin-top:4px;"></div>
+            </div>
+            <button style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-muted);padding:0 0 0 12px;" onclick="document.getElementById('msgDetailModal').style.display='none'">&times;</button>
+        </div>
+        <!-- Stats -->
+        <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;">
+            <div style="text-align:center;flex:1;">
+                <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;" id="detailTotal">0</div>
+                <div style="font-size:10px;color:var(--text-muted);font-weight:600;">{{ t('msg_recipients') }}</div>
+            </div>
+            <div style="text-align:center;flex:1;">
+                <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:var(--success);" id="detailDelivered">0</div>
+                <div style="font-size:10px;color:var(--text-muted);font-weight:600;">{{ t('msg_stat_delivered') }}</div>
+            </div>
+            <div style="text-align:center;flex:1;">
+                <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#6366f1;" id="detailOpened">0</div>
+                <div style="font-size:10px;color:var(--text-muted);font-weight:600;">{{ t('msg_stat_opened') }}</div>
+            </div>
+            <div style="text-align:center;flex:1;">
+                <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:var(--danger);" id="detailBounced">0</div>
+                <div style="font-size:10px;color:var(--text-muted);font-weight:600;">Bounced</div>
+            </div>
+        </div>
+        <!-- Message Body -->
+        <div style="padding:24px;">
+            <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">{{ t('msg_body') }}</div>
+            <div id="detailBody" style="font-size:14px;line-height:1.7;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;min-height:100px;"></div>
+        </div>
+        <!-- Filter info -->
+        <div style="padding:0 24px 20px;">
+            <div style="font-size:11px;color:var(--text-muted);font-weight:600;">
+                <i class="bi bi-funnel"></i> {{ t('msg_recipients') }}: <span id="detailFilter" style="color:var(--text);"></span>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -523,6 +571,45 @@ document.getElementById('composeForm').addEventListener('submit', function(e) {
 
 // Initial preview load
 updatePreview();
+
+/* ===== Message Detail Modal ===== */
+const MSG_DATA = [
+    {% for msg in messages %}
+    {
+        subject: {{ (msg.subject or '(no subject)')|tojson }},
+        body: {{ (msg.body or '')|tojson }},
+        channel: {{ msg.channel|tojson }},
+        status: {{ msg.status|tojson }},
+        date: {{ ((msg.created_at|string)[:16] if msg.created_at else '')|tojson }},
+        total: {{ msg.recipient_count|default(0) }},
+        delivered: {{ msg.get('delivered', 0) }},
+        opened: {{ msg.get('opened', 0) }},
+        bounced: {{ msg.get('bounced', 0) }},
+        filter: {{ (msg.recipient_filter or 'all')|tojson }},
+    },
+    {% endfor %}
+];
+
+function openMsgDetail(idx) {
+    const m = MSG_DATA[idx];
+    if (!m) return;
+
+    const channelIcons = { email: 'bi-envelope', sms: 'bi-chat-dots', both: 'bi-send' };
+    document.getElementById('detailChannel').innerHTML = '<i class="bi ' + (channelIcons[m.channel] || 'bi-send') + '"></i> ' + m.channel.toUpperCase();
+    document.getElementById('detailChannel').className = 'msg-channel-badge ' + m.channel;
+    document.getElementById('detailStatus').textContent = m.status;
+    document.getElementById('detailStatus').className = 'msg-status ' + m.status;
+    document.getElementById('detailSubject').textContent = m.subject;
+    document.getElementById('detailDate').textContent = m.date;
+    document.getElementById('detailBody').textContent = m.body;
+    document.getElementById('detailTotal').textContent = m.total;
+    document.getElementById('detailDelivered').textContent = m.delivered;
+    document.getElementById('detailOpened').textContent = m.opened;
+    document.getElementById('detailBounced').textContent = m.bounced;
+    document.getElementById('detailFilter').textContent = m.filter;
+
+    document.getElementById('msgDetailModal').style.display = 'flex';
+}
 
 /* ===== AI Writer ===== */
 function generateWithAI() {
