@@ -468,25 +468,44 @@ def members_list():
     except Exception:
         plans_display = []
 
-    # Compute chart data from ALL members (not paginated)
-    belt_counts = {}
-    status_counts = {}
-    plan_counts = {}
-    for m in members:
-        b = m.get('belt', 'White')
-        belt_counts[b] = belt_counts.get(b, 0) + 1
-        s = m.get('status', 'active')
-        status_counts[s] = status_counts.get(s, 0) + 1
-        p = m.get('membership_name') or 'No Plan'
-        plan_counts[p] = plan_counts.get(p, 0) + 1
+    # Growth stats — new members per month (last 6 months)
+    today = date.today()
+    member_months = []
+    for i in range(5, -1, -1):
+        m = today.month - i
+        y = today.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        month_key = f"{y}-{m:02d}"
+        count = sum(1 for mb in members if str(mb.get('join_date', '') or '')[:7] == month_key)
+        member_months.append(count)
 
-    # Order belts correctly
-    belt_order = ['White', 'Blue', 'Purple', 'Brown', 'Black']
-    chart_belts = [(b, belt_counts.get(b, 0)) for b in belt_order if belt_counts.get(b, 0) > 0]
-    # Add any belts not in standard order
-    for b, c in belt_counts.items():
-        if b not in belt_order:
-            chart_belts.append((b, c))
+    new_this_month = member_months[-1] if member_months else 0
+    last_month = member_months[-2] if len(member_months) >= 2 else 0
+    growth_pct = 0
+    if last_month > 0:
+        growth_pct = int(((new_this_month - last_month) / last_month) * 100)
+    elif new_this_month > 0:
+        growth_pct = 100
+
+    # Leads per month (last 6 months)
+    leads_months = []
+    try:
+        all_prospects = models.get_all_prospects(academy_id)
+    except Exception:
+        all_prospects = []
+    new_leads_this_month = 0
+    for i in range(5, -1, -1):
+        m = today.month - i
+        y = today.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        month_key = f"{y}-{m:02d}"
+        count = sum(1 for p in (all_prospects or []) if str(p.get('created_at', '') or '')[:7] == month_key)
+        leads_months.append(count)
+    new_leads_this_month = leads_months[-1] if leads_months else 0
 
     return render_template('members.html',
         members=paginated,
@@ -495,9 +514,11 @@ def members_list():
         total_pages=total_pages,
         total_members=total,
         search=search,
-        chart_belts=chart_belts,
-        chart_status=list(status_counts.items()),
-        chart_plans=list(plan_counts.items()),
+        growth_pct=growth_pct,
+        new_this_month=new_this_month,
+        new_leads_this_month=new_leads_this_month,
+        member_months=member_months,
+        leads_months=leads_months,
     )
 
 
