@@ -631,6 +631,15 @@ def member_add():
                 except Exception:
                     pass
 
+            # Enroll in selected programs
+            if member_id:
+                program_ids = request.form.getlist('program_ids')
+                for pid in program_ids:
+                    try:
+                        models.enroll_member_program(member_id, int(pid))
+                    except Exception:
+                        pass
+
             flash('Member added successfully!', 'success')
             return redirect(url_for('member_detail', member_id=member_id))
         except Exception as e:
@@ -656,10 +665,13 @@ def member_add():
     except Exception:
         plans_display = []
 
+    programs = models.get_programs(academy_id)
     return render_template('member_form.html',
         member=None,
         belt_ranks=belt_ranks,
         membership_plans=plans_display,
+        programs=programs,
+        member_programs=[],
     )
 
 
@@ -816,6 +828,23 @@ def member_edit(member_id):
 
         try:
             models.update_member(member_id, **update_data)
+
+            # Update program enrollments
+            program_ids = request.form.getlist('program_ids')
+            # Remove all current enrollments, re-add selected
+            try:
+                conn = models.get_db()
+                conn.execute("DELETE FROM member_programs WHERE member_id = ?", (member_id,))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+            for pid in program_ids:
+                try:
+                    models.enroll_member_program(member_id, int(pid))
+                except Exception:
+                    pass
+
             flash('Member updated successfully!', 'success')
             return redirect(url_for('member_detail', member_id=member_id))
         except Exception as e:
@@ -842,10 +871,16 @@ def member_edit(member_id):
     except Exception:
         plans_display = []
 
+    programs = models.get_programs(academy_id)
+    member_progs = models.get_member_programs(member_id)
+    member_prog_ids = [p['id'] for p in member_progs]
+
     return render_template('member_form.html',
         member=member,
         belt_ranks=belt_ranks,
         membership_plans=plans_display,
+        programs=programs,
+        member_programs=member_prog_ids,
     )
 
 

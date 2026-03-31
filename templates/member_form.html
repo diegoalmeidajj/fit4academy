@@ -170,6 +170,24 @@
                 </div>
             </div>
 
+            <!-- Programs -->
+            {% if programs|default([]) %}
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-collection"></i> Programs</div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                    {% for p in programs %}
+                    <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;border:2px solid var(--border);cursor:pointer;transition:all .2s;background:var(--card-bg);" class="program-checkbox">
+                        <input type="checkbox" name="program_ids" value="{{ p.id }}" style="width:18px;height:18px;accent-color:{{ p.color or '#6366f1' }};cursor:pointer;"
+                            {{ 'checked' if p.id in (member_programs|default([])) }}>
+                        <div style="width:12px;height:12px;border-radius:50%;background:{{ p.color or '#6366f1' }};flex-shrink:0;"></div>
+                        <span style="font-size:13px;font-weight:600;">{{ p.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:6px;"><a href="/programs" style="color:var(--primary);">Manage Programs</a></div>
+            </div>
+            {% endif %}
+
             <!-- Submit -->
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <a href="/members" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
