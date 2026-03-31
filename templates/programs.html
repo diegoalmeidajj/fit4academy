@@ -84,20 +84,35 @@
             <div id="members-{{ p.id }}" style="display:none;margin-top:10px;max-height:250px;overflow-y:auto;">
                 {% if p.members %}
                 {% for m in p.members %}
-                <a href="/members/{{ m.id }}" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;text-decoration:none;color:var(--text);transition:background .15s;">
-                    <div class="member-photo" style="width:30px;height:30px;font-size:10px;">{{ m.first_name[:1] }}{{ m.last_name[:1] }}</div>
-                    <div style="flex:1;">
-                        <div style="font-weight:600;font-size:13px;">{{ m.first_name }} {{ m.last_name }}</div>
-                        <div style="font-size:10px;color:var(--text-muted);">{{ m.email or m.phone or '' }}</div>
-                    </div>
-                    <i class="bi bi-chevron-right" style="font-size:12px;color:var(--text-muted);"></i>
-                </a>
+                <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;">
+                    <a href="/members/{{ m.id }}" style="display:flex;align-items:center;gap:10px;flex:1;text-decoration:none;color:var(--text);">
+                        <div class="member-photo" style="width:30px;height:30px;font-size:10px;">{{ m.first_name[:1] }}{{ m.last_name[:1] }}</div>
+                        <div>
+                            <div style="font-weight:600;font-size:13px;">{{ m.first_name }} {{ m.last_name }}</div>
+                            <div style="font-size:10px;color:var(--text-muted);">{{ m.email or m.phone or '' }}</div>
+                        </div>
+                    </a>
+                    <button onclick="removeMember({{ p.id }}, {{ m.id }}, '{{ m.first_name }}')" style="background:rgba(239,68,68,.08);border:none;color:#ef4444;cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;" title="Remove from program"><i class="bi bi-x-lg"></i></button>
+                </div>
                 {% endfor %}
                 {% else %}
                 <div style="padding:12px;text-align:center;font-size:12px;color:var(--text-muted);">
                     <i class="bi bi-person-plus"></i> No members enrolled yet
                 </div>
                 {% endif %}
+
+                <!-- Add Member Search -->
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+                    <div style="position:relative;">
+                        <input type="text" class="form-control" placeholder="Search member to add..." oninput="searchMember(this.value, {{ p.id }})" id="search-{{ p.id }}" style="font-size:12px;padding-right:36px;">
+                        <i class="bi bi-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;"></i>
+                    </div>
+                    <div id="results-{{ p.id }}" style="margin-top:6px;"></div>
+                </div>
+            </div>
+
+            <!-- Remove buttons for enrolled members -->
+            <div id="enrolled-actions-{{ p.id }}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
             </div>
         </div>
     </div>
@@ -158,6 +173,52 @@ function confirmDelete(id, name) {
     document.getElementById('deleteProgName').textContent = name;
     document.getElementById('deleteForm').action = '/programs/' + id + '/delete';
     document.getElementById('deleteModal').style.display = 'flex';
+}
+
+let searchTimeout;
+function searchMember(query, programId) {
+    clearTimeout(searchTimeout);
+    const resultsEl = document.getElementById('results-' + programId);
+    if (!query || query.length < 2) { resultsEl.innerHTML = ''; return; }
+    searchTimeout = setTimeout(() => {
+        fetch('/api/members/search-for-program?q=' + encodeURIComponent(query))
+            .then(r => r.json())
+            .then(members => {
+                if (!members.length) {
+                    resultsEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding:6px;">No members found</div>';
+                    return;
+                }
+                resultsEl.innerHTML = members.map(m =>
+                    `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;transition:background .15s;font-size:12px;" onmouseover="this.style.background='rgba(99,102,241,.06)'" onmouseout="this.style.background=''" onclick="enrollMember(${programId}, ${m.id}, '${m.first_name} ${m.last_name}')">
+                        <div class="member-photo" style="width:26px;height:26px;font-size:9px;">${m.first_name[0]}${m.last_name[0]}</div>
+                        <div style="flex:1;font-weight:600;">${m.first_name} ${m.last_name}</div>
+                        <span style="font-size:10px;color:var(--text-muted);">${m.email || m.phone || ''}</span>
+                        <i class="bi bi-plus-circle" style="color:var(--primary);"></i>
+                    </div>`
+                ).join('');
+            });
+    }, 300);
+}
+
+function enrollMember(programId, memberId, name) {
+    fetch('/api/programs/' + programId + '/enroll', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({member_id: memberId})
+    }).then(r => r.json()).then(() => {
+        location.reload();
+    });
+}
+
+function removeMember(programId, memberId, name) {
+    if (!confirm('Remove ' + name + ' from this program?')) return;
+    fetch('/api/programs/' + programId + '/unenroll', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({member_id: memberId})
+    }).then(r => r.json()).then(() => {
+        location.reload();
+    });
 }
 </script>
 {% endblock %}

@@ -1716,6 +1716,51 @@ def program_delete(program_id):
     return redirect(url_for('programs_list'))
 
 
+@app.route('/api/programs/<int:program_id>/enroll', methods=['POST'])
+@login_required
+def api_program_enroll(program_id):
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    if not member_id:
+        return jsonify({'error': 'member_id required'}), 400
+    models.enroll_member_program(int(member_id), program_id)
+    return jsonify({'success': True})
+
+
+@app.route('/api/programs/<int:program_id>/unenroll', methods=['POST'])
+@login_required
+def api_program_unenroll(program_id):
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    if not member_id:
+        return jsonify({'error': 'member_id required'}), 400
+    models.unenroll_member_program(int(member_id), program_id)
+    return jsonify({'success': True})
+
+
+@app.route('/api/members/search-for-program')
+@login_required
+def api_search_members_program():
+    q = request.args.get('q', '').strip()
+    academy_id = _get_academy_id()
+    if not q:
+        return jsonify([])
+    try:
+        conn = models.get_db()
+        rows = conn.execute(
+            """SELECT id, first_name, last_name, email, phone FROM members
+               WHERE academy_id = ? AND active = 1 AND (
+                   LOWER(first_name || ' ' || last_name) LIKE ? OR
+                   LOWER(email) LIKE ? OR phone LIKE ?
+               ) LIMIT 10""",
+            (academy_id, f'%{q.lower()}%', f'%{q.lower()}%', f'%{q}%')
+        ).fetchall()
+        conn.close()
+        return jsonify([dict(r) for r in rows])
+    except Exception:
+        return jsonify([])
+
+
 # ═══════════════════════════════════════════════════════════════
 #  CHECK-IN
 # ═══════════════════════════════════════════════════════════════
