@@ -72,46 +72,45 @@
     </div>
 </div>
 
-<!-- Calendar -->
-<div class="mb-24">
-    <div class="card" style="overflow:hidden;">
-        <div class="card-body" style="padding:16px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <strong style="font-size:14px;font-family:'Space Grotesk';"><i class="bi bi-calendar3" style="color:var(--primary);"></i> <span id="calMonthYear"></span></strong>
-                <div style="display:flex;gap:4px;">
-                    <button onclick="calNav(-1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-left"></i></button>
-                    <button onclick="calNav(1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-right"></i></button>
-                </div>
-            </div>
-            <div id="miniCalendar" style="font-size:12px;"></div>
+<!-- Stat cards + Mini Calendar -->
+<div style="display:flex;gap:16px;margin-bottom:24px;">
+    <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+        <div class="stat-card stat-blue">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-value">{{ stats.active_members|default(0) }}</div>
+            <div class="stat-label">{{ t('dash_active_members') }}</div>
         </div>
-    </div>
-</div>
-
-<!-- Stat cards -->
-<div class="grid-4 mb-24">
-    <div class="stat-card stat-blue">
-        <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
-        <div class="stat-value">{{ stats.active_members|default(0) }}</div>
-        <div class="stat-label">{{ t('dash_active_members') }}</div>
-    </div>
-    <div class="stat-card stat-green">
-        <div class="stat-icon"><i class="bi bi-qr-code-scan"></i></div>
-        <div class="stat-value">{{ stats.today_checkins|default(0) }}</div>
-        <div class="stat-label">{{ t('dash_today_checkins') }}</div>
-    </div>
-    <div class="stat-card stat-purple" style="position:relative;">
-        <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-        <div class="stat-value" id="revenueValue">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
-        <div class="stat-label">{{ t('dash_monthly_revenue') }}</div>
-        <button onclick="toggleRevenue()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:14px;backdrop-filter:blur(4px);transition:all .2s;" title="Show/Hide">
-            <i class="bi bi-eye" id="revenueEyeIcon"></i>
-        </button>
-    </div>
-    <div class="stat-card stat-orange">
-        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-card stat-green">
+            <div class="stat-icon"><i class="bi bi-qr-code-scan"></i></div>
+            <div class="stat-value">{{ stats.today_checkins|default(0) }}</div>
+            <div class="stat-label">{{ t('dash_today_checkins') }}</div>
+        </div>
+        <div class="stat-card stat-purple" style="position:relative;">
+            <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+            <div class="stat-value" id="revenueValue">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
+            <div class="stat-label">{{ t('dash_monthly_revenue') }}</div>
+            <button onclick="toggleRevenue()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:14px;backdrop-filter:blur(4px);transition:all .2s;" title="Show/Hide">
+                <i class="bi bi-eye" id="revenueEyeIcon"></i>
+            </button>
+        </div>
+        <div class="stat-card stat-orange">
+            <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-value">{{ stats.expiring_soon|default(0) }}</div>
         <div class="stat-label">{{ t('dash_expiring_soon') }}</div>
+    </div>
+    </div>
+    <!-- Mini Calendar -->
+    <div class="card" style="width:220px;flex-shrink:0;overflow:hidden;">
+        <div class="card-body" style="padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <strong style="font-size:11px;font-family:'Space Grotesk';color:var(--text);"><span id="calMonthYear"></span></strong>
+                <div style="display:flex;gap:2px;">
+                    <button onclick="calNav(-1)" style="background:var(--border);border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;color:var(--text);font-size:10px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-chevron-left"></i></button>
+                    <button onclick="calNav(1)" style="background:var(--border);border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;color:var(--text);font-size:10px;display:flex;align-items:center;justify-content:center;"><i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
+            <div id="miniCalendar" style="font-size:10px;"></div>
+        </div>
     </div>
 </div>
 
