@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Programs{% endblock %}
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-collection" style="color:var(--primary);"></i> Programs</h1>
+</div>
+
+<!-- Add Program -->
+<div class="card mb-24" style="overflow:hidden;">
+    <div style="height:4px;background:linear-gradient(90deg,#6366f1,#a855f7,#10b981);"></div>
+    <div class="card-body">
+        <h4 style="font-family:'Space Grotesk';margin-bottom:16px;"><i class="bi bi-plus-circle" style="color:var(--primary);"></i> Add Program</h4>
+        <form method="post" action="/programs/add" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+            <div style="flex:1;min-width:180px;">
+                <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Program Name *</label>
+                <input type="text" name="name" class="form-control" placeholder="Ex: Kids Gi, Adults No-Gi..." required>
+            </div>
+            <div style="width:60px;">
+                <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Color</label>
+                <input type="color" name="color" value="#6366f1" style="width:100%;height:38px;border:none;border-radius:8px;cursor:pointer;">
+            </div>
+            <div style="flex:1;min-width:180px;">
+                <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Description</label>
+                <input type="text" name="description" class="form-control" placeholder="Optional description...">
+            </div>
+            <button type="submit" class="btn btn-primary" style="border-radius:10px;"><i class="bi bi-plus-lg"></i> Add</button>
+        </form>
+    </div>
+</div>
+
+<!-- Programs List -->
+<div class="grid-2">
+{% for p in programs %}
+<div class="card" style="overflow:hidden;">
+    <div style="height:5px;background:{{ p.color or '#6366f1' }};"></div>
+    <div class="card-body" style="padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:36px;height:36px;border-radius:10px;background:{{ p.color or '#6366f1' }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;">{{ p.name[:1] }}</div>
+                <div>
+                    <strong style="font-size:15px;">{{ p.name }}</strong>
+                    {% if p.description %}<div style="font-size:11px;color:var(--text-muted);">{{ p.description }}</div>{% endif %}
+                </div>
+            </div>
+            <form method="post" action="/programs/{{ p.id }}/delete" onsubmit="return confirm('Delete this program?')" style="display:inline;">
+                <button class="btn btn-sm btn-outline-danger" style="border-radius:8px;"><i class="bi bi-trash3"></i></button>
+            </form>
+        </div>
+        <!-- Inline Edit -->
+        <form method="post" action="/programs/{{ p.id }}/edit" style="display:flex;gap:8px;align-items:center;">
+            <input type="text" name="name" value="{{ p.name }}" class="form-control" style="font-size:13px;" required>
+            <input type="color" name="color" value="{{ p.color or '#6366f1' }}" style="width:40px;height:34px;border:none;border-radius:6px;cursor:pointer;">
+            <input type="text" name="description" value="{{ p.description or '' }}" class="form-control" style="font-size:13px;" placeholder="Description">
+            <button type="submit" class="btn btn-sm btn-primary" style="border-radius:8px;white-space:nowrap;"><i class="bi bi-check-lg"></i></button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+{% if not programs %}
+<div class="card"><div class="card-body empty-state" style="padding:40px;"><i class="bi bi-collection"></i><p>No programs yet. Create your first program above!</p></div></div>
+{% endif %}
+</div>
+{% endblock %}

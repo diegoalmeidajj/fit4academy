@@ -212,6 +212,7 @@
                         <button type="button" class="recipient-tab" onclick="switchFilter('status', this)">{{ t('msg_by_status') }}</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('belt', this)">{{ t('msg_by_belt') }}</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('plan', this)">{{ t('msg_by_plan') }}</button>
+                        <button type="button" class="recipient-tab" onclick="switchFilter('program', this)"><i class="bi bi-collection"></i> Program</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('former', this)"><i class="bi bi-person-dash"></i> Ex-Members</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('leads', this)"><i class="bi bi-funnel"></i> Leads</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('manual', this)">{{ t('msg_manual') }}</button>
@@ -227,6 +228,15 @@
                             <option value="inactive">{{ t('status_inactive') }}</option>
                             <option value="expired">{{ t('status_expired') }}</option>
                             <option value="trial">{{ t('status_trial') }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter: Program -->
+                    <div class="filter-panel" id="panel-program">
+                        <select class="form-select" id="programSelect" onchange="updateFilterValue('program'); updatePreview();">
+                            {% for prog in programs|default([]) %}
+                            <option value="{{ prog.id }}">{{ prog.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 

@@ -389,6 +389,23 @@ def init_db():
         "ALTER TABLE members ADD COLUMN webauthn_public_key TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN interested_in TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN member_id INTEGER",
+        """CREATE TABLE IF NOT EXISTS programs (
+            id SERIAL PRIMARY KEY,
+            academy_id INTEGER DEFAULT 1,
+            name TEXT NOT NULL DEFAULT '',
+            color TEXT DEFAULT '#6366f1',
+            description TEXT DEFAULT '',
+            active BOOLEAN DEFAULT TRUE,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        "ALTER TABLE classes ADD COLUMN program_id INTEGER",
+        """CREATE TABLE IF NOT EXISTS member_programs (
+            id SERIAL PRIMARY KEY,
+            member_id INTEGER NOT NULL,
+            program_id INTEGER NOT NULL,
+            enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
         """CREATE TABLE IF NOT EXISTS calendar_tasks (
             id SERIAL PRIMARY KEY,
             academy_id INTEGER DEFAULT 1,
@@ -459,6 +476,33 @@ def init_db():
                 pass
     except Exception as e:
         print(f"[Seed] Academy error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    # ─── Seed Default Programs ─────────────────────────────────
+    try:
+        row = conn.execute("SELECT COUNT(*) as cnt FROM programs").fetchone()
+        cnt = row['cnt'] if isinstance(row, dict) else row[0]
+        if cnt == 0:
+            default_programs = [
+                ('Kids Gi', '#f59e0b', 'Gi classes for children (4-15 years)', 1),
+                ('Kids No-Gi', '#10b981', 'No-Gi classes for children (4-15 years)', 2),
+                ('Adults Gi', '#6366f1', 'Gi classes for adults (16+)', 3),
+                ('Adults No-Gi', '#ef4444', 'No-Gi classes for adults (16+)', 4),
+                ('Open Mat', '#8b5cf6', 'Free training for all levels', 5),
+                ('Competition Team', '#0ea5e9', 'Advanced training for competitors', 6),
+            ]
+            for name, color, desc, order in default_programs:
+                conn.execute(
+                    "INSERT INTO programs (academy_id, name, color, description, sort_order) VALUES (1, ?, ?, ?, ?)",
+                    (name, color, desc, order)
+                )
+            conn.commit()
+            print("[Seed] Default programs created")
+    except Exception as e:
+        print(f"[Seed] Programs error: {e}")
         try:
             conn.rollback()
         except Exception:
@@ -2041,6 +2085,16 @@ def get_members_by_filter(academy_id=1, filter_type='all', filter_value=''):
                ORDER BY m.last_name, m.first_name""",
             [academy_id] + ids
         ).fetchall()
+    elif filter_type == 'program':
+        # Members enrolled in a specific program
+        rows = conn.execute(
+            """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               JOIN member_programs mp ON mp.member_id = m.id
+               WHERE m.academy_id = ? AND mp.program_id = ? AND m.active = 1
+               ORDER BY m.last_name, m.first_name""",
+            (academy_id, int(filter_value))
+        ).fetchall()
     elif filter_type == 'former':
         # Ex-alunos (inactive members)
         rows = conn.execute(
@@ -2386,3 +2440,97 @@ def delete_calendar_task(task_id):
     conn.execute("DELETE FROM calendar_tasks WHERE id = ?", (task_id,))
     conn.commit()
     conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+# Programs
+# ═══════════════════════════════════════════════════════════════
+
+def get_programs(academy_id=1):
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT * FROM programs WHERE academy_id = ? ORDER BY sort_order, name", (academy_id,)).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_program(program_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM programs WHERE id = ?", (program_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def add_program(academy_id, name, color='#6366f1', description=''):
+    conn = get_db()
+    conn.execute("INSERT INTO programs (academy_id, name, color, description) VALUES (?,?,?,?)",
+                 (academy_id, name, color, description))
+    conn.commit()
+    conn.close()
+
+
+def update_program(program_id, **kwargs):
+    conn = get_db()
+    for k, v in kwargs.items():
+        try:
+            conn.execute(f"UPDATE programs SET {k} = ? WHERE id = ?", (v, program_id))
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+
+
+def delete_program(program_id):
+    conn = get_db()
+    conn.execute("DELETE FROM programs WHERE id = ?", (program_id,))
+    conn.commit()
+    conn.close()
+
+
+def enroll_member_program(member_id, program_id):
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO member_programs (member_id, program_id) VALUES (?,?)", (member_id, program_id))
+        conn.commit()
+    except Exception:
+        pass
+    conn.close()
+
+
+def unenroll_member_program(member_id, program_id):
+    conn = get_db()
+    conn.execute("DELETE FROM member_programs WHERE member_id = ? AND program_id = ?", (member_id, program_id))
+    conn.commit()
+    conn.close()
+
+
+def get_member_programs(member_id):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT p.* FROM programs p JOIN member_programs mp ON mp.program_id = p.id WHERE mp.member_id = ? ORDER BY p.name",
+            (member_id,)
+        ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_members_by_program(academy_id, program_id):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               JOIN member_programs mp ON mp.member_id = m.id
+               WHERE m.academy_id = ? AND mp.program_id = ? AND m.active = 1
+               ORDER BY m.last_name, m.first_name""",
+            (academy_id, program_id)
+        ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]

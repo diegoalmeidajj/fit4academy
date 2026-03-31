@@ -1464,10 +1464,12 @@ def classes_list():
     except Exception:
         classes = []
 
+    programs = models.get_programs(academy_id)
     from datetime import datetime as dt
     return render_template('classes.html',
         schedule=schedule,
         classes=classes,
+        programs=programs,
         now_dow=dt.now().weekday(),
     )
 
@@ -1533,7 +1535,8 @@ def class_add():
     except Exception:
         instructors = []
 
-    return render_template('class_form.html', cls=None, instructors=instructors)
+    programs = models.get_programs(academy_id)
+    return render_template('class_form.html', cls=None, instructors=instructors, programs=programs)
 
 
 @app.route('/classes/<int:class_id>/edit', methods=['GET', 'POST'])
@@ -1626,6 +1629,51 @@ def class_delete(class_id):
         print(f"[Classes] Delete error: {e}")
         flash('Error deleting class.', 'error')
     return redirect(url_for('classes_list'))
+
+
+# ═══════════════════════════════════════════════════════════════
+#  PROGRAMS
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/programs')
+@login_required
+def programs_list():
+    academy_id = _get_academy_id()
+    programs = models.get_programs(academy_id)
+    return render_template('programs.html', programs=programs)
+
+
+@app.route('/programs/add', methods=['POST'])
+@login_required
+def program_add():
+    academy_id = _get_academy_id()
+    name = request.form.get('name', '').strip()
+    color = request.form.get('color', '#6366f1').strip()
+    description = request.form.get('description', '').strip()
+    if name:
+        models.add_program(academy_id, name, color, description)
+        flash(f'Program "{name}" created!', 'success')
+    return redirect(url_for('programs_list'))
+
+
+@app.route('/programs/<int:program_id>/edit', methods=['POST'])
+@login_required
+def program_edit(program_id):
+    name = request.form.get('name', '').strip()
+    color = request.form.get('color', '#6366f1').strip()
+    description = request.form.get('description', '').strip()
+    if name:
+        models.update_program(program_id, name=name, color=color, description=description)
+        flash(f'Program updated!', 'success')
+    return redirect(url_for('programs_list'))
+
+
+@app.route('/programs/<int:program_id>/delete', methods=['POST'])
+@login_required
+def program_delete(program_id):
+    models.delete_program(program_id)
+    flash('Program deleted.', 'success')
+    return redirect(url_for('programs_list'))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2950,12 +2998,14 @@ def messaging_page():
     except Exception:
         stats = {}
 
+    programs = models.get_programs(academy_id)
     return render_template('messaging.html',
                            members=members,
                            plans=plans,
                            messages=messages,
                            belts=belts,
-                           stats=stats)
+                           stats=stats,
+                           programs=programs)
 
 
 @app.route('/messaging/send', methods=['POST'])

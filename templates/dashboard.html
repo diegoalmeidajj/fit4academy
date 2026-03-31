@@ -44,8 +44,21 @@
 .belt-bar-fill.black-bar { background: #0f172a; }
 
 @media (max-width: 768px) {
-    .welcome-card { flex-direction: column; text-align: center; padding: 20px; }
-    .welcome-logo { width: 52px; height: 52px; font-size: 22px; }
+    .welcome-card { flex-direction: column; text-align: center; padding: 16px; gap: 12px; }
+    .welcome-logo { width: 48px; height: 48px; font-size: 20px; }
+    .welcome-text h2 { font-size: 18px; }
+    #weatherWidget { text-align: center !important; }
+    .stats-cal-row { flex-direction: column !important; }
+    .stats-cal-row .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .stats-cal-row .mini-cal-card { width: 100% !important; }
+    .stat-card { padding: 14px !important; }
+    .stat-card .stat-value { font-size: 22px !important; }
+    .stat-card .stat-label { font-size: 10px !important; }
+    .section-title { font-size: 14px; }
+    .task-alert-item { flex-direction: row; }
+    .belt-bar-label { width: 55px; font-size: 10px; }
+    .belt-bar-track { height: 20px; }
+    #taskModal > div { width: 95vw !important; }
 }
 {% endblock %}
 
@@ -73,8 +86,8 @@
 </div>
 
 <!-- Stat cards + Mini Calendar -->
-<div style="display:flex;gap:16px;margin-bottom:24px;">
-    <div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+<div class="stats-cal-row" style="display:flex;gap:16px;margin-bottom:24px;">
+    <div class="stat-grid" style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
         <div class="stat-card stat-blue">
             <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
             <div class="stat-value">{{ stats.active_members|default(0) }}</div>
@@ -100,7 +113,7 @@
     </div>
     </div>
     <!-- Mini Calendar -->
-    <div class="card" style="width:220px;flex-shrink:0;overflow:hidden;">
+    <div class="card mini-cal-card" style="width:220px;flex-shrink:0;overflow:hidden;">
         <div class="card-body" style="padding:12px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                 <strong style="font-size:11px;font-family:'Space Grotesk';color:var(--text);"><span id="calMonthYear"></span></strong>
