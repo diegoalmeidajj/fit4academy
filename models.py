@@ -1115,6 +1115,36 @@ def get_checkins_by_member(member_id, limit=50):
     return [dict(r) for r in rows]
 
 
+def get_attendance_report(academy_id=1, month=None, year=None):
+    """Get monthly attendance per member: how many times each trained."""
+    from datetime import datetime
+    if not month:
+        month = datetime.now().month
+    if not year:
+        year = datetime.now().year
+    month_str = f"{year}-{str(month).zfill(2)}"
+    conn = get_db()
+    try:
+        rows = conn.execute("""
+            SELECT m.id, m.first_name, m.last_name, m.photo,
+                   b.name as belt_name, b.color as belt_color,
+                   COUNT(ci.id) as total_checkins,
+                   MAX(ci.check_in_time) as last_checkin
+            FROM members m
+            LEFT JOIN check_ins ci ON ci.member_id = m.id
+                AND CAST(ci.check_in_time AS TEXT) LIKE ?
+            LEFT JOIN belt_ranks b ON m.belt_rank_id = b.id
+            WHERE m.academy_id = ? AND m.active = 1
+            GROUP BY m.id, m.first_name, m.last_name, m.photo, b.name, b.color
+            ORDER BY total_checkins DESC
+        """, (month_str + '%', academy_id)).fetchall()
+    except Exception as e:
+        print(f"[Attendance] Error: {e}")
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def create_checkin(member_id, class_id=None, academy_id=1, method='manual'):
     conn = get_db()
     cur = conn.execute(

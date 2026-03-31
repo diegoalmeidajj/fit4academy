@@ -405,6 +405,23 @@ def dashboard():
     except Exception:
         at_risk = []
 
+    # Schedule days (which days of the week have classes)
+    schedule_days = []
+    try:
+        conn = models.get_db()
+        rows = conn.execute("SELECT DISTINCT day_of_week FROM class_schedule WHERE active = 1").fetchall()
+        conn.close()
+        day_map = {'monday':1,'tuesday':2,'wednesday':3,'thursday':4,'friday':5,'saturday':6,'sunday':0,
+                   'mon':1,'tue':2,'wed':3,'thu':4,'fri':5,'sat':6,'sun':0}
+        for r in rows:
+            d = (r['day_of_week'] if isinstance(r, dict) else r[0]) or ''
+            if isinstance(d, int):
+                schedule_days.append(d)
+            else:
+                schedule_days.append(day_map.get(d.lower().strip(), -1))
+    except Exception:
+        pass
+
     return render_template('dashboard.html',
         greeting=greeting,
         stats=stats,
@@ -414,6 +431,7 @@ def dashboard():
         payment_alerts=payment_alerts,
         belt_distribution=belt_distribution,
         at_risk=at_risk,
+        schedule_days=schedule_days,
     )
 
 
@@ -1820,6 +1838,18 @@ def checkin_history():
         date_from=date_from,
         date_to=date_to,
     )
+
+
+@app.route('/attendance')
+@login_required
+def attendance_report():
+    academy_id = _get_academy_id()
+    from datetime import datetime
+    month = int(request.args.get('month', datetime.now().month))
+    year = int(request.args.get('year', datetime.now().year))
+    report = models.get_attendance_report(academy_id, month, year)
+    months = ['January','February','March','April','May','June','July','August','September','October','November','December']
+    return render_template('attendance.html', report=report, month=month, year=year, months=months)
 
 
 @app.route('/api/checkin/search')

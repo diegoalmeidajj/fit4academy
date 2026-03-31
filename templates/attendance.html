@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Attendance Report{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-graph-up" style="color:var(--primary);"></i> {{ t('attendance_title') if t('attendance_title') != 'attendance_title' else 'Attendance Report' }}</h1>
+</div>
+
+<!-- Month Selector -->
+<div class="card mb-24" style="overflow:hidden;">
+    <div class="card-body" style="padding:16px;">
+        <form method="get" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <select name="month" class="form-control" style="max-width:160px;">
+                {% for i in range(1,13) %}
+                <option value="{{ i }}" {{ 'selected' if i == month }}>{{ months[i-1] }}</option>
+                {% endfor %}
+            </select>
+            <select name="year" class="form-control" style="max-width:100px;">
+                {% for y in range(2024, 2028) %}
+                <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filter</button>
+        </form>
+    </div>
+</div>
+
+<!-- Summary -->
+{% set total_members = report|length %}
+{% set active_members = report|selectattr('total_checkins', 'greaterthan', 0)|list|length %}
+{% set total_checkins = report|sum(attribute='total_checkins') %}
+<div class="grid-4 mb-24">
+    <div class="stat-card stat-blue">
+        <div class="stat-icon"><i class="bi bi-people"></i></div>
+        <div class="stat-value">{{ total_members }}</div>
+        <div class="stat-label">Total Members</div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+        <div class="stat-value">{{ active_members }}</div>
+        <div class="stat-label">Trained This Month</div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-icon"><i class="bi bi-qr-code-scan"></i></div>
+        <div class="stat-value">{{ total_checkins }}</div>
+        <div class="stat-label">Total Check-ins</div>
+    </div>
+    <div class="stat-card stat-orange">
+        <div class="stat-icon"><i class="bi bi-emoji-frown"></i></div>
+        <div class="stat-value">{{ total_members - active_members }}</div>
+        <div class="stat-label">Inactive (0 check-ins)</div>
+    </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table flight-table">
+            <thead>
+                <tr>
+                    <th>Member</th>
+                    <th>Belt</th>
+                    <th style="text-align:center;">Check-ins</th>
+                    <th style="text-align:center;">Frequency</th>
+                    <th>Last Check-in</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for m in report %}
+            <tr>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="member-photo" style="width:36px;height:36px;font-size:12px;">
+                            {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.first_name[0] }}{{ m.last_name[0] }}{% endif %}
+                        </div>
+                        <div>
+                            <a href="/members/{{ m.id }}" style="font-weight:600;font-size:13px;color:var(--text);text-decoration:none;">{{ m.first_name }} {{ m.last_name }}</a>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    {% if m.belt_name %}
+                    <span class="badge-pill" style="background:{{ m.belt_color or '#64748b' }};color:{% if m.belt_name in ['White','Yellow','Grey'] %}#333{% else %}#fff{% endif %};font-size:11px;">{{ m.belt_name }}</span>
+                    {% else %}--{% endif %}
+                </td>
+                <td style="text-align:center;">
+                    <span style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:{% if m.total_checkins >= 12 %}var(--success){% elif m.total_checkins >= 4 %}var(--primary){% elif m.total_checkins > 0 %}var(--warning){% else %}var(--danger){% endif %};">
+                        {{ m.total_checkins }}
+                    </span>
+                </td>
+                <td style="text-align:center;">
+                    {% set freq = (m.total_checkins / 4.3)|round(1) %}
+                    <div style="font-size:12px;color:var(--text-muted);">{{ freq }}x/week</div>
+                    <div style="width:80px;height:6px;background:var(--border);border-radius:3px;margin:4px auto 0;overflow:hidden;">
+                        <div style="width:{{ [m.total_checkins / 20 * 100, 100]|min }}%;height:100%;background:{% if m.total_checkins >= 12 %}var(--success){% elif m.total_checkins >= 4 %}var(--primary){% else %}var(--warning){% endif %};border-radius:3px;"></div>
+                    </div>
+                </td>
+                <td style="font-size:12px;color:var(--text-muted);">
+                    {{ (m.last_checkin|string)[:10] if m.last_checkin else 'Never' }}
+                </td>
+                <td>
+                    {% if m.total_checkins >= 12 %}
+                    <span class="badge-pill" style="background:rgba(16,185,129,.12);color:#10b981;"><i class="bi bi-fire"></i> Dedicated</span>
+                    {% elif m.total_checkins >= 4 %}
+                    <span class="badge-pill" style="background:rgba(99,102,241,.12);color:#6366f1;"><i class="bi bi-check"></i> Regular</span>
+                    {% elif m.total_checkins > 0 %}
+                    <span class="badge-pill" style="background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-exclamation"></i> Irregular</span>
+                    {% else %}
+                    <span class="badge-pill" style="background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-x"></i> Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not report %}
+            <tr><td colspan="6" class="empty-state" style="padding:40px;"><i class="bi bi-inbox"></i><p>No members found</p></td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

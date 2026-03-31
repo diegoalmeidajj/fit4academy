@@ -64,6 +64,35 @@
     </div>
 </div>
 
+<!-- Calendar + Weather -->
+<div class="grid-2 mb-24">
+    <div>
+        <div class="card" style="overflow:hidden;">
+            <div class="card-body" style="padding:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <strong style="font-size:14px;font-family:'Space Grotesk';"><i class="bi bi-calendar3" style="color:var(--primary);"></i> <span id="calMonthYear"></span></strong>
+                    <div style="display:flex;gap:4px;">
+                        <button onclick="calNav(-1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-left"></i></button>
+                        <button onclick="calNav(1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div id="miniCalendar" style="font-size:12px;"></div>
+            </div>
+        </div>
+    </div>
+    <div>
+        <div class="card" style="overflow:hidden;height:100%;">
+            <div class="card-body" style="padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+                <div id="weatherIcon" style="font-size:48px;">⛅</div>
+                <div id="weatherTemp" style="font-family:'Space Grotesk';font-size:36px;font-weight:700;color:var(--text);margin:4px 0;">--°</div>
+                <div id="weatherDesc" style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">Loading...</div>
+                <div id="weatherCity" style="font-size:11px;color:var(--text-muted);"><i class="bi bi-geo-alt"></i> <span>Detecting location...</span></div>
+                <div id="weatherExtra" style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:var(--text-muted);"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Stat cards -->
 <div class="grid-4 mb-24">
     <div class="stat-card stat-blue">
@@ -250,5 +279,71 @@ function updateRevenueUI() {
     }
 }
 updateRevenueUI();
+
+// === MINI CALENDAR ===
+let calMonth = new Date().getMonth(), calYear = new Date().getFullYear();
+const classDays = new Set([{% for cls in today_classes %}'{{ cls.day_of_week }}',{% endfor %}]);
+const classSchedule = {
+    {% for d in range(7) %}{{ d }}: {{ 'true' if d in (schedule_days or []) else 'false' }},{% endfor %}
+};
+
+function calNav(dir) { calMonth += dir; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCal(); }
+
+function renderCal() {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('calMonthYear').textContent = months[calMonth] + ' ' + calYear;
+    const fd = new Date(calYear, calMonth, 1).getDay();
+    const dm = new Date(calYear, calMonth+1, 0).getDate();
+    const today = new Date();
+    const isThisMonth = calYear === today.getFullYear() && calMonth === today.getMonth();
+    const ds = ['S','M','T','W','T','F','S'];
+    let h = '<div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:2px;">';
+    ds.forEach(d => h += '<div style="font-weight:700;color:var(--text-muted);padding:4px;font-size:11px;">'+d+'</div>');
+    for(let i=0;i<fd;i++) h+='<div></div>';
+    for(let d=1;d<=dm;d++) {
+        const dow = new Date(calYear, calMonth, d).getDay();
+        const isToday = isThisMonth && d === today.getDate();
+        const hasClass = classSchedule[dow];
+        let s = 'padding:6px 2px;border-radius:8px;font-size:12px;position:relative;color:var(--text);';
+        if(isToday) s += 'background:var(--primary);color:#fff;font-weight:700;';
+        else if(hasClass) s += 'background:rgba(99,102,241,.08);font-weight:600;';
+        h += '<div style="'+s+'">'+d;
+        if(hasClass && !isToday) h += '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:var(--primary);border-radius:50%;"></div>';
+        h += '</div>';
+    }
+    h += '</div>';
+    document.getElementById('miniCalendar').innerHTML = h;
+}
+renderCal();
+
+// === WEATHER FROM IP ===
+fetch('https://ipapi.co/json/')
+    .then(r => r.json())
+    .then(loc => {
+        const city = loc.city || 'Unknown';
+        const lat = loc.latitude;
+        const lon = loc.longitude;
+        document.getElementById('weatherCity').innerHTML = '<i class="bi bi-geo-alt"></i> ' + city + ', ' + (loc.region || loc.country_name || '');
+        return fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&temperature_unit=fahrenheit`);
+    })
+    .then(r => r.json())
+    .then(d => {
+        const t = Math.round(d.current.temperature_2m);
+        const c = d.current.weather_code;
+        const h = d.current.relative_humidity_2m;
+        const w = Math.round(d.current.wind_speed_10m);
+        const icons = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌧',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌧',95:'⛈'};
+        const descs = {0:'Clear Sky',1:'Mostly Clear',2:'Partly Cloudy',3:'Overcast',45:'Foggy',51:'Drizzle',61:'Rain',71:'Snow',80:'Showers',95:'Storm'};
+        document.getElementById('weatherTemp').textContent = t + '°F';
+        document.getElementById('weatherIcon').textContent = icons[c] || '⛅';
+        document.getElementById('weatherDesc').textContent = descs[c] || 'Weather';
+        document.getElementById('weatherExtra').innerHTML =
+            '<span><i class="bi bi-droplet"></i> ' + h + '%</span>' +
+            '<span><i class="bi bi-wind"></i> ' + w + ' mph</span>';
+    })
+    .catch(() => {
+        document.getElementById('weatherDesc').textContent = 'Weather unavailable';
+        document.getElementById('weatherCity').innerHTML = '<i class="bi bi-geo-alt"></i> Set location in settings';
+    });
 </script>
 {% endblock %}

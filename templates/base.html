@@ -355,6 +355,7 @@
                 <a href="/classes" class="{{ 'active' if request.path.startswith('/classes') }}"><i class="bi bi-calendar-week"></i> {{ t('nav_classes') }}</a>
                 <a href="/belts" class="{{ 'active' if request.path.startswith('/belts') }}"><i class="bi bi-award"></i> {{ t('nav_belts') }}</a>
                 <a href="/checkin/history" class="{{ 'active' if request.path == '/checkin/history' }}"><i class="bi bi-clock-history"></i> {{ t('nav_attendance') }}</a>
+                <a href="/attendance" class="{{ 'active' if request.path == '/attendance' }}"><i class="bi bi-graph-up"></i> Attendance Report</a>
             </div>
             <div class="nav-section">
                 <div class="nav-label">{{ t('nav_business') }}</div>
