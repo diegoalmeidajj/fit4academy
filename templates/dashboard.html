@@ -145,12 +145,20 @@
             </div>
             {% endfor %}
         </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+            <button onclick="openTaskModal(new Date().toISOString().slice(0,10))" class="btn btn-sm btn-outline-primary" style="border-radius:8px;font-size:12px;"><i class="bi bi-plus-lg"></i> Add Task</button>
+        </div>
     </div>
 </div>
 <style>
 @keyframes alertPulse { 0%{opacity:0;transform:translateY(-10px)} 100%{opacity:1;transform:translateY(0)} }
 @keyframes bellRing { 0%,100%{transform:rotate(0)} 20%{transform:rotate(15deg)} 40%{transform:rotate(-15deg)} 60%{transform:rotate(8deg)} 80%{transform:rotate(-8deg)} }
 </style>
+{% else %}
+<!-- No tasks — show Add Task button -->
+<div class="mb-24" style="display:flex;justify-content:flex-end;">
+    <button onclick="openTaskModal(new Date().toISOString().slice(0,10))" class="btn btn-sm btn-outline-primary" style="border-radius:8px;font-size:12px;"><i class="bi bi-plus-lg"></i> Add Task</button>
+</div>
 {% endif %}
 
 <!-- Today's Classes + Recent Check-ins -->
