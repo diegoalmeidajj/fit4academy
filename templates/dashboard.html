@@ -50,7 +50,7 @@
 {% endblock %}
 
 {% block content %}
-<!-- Welcome -->
+<!-- Welcome + Weather -->
 <div class="welcome-card">
     <div class="welcome-logo">
         {% if academy and academy.logo %}
@@ -59,36 +59,31 @@
         <i class="bi bi-trophy"></i>
         {% endif %}
     </div>
-    <div class="welcome-text">
+    <div class="welcome-text" style="flex:1;">
         <h2>{{ t('dash_welcome') }}, {{ session.get('display_name', 'Professor') }}!</h2>
+    </div>
+    <div id="weatherWidget" style="text-align:right;z-index:1;">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+            <span id="weatherIcon" style="font-size:28px;">⛅</span>
+            <span id="weatherTemp" style="font-family:'Space Grotesk';font-size:24px;font-weight:700;">--°</span>
+        </div>
+        <div id="weatherDesc" style="font-size:11px;opacity:.7;">Loading...</div>
+        <div id="weatherCity" style="font-size:10px;opacity:.5;"><i class="bi bi-geo-alt"></i> ...</div>
     </div>
 </div>
 
-<!-- Calendar + Weather -->
-<div class="grid-2 mb-24">
-    <div>
-        <div class="card" style="overflow:hidden;">
-            <div class="card-body" style="padding:16px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <strong style="font-size:14px;font-family:'Space Grotesk';"><i class="bi bi-calendar3" style="color:var(--primary);"></i> <span id="calMonthYear"></span></strong>
-                    <div style="display:flex;gap:4px;">
-                        <button onclick="calNav(-1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-left"></i></button>
-                        <button onclick="calNav(1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-right"></i></button>
-                    </div>
+<!-- Calendar -->
+<div class="mb-24">
+    <div class="card" style="overflow:hidden;">
+        <div class="card-body" style="padding:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <strong style="font-size:14px;font-family:'Space Grotesk';"><i class="bi bi-calendar3" style="color:var(--primary);"></i> <span id="calMonthYear"></span></strong>
+                <div style="display:flex;gap:4px;">
+                    <button onclick="calNav(-1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-left"></i></button>
+                    <button onclick="calNav(1)" style="background:var(--border);border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text);font-size:12px;"><i class="bi bi-chevron-right"></i></button>
                 </div>
-                <div id="miniCalendar" style="font-size:12px;"></div>
             </div>
-        </div>
-    </div>
-    <div>
-        <div class="card" style="overflow:hidden;height:100%;">
-            <div class="card-body" style="padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-                <div id="weatherIcon" style="font-size:48px;">⛅</div>
-                <div id="weatherTemp" style="font-family:'Space Grotesk';font-size:36px;font-weight:700;color:var(--text);margin:4px 0;">--°</div>
-                <div id="weatherDesc" style="font-size:13px;color:var(--text-muted);margin-bottom:4px;">Loading...</div>
-                <div id="weatherCity" style="font-size:11px;color:var(--text-muted);"><i class="bi bi-geo-alt"></i> <span>Detecting location...</span></div>
-                <div id="weatherExtra" style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:var(--text-muted);"></div>
-            </div>
+            <div id="miniCalendar" style="font-size:12px;"></div>
         </div>
     </div>
 </div>
@@ -337,9 +332,7 @@ fetch('https://ipapi.co/json/')
         document.getElementById('weatherTemp').textContent = t + '°F';
         document.getElementById('weatherIcon').textContent = icons[c] || '⛅';
         document.getElementById('weatherDesc').textContent = descs[c] || 'Weather';
-        document.getElementById('weatherExtra').innerHTML =
-            '<span><i class="bi bi-droplet"></i> ' + h + '%</span>' +
-            '<span><i class="bi bi-wind"></i> ' + w + ' mph</span>';
+        document.getElementById('weatherDesc').textContent = (descs[c]||'Weather') + ' · ' + h + '% · ' + w + 'mph';
     })
     .catch(() => {
         document.getElementById('weatherDesc').textContent = 'Weather unavailable';
