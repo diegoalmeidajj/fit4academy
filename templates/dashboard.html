@@ -114,24 +114,43 @@
     </div>
 </div>
 
-<!-- Today's Task Alerts -->
+<!-- Today's Task Alerts — PROMINENT BANNER -->
 {% if today_tasks %}
-<div class="mb-24">
-    <div class="section-title"><i class="bi bi-bell" style="color:var(--warning);"></i> Today's Tasks</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-        {% for task in today_tasks %}
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card-bg);border:1px solid var(--border);border-left:4px solid {{ task.color or '#6366f1' }};border-radius:10px;font-size:13px;">
-            <button onclick="completeTask({{ task.id }})" style="background:none;border:2px solid var(--border);border-radius:50%;width:20px;height:20px;cursor:pointer;flex-shrink:0;" title="Complete"></button>
-            <div>
-                <strong>{{ task.title }}</strong>
-                {% if task.task_time %}<span style="color:var(--text-muted);margin-left:6px;font-size:11px;">{{ task.task_time }}</span>{% endif %}
-                {% if task.description %}<div style="font-size:11px;color:var(--text-muted);">{{ task.description[:60] }}</div>{% endif %}
+<div class="mb-24" id="taskAlertBanner" style="animation:alertPulse 2s ease-in-out;">
+    <div style="background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(239,68,68,.08));border:1px solid rgba(245,158,11,.25);border-radius:14px;padding:18px 22px;position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-20px;top:-20px;width:100px;height:100px;border-radius:50%;background:rgba(245,158,11,.06);"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;font-size:18px;animation:bellRing 1s ease-in-out 3;">
+                <i class="bi bi-bell-fill" style="color:#f59e0b;"></i>
             </div>
-            <button onclick="deleteTask({{ task.id }})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;margin-left:auto;" title="Delete"><i class="bi bi-x"></i></button>
+            <div>
+                <strong style="font-size:15px;color:var(--text);">{{ today_tasks|length }} task{{ 's' if today_tasks|length > 1 }} for today</strong>
+                <div style="font-size:11px;color:var(--text-muted);">Don't forget to complete your tasks!</div>
+            </div>
         </div>
-        {% endfor %}
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            {% for task in today_tasks %}
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-left:4px solid {{ task.color or '#6366f1' }};border-radius:10px;">
+                <button onclick="completeTask({{ task.id }})" style="background:none;border:2px solid {{ task.color or '#6366f1' }};border-radius:50%;width:24px;height:24px;cursor:pointer;flex-shrink:0;transition:all .2s;" onmouseover="this.style.background='{{ task.color or '#6366f1' }}'" onmouseout="this.style.background='none'" title="Mark complete"></button>
+                <div style="flex:1;">
+                    <strong style="font-size:14px;">{{ task.title }}</strong>
+                    {% if task.task_time %}
+                    <span style="background:rgba(99,102,241,.1);color:var(--primary);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:8px;"><i class="bi bi-clock"></i> {{ task.task_time }}</span>
+                    {% else %}
+                    <span style="background:rgba(245,158,11,.1);color:#f59e0b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:8px;">All Day</span>
+                    {% endif %}
+                    {% if task.description %}<div style="font-size:12px;color:var(--text-muted);margin-top:3px;">{{ task.description }}</div>{% endif %}
+                </div>
+                <button onclick="deleteTask({{ task.id }})" style="background:rgba(239,68,68,.08);border:none;color:#ef4444;cursor:pointer;font-size:14px;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;" title="Delete"><i class="bi bi-trash3"></i></button>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
+<style>
+@keyframes alertPulse { 0%{opacity:0;transform:translateY(-10px)} 100%{opacity:1;transform:translateY(0)} }
+@keyframes bellRing { 0%,100%{transform:rotate(0)} 20%{transform:rotate(15deg)} 40%{transform:rotate(-15deg)} 60%{transform:rotate(8deg)} 80%{transform:rotate(-8deg)} }
+</style>
 {% endif %}
 
 <!-- Today's Classes + Recent Check-ins -->
@@ -284,8 +303,14 @@
                 <input type="text" id="taskTitleInput" class="form-control" placeholder="Ex: Belt ceremony, Parent meeting..." style="border-radius:10px;margin-top:4px;">
             </div>
             <div style="margin-bottom:12px;">
-                <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Time (optional)</label>
-                <input type="time" id="taskTime" class="form-control" style="border-radius:10px;margin-top:4px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:8px;">
+                    <input type="checkbox" id="taskAllDay" checked onchange="document.getElementById('timeRow').style.display=this.checked?'none':'block'" style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+                    <span style="font-size:13px;font-weight:600;color:var(--text);">All Day</span>
+                </label>
+                <div id="timeRow" style="display:none;">
+                    <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Time</label>
+                    <input type="time" id="taskTime" class="form-control" style="border-radius:10px;margin-top:4px;">
+                </div>
             </div>
             <div style="margin-bottom:12px;">
                 <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Description (optional)</label>
@@ -432,6 +457,44 @@ function deleteTask(id) {
 }
 
 loadCalTasks();
+
+// === TASK ALERTS: Browser Notification ===
+{% if today_tasks %}
+(function() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const n = new Notification('Fit4Academy - Tasks for Today', {
+            body: '{{ today_tasks|length }} task{{ "s" if today_tasks|length > 1 }}: {% for t in today_tasks %}{{ t.title }}{{ ", " if not loop.last }}{% endfor %}',
+            icon: '/static/logo-seeds13-sm.png',
+            tag: 'f4a-tasks'
+        });
+        setTimeout(() => n.close(), 8000);
+    }
+    // Time-based alerts for tasks with specific time
+    const tasksWithTime = [
+        {% for t in today_tasks %}{% if t.task_time %}{ id:{{ t.id }}, title:'{{ t.title|replace("'", "") }}', time:'{{ t.task_time }}' },{% endif %}{% endfor %}
+    ];
+    if (tasksWithTime.length > 0) {
+        setInterval(() => {
+            const now = new Date();
+            const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+            tasksWithTime.forEach(t => {
+                if (t.time === hhmm && !t.alerted) {
+                    t.alerted = true;
+                    const banner = document.getElementById('taskAlertBanner');
+                    if (banner) { banner.style.animation = 'none'; setTimeout(()=>banner.style.animation='alertPulse 1s ease-in-out 3', 10); }
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('Task NOW: ' + t.title, { body: 'Time: ' + t.time, icon: '/static/logo-seeds13-sm.png' });
+                    }
+                    alert('Task Alert: ' + t.title + ' — NOW (' + t.time + ')');
+                }
+            });
+        }, 30000);
+    }
+})();
+{% endif %}
 
 // === WEATHER FROM IP ===
 fetch('https://ipapi.co/json/')
