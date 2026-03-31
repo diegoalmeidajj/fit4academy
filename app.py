@@ -2288,6 +2288,23 @@ def belt_settings():
     return redirect(url_for('belts_page'))
 
 
+@app.route('/api/belts/change-member', methods=['POST'])
+@login_required
+def api_belt_change_member():
+    """Change a member's belt rank directly from the belt page."""
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    belt_rank_id = data.get('belt_rank_id')
+    stripes = data.get('stripes', 0)
+    if not member_id or not belt_rank_id:
+        return jsonify({'error': 'member_id and belt_rank_id required'}), 400
+    try:
+        models.update_member(int(member_id), belt_rank_id=int(belt_rank_id), stripes=int(stripes))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ═══════════════════════════════════════════════════════════════
 #  PAYMENTS
 # ═══════════════════════════════════════════════════════════════

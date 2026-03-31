@@ -135,17 +135,31 @@
             </div>
             <div class="belt-members-list" id="belt-{{ belt.name|lower|replace('/','-') }}">
                 {% for m in belt.members|default([]) %}
-                <div class="belt-member-item">
-                    <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
-                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                <div class="belt-member-item" style="justify-content:space-between;">
+                    <a href="/members/{{ m.id }}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);flex:1;">
+                        <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
+                            {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                        </div>
+                        <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
+                        <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
+                    </a>
+                    <div style="display:flex;gap:4px;flex-shrink:0;">
+                        <a href="/belts/promote?member_id={{ m.id }}" style="background:rgba(99,102,241,.08);border:none;color:var(--primary);width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;text-decoration:none;" title="Promote"><i class="bi bi-arrow-up-circle"></i></a>
+                        <a href="/members/{{ m.id }}/edit" style="background:rgba(245,158,11,.08);border:none;color:#f59e0b;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;text-decoration:none;" title="Edit"><i class="bi bi-pencil"></i></a>
                     </div>
-                    <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
-                    <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
                 </div>
                 {% endfor %}
                 {% if not belt.members %}
                 <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No members at this belt</div>
                 {% endif %}
+                <!-- Add member to this belt -->
+                <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+                    <div style="position:relative;">
+                        <input type="text" class="form-control" placeholder="Add member to {{ belt.name }}..." oninput="searchBeltMember(this.value, {{ belt.id }})" style="font-size:11px;padding-right:30px;">
+                        <i class="bi bi-person-plus" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:11px;"></i>
+                    </div>
+                    <div id="belt-results-{{ belt.id }}" style="margin-top:4px;"></div>
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -186,17 +200,31 @@
             </div>
             <div class="belt-members-list" id="belt-adult-{{ belt.name|lower|replace('/','-') }}">
                 {% for m in belt.members|default([]) %}
-                <div class="belt-member-item">
-                    <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
-                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                <div class="belt-member-item" style="justify-content:space-between;">
+                    <a href="/members/{{ m.id }}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);flex:1;">
+                        <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
+                            {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                        </div>
+                        <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
+                        <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
+                    </a>
+                    <div style="display:flex;gap:4px;flex-shrink:0;">
+                        <a href="/belts/promote?member_id={{ m.id }}" style="background:rgba(99,102,241,.08);border:none;color:var(--primary);width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;text-decoration:none;" title="Promote"><i class="bi bi-arrow-up-circle"></i></a>
+                        <a href="/members/{{ m.id }}/edit" style="background:rgba(245,158,11,.08);border:none;color:#f59e0b;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;text-decoration:none;" title="Edit"><i class="bi bi-pencil"></i></a>
                     </div>
-                    <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
-                    <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
                 </div>
                 {% endfor %}
                 {% if not belt.members %}
                 <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No members at this belt</div>
                 {% endif %}
+                <!-- Add member to this belt -->
+                <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+                    <div style="position:relative;">
+                        <input type="text" class="form-control" placeholder="Add member to {{ belt.name }}..." oninput="searchBeltMember(this.value, {{ belt.id }})" style="font-size:11px;padding-right:30px;">
+                        <i class="bi bi-person-plus" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:11px;"></i>
+                    </div>
+                    <div id="belt-results-{{ belt.id }}" style="margin-top:4px;"></div>
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -234,17 +262,31 @@
             </div>
             <div class="belt-members-list" id="belt-{{ belt.name|lower|replace('/','-') }}">
                 {% for m in belt.members|default([]) %}
-                <div class="belt-member-item">
-                    <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
-                        {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                <div class="belt-member-item" style="justify-content:space-between;">
+                    <a href="/members/{{ m.id }}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);flex:1;">
+                        <div class="member-photo" style="width:28px;height:28px;font-size:10px;">
+                            {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.get('first_name', '?')[0] }}{{ m.get('last_name', '?')[0] }}{% endif %}
+                        </div>
+                        <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
+                        <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
+                    </a>
+                    <div style="display:flex;gap:4px;flex-shrink:0;">
+                        <a href="/belts/promote?member_id={{ m.id }}" style="background:rgba(99,102,241,.08);border:none;color:var(--primary);width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;text-decoration:none;" title="Promote"><i class="bi bi-arrow-up-circle"></i></a>
+                        <a href="/members/{{ m.id }}/edit" style="background:rgba(245,158,11,.08);border:none;color:#f59e0b;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;text-decoration:none;" title="Edit"><i class="bi bi-pencil"></i></a>
                     </div>
-                    <span class="name">{{ m.get('first_name', '') }} {{ m.get('last_name', '') }}</span>
-                    <span class="stripes">{{ m.get('stripes', 0) }} stripes</span>
                 </div>
                 {% endfor %}
                 {% if not belt.members %}
                 <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">No members at this belt</div>
                 {% endif %}
+                <!-- Add member to this belt -->
+                <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+                    <div style="position:relative;">
+                        <input type="text" class="form-control" placeholder="Add member to {{ belt.name }}..." oninput="searchBeltMember(this.value, {{ belt.id }})" style="font-size:11px;padding-right:30px;">
+                        <i class="bi bi-person-plus" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:11px;"></i>
+                    </div>
+                    <div id="belt-results-{{ belt.id }}" style="margin-top:4px;"></div>
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -261,6 +303,38 @@
 function toggleBeltMembers(id) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('show');
+}
+
+let beltSearchTimeout;
+function searchBeltMember(query, beltId) {
+    clearTimeout(beltSearchTimeout);
+    const el = document.getElementById('belt-results-' + beltId);
+    if (!query || query.length < 2) { el.innerHTML = ''; return; }
+    beltSearchTimeout = setTimeout(() => {
+        fetch('/api/members/search-for-program?q=' + encodeURIComponent(query))
+            .then(r => r.json())
+            .then(members => {
+                if (!members.length) { el.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:4px;">No members found</div>'; return; }
+                el.innerHTML = members.map(m =>
+                    `<div style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:11px;" onmouseover="this.style.background='rgba(99,102,241,.06)'" onmouseout="this.style.background=''" onclick="assignBelt(${m.id}, ${beltId}, '${m.first_name} ${m.last_name}')">
+                        <div class="member-photo" style="width:22px;height:22px;font-size:8px;">${m.first_name[0]}${m.last_name[0]}</div>
+                        <span style="font-weight:600;">${m.first_name} ${m.last_name}</span>
+                        <i class="bi bi-plus-circle" style="color:var(--primary);margin-left:auto;"></i>
+                    </div>`
+                ).join('');
+            });
+    }, 300);
+}
+
+function assignBelt(memberId, beltId, name) {
+    fetch('/api/belts/change-member', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({member_id: memberId, belt_rank_id: beltId, stripes: 0})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
 }
 
 function switchBeltTab(tab) {
