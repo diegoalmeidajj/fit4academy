@@ -2041,6 +2041,24 @@ def get_members_by_filter(academy_id=1, filter_type='all', filter_value=''):
                ORDER BY m.last_name, m.first_name""",
             [academy_id] + ids
         ).fetchall()
+    elif filter_type == 'former':
+        # Ex-alunos (inactive members)
+        rows = conn.execute(
+            """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
+               FROM members m
+               WHERE m.academy_id = ? AND m.active = 0
+               ORDER BY m.last_name, m.first_name""",
+            (academy_id,)
+        ).fetchall()
+    elif filter_type == 'leads':
+        # Prospects/Leads
+        rows = conn.execute(
+            """SELECT p.id, p.first_name, p.last_name, p.email, p.phone
+               FROM prospects p
+               WHERE p.academy_id = ? AND (p.status IS NULL OR p.status != 'converted')
+               ORDER BY p.last_name, p.first_name""",
+            (academy_id,)
+        ).fetchall()
     else:  # 'all'
         rows = conn.execute(
             """SELECT m.id, m.first_name, m.last_name, m.email, m.phone
