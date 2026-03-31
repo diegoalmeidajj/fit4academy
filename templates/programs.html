@@ -31,16 +31,16 @@
     </div>
 </div>
 
-<!-- Programs List -->
+<!-- Programs Grid -->
 <div class="grid-2">
 {% for p in programs %}
-<div class="card" style="overflow:hidden;" id="prog-{{ p.id }}">
+<div class="card" style="overflow:hidden;">
     <div style="height:5px;background:{{ p.color or '#6366f1' }};"></div>
     <div class="card-body" style="padding:18px;">
-        <!-- View Mode -->
+        <!-- Header -->
         <div id="view-{{ p.id }}">
             <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:42px;height:42px;border-radius:12px;background:{{ p.color or '#6366f1' }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0;">{{ p.name[:1] }}</div>
+                <div style="width:46px;height:46px;border-radius:12px;background:{{ p.color or '#6366f1' }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0;">{{ p.name[:1] }}</div>
                 <div style="flex:1;">
                     <strong style="font-size:16px;">{{ p.name }}</strong>
                     {% if p.description %}<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">{{ p.description }}</div>{% endif %}
@@ -68,6 +68,38 @@
                 </div>
             </form>
         </div>
+
+        <!-- Member Count + Toggle -->
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+            <button onclick="toggleMembers({{ p.id }})" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;padding:0;color:var(--text);">
+                <div style="width:32px;height:32px;border-radius:8px;background:{{ p.color or '#6366f1' }}20;display:flex;align-items:center;justify-content:center;">
+                    <i class="bi bi-people" style="color:{{ p.color or '#6366f1' }};font-size:14px;"></i>
+                </div>
+                <span style="font-size:14px;font-weight:700;font-family:'Space Grotesk';">{{ p.member_count }}</span>
+                <span style="font-size:12px;color:var(--text-muted);">member{{ 's' if p.member_count != 1 }}</span>
+                <i class="bi bi-chevron-down" id="arrow-{{ p.id }}" style="margin-left:auto;font-size:12px;color:var(--text-muted);transition:transform .2s;"></i>
+            </button>
+
+            <!-- Member List (hidden) -->
+            <div id="members-{{ p.id }}" style="display:none;margin-top:10px;max-height:250px;overflow-y:auto;">
+                {% if p.members %}
+                {% for m in p.members %}
+                <a href="/members/{{ m.id }}" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;text-decoration:none;color:var(--text);transition:background .15s;">
+                    <div class="member-photo" style="width:30px;height:30px;font-size:10px;">{{ m.first_name[:1] }}{{ m.last_name[:1] }}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;font-size:13px;">{{ m.first_name }} {{ m.last_name }}</div>
+                        <div style="font-size:10px;color:var(--text-muted);">{{ m.email or m.phone or '' }}</div>
+                    </div>
+                    <i class="bi bi-chevron-right" style="font-size:12px;color:var(--text-muted);"></i>
+                </a>
+                {% endfor %}
+                {% else %}
+                <div style="padding:12px;text-align:center;font-size:12px;color:var(--text-muted);">
+                    <i class="bi bi-person-plus"></i> No members enrolled yet
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endfor %}
@@ -84,7 +116,7 @@
             <div style="width:56px;height:56px;border-radius:50%;background:rgba(239,68,68,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;color:#ef4444;"><i class="bi bi-exclamation-triangle"></i></div>
             <h4 style="font-family:'Space Grotesk';margin-bottom:8px;">Delete Program?</h4>
             <p style="color:var(--text-muted);font-size:13px;margin-bottom:6px;">Are you sure you want to delete <strong id="deleteProgName"></strong>?</p>
-            <p style="color:var(--danger);font-size:12px;margin-bottom:20px;">This action cannot be undone. Members enrolled in this program will be unenrolled.</p>
+            <p style="color:var(--danger);font-size:12px;margin-bottom:20px;">This action cannot be undone.</p>
             <div style="display:flex;gap:10px;">
                 <button onclick="document.getElementById('deleteModal').style.display='none'" class="btn btn-outline-secondary" style="flex:1;border-radius:10px;">Cancel</button>
                 <form id="deleteForm" method="post" style="flex:1;">
@@ -94,7 +126,6 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
@@ -108,6 +139,18 @@ function toggleEdit(id) {
     } else {
         view.style.display = 'block';
         edit.style.display = 'none';
+    }
+}
+
+function toggleMembers(id) {
+    const el = document.getElementById('members-' + id);
+    const arrow = document.getElementById('arrow-' + id);
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        arrow.style.transform = 'rotate(180deg)';
+    } else {
+        el.style.display = 'none';
+        arrow.style.transform = 'rotate(0)';
     }
 }
 

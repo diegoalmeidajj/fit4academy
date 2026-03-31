@@ -1675,6 +1675,11 @@ def class_delete(class_id):
 def programs_list():
     academy_id = _get_academy_id()
     programs = models.get_programs(academy_id)
+    # Get member count and list per program
+    for p in programs:
+        members = models.get_members_by_program(academy_id, p['id'])
+        p['members'] = members
+        p['member_count'] = len(members)
     return render_template('programs.html', programs=programs)
 
 
