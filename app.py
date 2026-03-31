@@ -405,6 +405,13 @@ def dashboard():
     except Exception:
         at_risk = []
 
+    # Today's calendar tasks (alerts)
+    today_tasks = []
+    try:
+        today_tasks = models.get_today_tasks(academy_id)
+    except Exception:
+        pass
+
     # Schedule days (which days of the week have classes)
     schedule_days = []
     try:
@@ -432,6 +439,7 @@ def dashboard():
         belt_distribution=belt_distribution,
         at_risk=at_risk,
         schedule_days=schedule_days,
+        today_tasks=today_tasks,
     )
 
 
@@ -1850,6 +1858,53 @@ def attendance_report():
     report = models.get_attendance_report(academy_id, month, year)
     months = ['January','February','March','April','May','June','July','August','September','October','November','December']
     return render_template('attendance.html', report=report, month=month, year=year, months=months)
+
+
+@app.route('/api/calendar/tasks')
+@login_required
+def api_calendar_tasks():
+    """Get tasks for a month (used by calendar JS)."""
+    academy_id = _get_academy_id()
+    month = int(request.args.get('month', datetime.now().month))
+    year = int(request.args.get('year', datetime.now().year))
+    tasks = models.get_calendar_tasks(academy_id, month, year)
+    return jsonify(tasks)
+
+
+@app.route('/api/calendar/task', methods=['POST'])
+@login_required
+def api_calendar_task_add():
+    """Add a calendar task."""
+    academy_id = _get_academy_id()
+    data = request.get_json() or request.form
+    title = (data.get('title') or '').strip()
+    task_date = (data.get('task_date') or '').strip()
+    description = (data.get('description') or '').strip()
+    task_time = (data.get('task_time') or '').strip()
+    color = (data.get('color') or '#6366f1').strip()
+
+    if not title or not task_date:
+        return jsonify({'error': 'Title and date required'}), 400
+
+    models.add_calendar_task(academy_id, session.get('user_id'), title, task_date, description, task_time, color)
+    return jsonify({'success': True})
+
+
+@app.route('/api/calendar/task/<int:task_id>', methods=['PUT'])
+@login_required
+def api_calendar_task_update(task_id):
+    """Update or complete a task."""
+    data = request.get_json() or {}
+    models.update_calendar_task(task_id, **data)
+    return jsonify({'success': True})
+
+
+@app.route('/api/calendar/task/<int:task_id>', methods=['DELETE'])
+@login_required
+def api_calendar_task_delete(task_id):
+    """Delete a task."""
+    models.delete_calendar_task(task_id)
+    return jsonify({'success': True})
 
 
 @app.route('/api/checkin/search')

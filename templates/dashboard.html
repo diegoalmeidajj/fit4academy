@@ -114,6 +114,26 @@
     </div>
 </div>
 
+<!-- Today's Task Alerts -->
+{% if today_tasks %}
+<div class="mb-24">
+    <div class="section-title"><i class="bi bi-bell" style="color:var(--warning);"></i> Today's Tasks</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        {% for task in today_tasks %}
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--card-bg);border:1px solid var(--border);border-left:4px solid {{ task.color or '#6366f1' }};border-radius:10px;font-size:13px;">
+            <button onclick="completeTask({{ task.id }})" style="background:none;border:2px solid var(--border);border-radius:50%;width:20px;height:20px;cursor:pointer;flex-shrink:0;" title="Complete"></button>
+            <div>
+                <strong>{{ task.title }}</strong>
+                {% if task.task_time %}<span style="color:var(--text-muted);margin-left:6px;font-size:11px;">{{ task.task_time }}</span>{% endif %}
+                {% if task.description %}<div style="font-size:11px;color:var(--text-muted);">{{ task.description[:60] }}</div>{% endif %}
+            </div>
+            <button onclick="deleteTask({{ task.id }})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;margin-left:auto;" title="Delete"><i class="bi bi-x"></i></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Today's Classes + Recent Check-ins -->
 <div class="grid-2 mb-24">
     <div>
@@ -249,6 +269,43 @@
         </div>
     </div>
 </div>
+<!-- Task Modal -->
+<div id="taskModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width:400px;max-width:90vw;border-radius:16px;overflow:hidden;">
+        <div style="height:4px;background:linear-gradient(90deg,var(--primary),#10b981);"></div>
+        <div class="card-body" style="padding:24px;">
+            <h4 style="font-family:'Space Grotesk';margin-bottom:16px;"><i class="bi bi-calendar-plus" style="color:var(--primary);"></i> <span id="taskModalTitle">New Task</span></h4>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Date</label>
+                <input type="date" id="taskDate" class="form-control" style="border-radius:10px;margin-top:4px;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Title</label>
+                <input type="text" id="taskTitleInput" class="form-control" placeholder="Ex: Belt ceremony, Parent meeting..." style="border-radius:10px;margin-top:4px;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Time (optional)</label>
+                <input type="time" id="taskTime" class="form-control" style="border-radius:10px;margin-top:4px;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Description (optional)</label>
+                <textarea id="taskDesc" class="form-control" rows="2" placeholder="Details..." style="border-radius:10px;margin-top:4px;"></textarea>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Color</label>
+                <div style="display:flex;gap:8px;margin-top:6px;" id="colorPicker">
+                    <button type="button" onclick="pickColor('#6366f1')" style="width:28px;height:28px;border-radius:50%;background:#6366f1;border:3px solid #6366f1;cursor:pointer;" data-color="#6366f1"></button>
+                    <button type="button" onclick="pickColor('#10b981')" style="width:28px;height:28px;border-radius:50%;background:#10b981;border:3px solid transparent;cursor:pointer;" data-color="#10b981"></button>
+                    <button type="button" onclick="pickColor('#f59e0b')" style="width:28px;height:28px;border-radius:50%;background:#f59e0b;border:3px solid transparent;cursor:pointer;" data-color="#f59e0b"></button>
+                    <button type="button" onclick="pickColor('#ef4444')" style="width:28px;height:28px;border-radius:50%;background:#ef4444;border:3px solid transparent;cursor:pointer;" data-color="#ef4444"></button>
+                    <button type="button" onclick="pickColor('#8b5cf6')" style="width:28px;height:28px;border-radius:50%;background:#8b5cf6;border:3px solid transparent;cursor:pointer;" data-color="#8b5cf6"></button>
+                </div>
+            </div>
+            <button onclick="saveTask()" class="btn btn-primary" style="width:100%;border-radius:10px;padding:12px;"><i class="bi bi-check-lg"></i> Save Task</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -274,41 +331,107 @@ function updateRevenueUI() {
 }
 updateRevenueUI();
 
-// === MINI CALENDAR ===
+// === MINI CALENDAR WITH TASKS ===
 let calMonth = new Date().getMonth(), calYear = new Date().getFullYear();
-const classDays = new Set([{% for cls in today_classes %}'{{ cls.day_of_week }}',{% endfor %}]);
+let calTasks = {};
+let selectedColor = '#6366f1';
 const classSchedule = {
     {% for d in range(7) %}{{ d }}: {{ 'true' if d in (schedule_days or []) else 'false' }},{% endfor %}
 };
 
-function calNav(dir) { calMonth += dir; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} renderCal(); }
+function calNav(dir) { calMonth += dir; if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;} loadCalTasks(); }
+
+function loadCalTasks() {
+    fetch(`/api/calendar/tasks?month=${calMonth+1}&year=${calYear}`)
+        .then(r=>r.json()).then(tasks => {
+            calTasks = {};
+            tasks.forEach(t => {
+                const d = (t.task_date||'').substring(0,10);
+                if(!calTasks[d]) calTasks[d] = [];
+                calTasks[d].push(t);
+            });
+            renderCal();
+        }).catch(() => renderCal());
+}
 
 function renderCal() {
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     document.getElementById('calMonthYear').textContent = months[calMonth] + ' ' + calYear;
     const fd = new Date(calYear, calMonth, 1).getDay();
     const dm = new Date(calYear, calMonth+1, 0).getDate();
     const today = new Date();
     const isThisMonth = calYear === today.getFullYear() && calMonth === today.getMonth();
     const ds = ['S','M','T','W','T','F','S'];
-    let h = '<div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:2px;">';
-    ds.forEach(d => h += '<div style="font-weight:700;color:var(--text-muted);padding:4px;font-size:11px;">'+d+'</div>');
+    let h = '<div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:1px;">';
+    ds.forEach(d => h += '<div style="font-weight:700;color:var(--text-muted);padding:3px;font-size:9px;">'+d+'</div>');
     for(let i=0;i<fd;i++) h+='<div></div>';
     for(let d=1;d<=dm;d++) {
         const dow = new Date(calYear, calMonth, d).getDay();
+        const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const isToday = isThisMonth && d === today.getDate();
         const hasClass = classSchedule[dow];
-        let s = 'padding:6px 2px;border-radius:8px;font-size:12px;position:relative;color:var(--text);';
+        const hasTasks = calTasks[ds] && calTasks[ds].length > 0;
+        const taskColor = hasTasks ? calTasks[ds][0].color : '';
+        let s = 'padding:4px 2px;border-radius:6px;font-size:10px;position:relative;color:var(--text);cursor:pointer;transition:background .15s;';
         if(isToday) s += 'background:var(--primary);color:#fff;font-weight:700;';
-        else if(hasClass) s += 'background:rgba(99,102,241,.08);font-weight:600;';
-        h += '<div style="'+s+'">'+d;
-        if(hasClass && !isToday) h += '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:var(--primary);border-radius:50%;"></div>';
+        else if(hasTasks) s += 'background:rgba(99,102,241,.12);font-weight:700;';
+        else if(hasClass) s += 'background:rgba(99,102,241,.05);';
+        h += `<div style="${s}" onclick="openTaskModal('${ds}')">` + d;
+        if(hasTasks) h += `<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:5px;height:5px;background:${taskColor||'#f59e0b'};border-radius:50%;"></div>`;
+        else if(hasClass && !isToday) h += '<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:3px;height:3px;background:var(--primary);border-radius:50%;opacity:.4;"></div>';
         h += '</div>';
     }
     h += '</div>';
     document.getElementById('miniCalendar').innerHTML = h;
 }
-renderCal();
+
+function openTaskModal(dateStr) {
+    document.getElementById('taskDate').value = dateStr;
+    document.getElementById('taskTitleInput').value = '';
+    document.getElementById('taskTime').value = '';
+    document.getElementById('taskDesc').value = '';
+    selectedColor = '#6366f1';
+    document.querySelectorAll('#colorPicker button').forEach(b => b.style.borderColor = b.dataset.color === selectedColor ? selectedColor : 'transparent');
+    document.getElementById('taskModalTitle').textContent = 'New Task — ' + dateStr;
+    document.getElementById('taskModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('taskTitleInput').focus(), 100);
+}
+
+function pickColor(c) {
+    selectedColor = c;
+    document.querySelectorAll('#colorPicker button').forEach(b => b.style.borderColor = b.dataset.color === c ? c : 'transparent');
+}
+
+function saveTask() {
+    const title = document.getElementById('taskTitleInput').value.trim();
+    const task_date = document.getElementById('taskDate').value;
+    if(!title || !task_date) { alert('Title and date required'); return; }
+    fetch('/api/calendar/task', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            title, task_date,
+            task_time: document.getElementById('taskTime').value,
+            description: document.getElementById('taskDesc').value,
+            color: selectedColor
+        })
+    }).then(r => r.json()).then(() => {
+        document.getElementById('taskModal').style.display = 'none';
+        loadCalTasks();
+    });
+}
+
+function completeTask(id) {
+    fetch(`/api/calendar/task/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({completed: true}) })
+        .then(() => location.reload());
+}
+
+function deleteTask(id) {
+    if(!confirm('Delete this task?')) return;
+    fetch(`/api/calendar/task/${id}`, { method: 'DELETE' }).then(() => location.reload());
+}
+
+loadCalTasks();
 
 // === WEATHER FROM IP ===
 fetch('https://ipapi.co/json/')

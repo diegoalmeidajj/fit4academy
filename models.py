@@ -389,6 +389,18 @@ def init_db():
         "ALTER TABLE members ADD COLUMN webauthn_public_key TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN interested_in TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN member_id INTEGER",
+        """CREATE TABLE IF NOT EXISTS calendar_tasks (
+            id SERIAL PRIMARY KEY,
+            academy_id INTEGER DEFAULT 1,
+            user_id INTEGER,
+            title TEXT NOT NULL DEFAULT '',
+            description TEXT DEFAULT '',
+            task_date DATE NOT NULL,
+            task_time TEXT DEFAULT '',
+            color TEXT DEFAULT '#6366f1',
+            completed BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
     ]:
         try:
             conn.execute(alter)
@@ -2292,3 +2304,67 @@ def get_revenue_by_method(academy_id=1):
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ═══════════════════════════════════════════════════════════════
+# Calendar Tasks
+# ═══════════════════════════════════════════════════════════════
+
+def get_calendar_tasks(academy_id=1, month=None, year=None):
+    from datetime import datetime
+    if not month: month = datetime.now().month
+    if not year: year = datetime.now().year
+    month_str = f"{year}-{str(month).zfill(2)}"
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM calendar_tasks WHERE academy_id = ? AND CAST(task_date AS TEXT) LIKE ? ORDER BY task_date, task_time",
+            (academy_id, month_str + '%')
+        ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_today_tasks(academy_id=1):
+    from datetime import date
+    today = date.today().isoformat()
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM calendar_tasks WHERE academy_id = ? AND CAST(task_date AS TEXT) = ? AND completed = FALSE ORDER BY task_time",
+            (academy_id, today)
+        ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_calendar_task(academy_id, user_id, title, task_date, description='', task_time='', color='#6366f1'):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO calendar_tasks (academy_id, user_id, title, task_date, description, task_time, color) VALUES (?,?,?,?,?,?,?)",
+        (academy_id, user_id, title, task_date, description, task_time, color)
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_calendar_task(task_id, **kwargs):
+    conn = get_db()
+    for k, v in kwargs.items():
+        try:
+            conn.execute(f"UPDATE calendar_tasks SET {k} = ? WHERE id = ?", (v, task_id))
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+
+
+def delete_calendar_task(task_id):
+    conn = get_db()
+    conn.execute("DELETE FROM calendar_tasks WHERE id = ?", (task_id,))
+    conn.commit()
+    conn.close()
