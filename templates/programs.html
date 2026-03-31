@@ -3,13 +3,16 @@
 {% block content %}
 <div class="topbar">
     <h1><i class="bi bi-collection" style="color:var(--primary);"></i> Programs</h1>
+    <div class="topbar-actions">
+        <button onclick="document.getElementById('addProgramCard').style.display=document.getElementById('addProgramCard').style.display==='none'?'block':'none'" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Program</button>
+    </div>
 </div>
 
-<!-- Add Program -->
-<div class="card mb-24" style="overflow:hidden;">
+<!-- Add Program (hidden by default) -->
+<div id="addProgramCard" class="card mb-24" style="overflow:hidden;display:none;">
     <div style="height:4px;background:linear-gradient(90deg,#6366f1,#a855f7,#10b981);"></div>
     <div class="card-body">
-        <h4 style="font-family:'Space Grotesk';margin-bottom:16px;"><i class="bi bi-plus-circle" style="color:var(--primary);"></i> Add Program</h4>
+        <h4 style="font-family:'Space Grotesk';margin-bottom:16px;"><i class="bi bi-plus-circle" style="color:var(--primary);"></i> New Program</h4>
         <form method="post" action="/programs/add" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
             <div style="flex:1;min-width:180px;">
                 <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Program Name *</label>
@@ -23,7 +26,7 @@
                 <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Description</label>
                 <input type="text" name="description" class="form-control" placeholder="Optional description...">
             </div>
-            <button type="submit" class="btn btn-primary" style="border-radius:10px;"><i class="bi bi-plus-lg"></i> Add</button>
+            <button type="submit" class="btn btn-primary" style="border-radius:10px;"><i class="bi bi-plus-lg"></i> Create</button>
         </form>
     </div>
 </div>
@@ -31,33 +34,87 @@
 <!-- Programs List -->
 <div class="grid-2">
 {% for p in programs %}
-<div class="card" style="overflow:hidden;">
+<div class="card" style="overflow:hidden;" id="prog-{{ p.id }}">
     <div style="height:5px;background:{{ p.color or '#6366f1' }};"></div>
     <div class="card-body" style="padding:18px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:36px;height:36px;border-radius:10px;background:{{ p.color or '#6366f1' }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;">{{ p.name[:1] }}</div>
-                <div>
-                    <strong style="font-size:15px;">{{ p.name }}</strong>
-                    {% if p.description %}<div style="font-size:11px;color:var(--text-muted);">{{ p.description }}</div>{% endif %}
+        <!-- View Mode -->
+        <div id="view-{{ p.id }}">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:42px;height:42px;border-radius:12px;background:{{ p.color or '#6366f1' }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0;">{{ p.name[:1] }}</div>
+                <div style="flex:1;">
+                    <strong style="font-size:16px;">{{ p.name }}</strong>
+                    {% if p.description %}<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">{{ p.description }}</div>{% endif %}
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="toggleEdit({{ p.id }})" class="btn btn-sm btn-outline-primary" style="border-radius:8px;" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button onclick="confirmDelete({{ p.id }}, '{{ p.name }}')" class="btn btn-sm btn-outline-danger" style="border-radius:8px;" title="Delete"><i class="bi bi-trash3"></i></button>
                 </div>
             </div>
-            <form method="post" action="/programs/{{ p.id }}/delete" onsubmit="return confirm('Delete this program?')" style="display:inline;">
-                <button class="btn btn-sm btn-outline-danger" style="border-radius:8px;"><i class="bi bi-trash3"></i></button>
+        </div>
+
+        <!-- Edit Mode (hidden) -->
+        <div id="edit-{{ p.id }}" style="display:none;">
+            <form method="post" action="/programs/{{ p.id }}/edit">
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <input type="color" name="color" value="{{ p.color or '#6366f1' }}" style="width:42px;height:42px;border:none;border-radius:10px;cursor:pointer;flex-shrink:0;">
+                        <input type="text" name="name" value="{{ p.name }}" class="form-control" style="font-size:15px;font-weight:600;" required>
+                    </div>
+                    <input type="text" name="description" value="{{ p.description or '' }}" class="form-control" placeholder="Description (optional)">
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                        <button type="button" onclick="toggleEdit({{ p.id }})" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;"><i class="bi bi-x"></i> Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary" style="border-radius:8px;"><i class="bi bi-check-lg"></i> Save</button>
+                    </div>
+                </div>
             </form>
         </div>
-        <!-- Inline Edit -->
-        <form method="post" action="/programs/{{ p.id }}/edit" style="display:flex;gap:8px;align-items:center;">
-            <input type="text" name="name" value="{{ p.name }}" class="form-control" style="font-size:13px;" required>
-            <input type="color" name="color" value="{{ p.color or '#6366f1' }}" style="width:40px;height:34px;border:none;border-radius:6px;cursor:pointer;">
-            <input type="text" name="description" value="{{ p.description or '' }}" class="form-control" style="font-size:13px;" placeholder="Description">
-            <button type="submit" class="btn btn-sm btn-primary" style="border-radius:8px;white-space:nowrap;"><i class="bi bi-check-lg"></i></button>
-        </form>
     </div>
 </div>
 {% endfor %}
 {% if not programs %}
-<div class="card"><div class="card-body empty-state" style="padding:40px;"><i class="bi bi-collection"></i><p>No programs yet. Create your first program above!</p></div></div>
+<div class="card" style="grid-column:1/-1;"><div class="card-body empty-state" style="padding:40px;"><i class="bi bi-collection" style="font-size:36px;"></i><p>No programs yet. Click "Add Program" to create your first!</p></div></div>
 {% endif %}
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width:380px;max-width:90vw;border-radius:16px;overflow:hidden;">
+        <div style="height:4px;background:#ef4444;"></div>
+        <div class="card-body" style="padding:28px;text-align:center;">
+            <div style="width:56px;height:56px;border-radius:50%;background:rgba(239,68,68,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;color:#ef4444;"><i class="bi bi-exclamation-triangle"></i></div>
+            <h4 style="font-family:'Space Grotesk';margin-bottom:8px;">Delete Program?</h4>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:6px;">Are you sure you want to delete <strong id="deleteProgName"></strong>?</p>
+            <p style="color:var(--danger);font-size:12px;margin-bottom:20px;">This action cannot be undone. Members enrolled in this program will be unenrolled.</p>
+            <div style="display:flex;gap:10px;">
+                <button onclick="document.getElementById('deleteModal').style.display='none'" class="btn btn-outline-secondary" style="flex:1;border-radius:10px;">Cancel</button>
+                <form id="deleteForm" method="post" style="flex:1;">
+                    <button type="submit" class="btn btn-danger" style="width:100%;border-radius:10px;"><i class="bi bi-trash3"></i> Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleEdit(id) {
+    const view = document.getElementById('view-' + id);
+    const edit = document.getElementById('edit-' + id);
+    if (edit.style.display === 'none') {
+        view.style.display = 'none';
+        edit.style.display = 'block';
+    } else {
+        view.style.display = 'block';
+        edit.style.display = 'none';
+    }
+}
+
+function confirmDelete(id, name) {
+    document.getElementById('deleteProgName').textContent = name;
+    document.getElementById('deleteForm').action = '/programs/' + id + '/delete';
+    document.getElementById('deleteModal').style.display = 'flex';
+}
+</script>
 {% endblock %}
