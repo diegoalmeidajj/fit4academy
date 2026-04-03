@@ -61,10 +61,10 @@
     <div class="card-body p-0">
         <div class="table-responsive">
         <table class="data-table">
-            <thead><tr><th>Member</th><th>Plan</th><th>Price</th><th>Start</th><th>Status</th></tr></thead>
+            <thead><tr><th>Member</th><th>Plan</th><th>Price</th><th>Start</th><th>Status</th><th></th></tr></thead>
             <tbody>
             {% for ms in memberships %}
-            <tr>
+            <tr id="ms-row-{{ ms.id }}">
                 <td><a href="/members/{{ ms.member_id }}" style="font-weight:600;font-size:13px;color:var(--text);text-decoration:none;">{{ ms.first_name }} {{ ms.last_name }}</a></td>
                 <td style="font-size:12px;">{{ ms.plan_name or '—' }}</td>
                 <td style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(ms.price or 0) }}</td>
@@ -72,8 +72,15 @@
                 <td>
                     {% if ms.status == 'active' %}
                     <span class="badge-pill badge-active">Active</span>
+                    {% elif ms.status == 'cancelled' %}
+                    <span class="badge-pill badge-inactive">Cancelled</span>
                     {% else %}
                     <span class="badge-pill badge-inactive">{{ ms.status }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if ms.status == 'active' %}
+                    <button onclick="cancelMembership({{ ms.id }})" class="btn btn-sm" style="background:rgba(239,68,68,.08);color:var(--danger);border:none;font-size:10px;padding:3px 8px;" title="Cancel membership"><i class="bi bi-trash3"></i></button>
                     {% endif %}
                 </td>
             </tr>
@@ -138,45 +145,39 @@
     </div>
 </div>
 
-<!-- Assign Member Modal -->
+<!-- Assign Members Modal (bulk) -->
 <div id="assignModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
-    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:420px;width:90%;border:1px solid var(--border);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;" id="assignTitle">Assign Member</h3>
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;max-height:85vh;overflow-y:auto;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;" id="assignTitle">Assign Members</h3>
             <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('assignModal').style.display='none'">&times;</button>
         </div>
-        <form method="post" action="/memberships/assign">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="plan_id" id="assignPlanId">
-            <div class="form-group">
-                <label class="form-label">Select Member *</label>
-                <select name="member_id" class="form-select" required>
-                    <option value="">Select...</option>
-                    {% for m in members|default([]) %}
-                    <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" name="start_date" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">End Date</label>
-                    <input type="date" name="end_date" class="form-control">
-                </div>
-            </div>
-            <div class="form-group">
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="auto_renew" checked style="width:16px;height:16px;"> Auto-renew
-                </label>
-            </div>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('assignModal').style.display='none'">Cancel</button>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> Assign</button>
-            </div>
-        </form>
+        <input type="hidden" id="assignPlanId">
+        <!-- Search -->
+        <div style="position:relative;margin-bottom:12px;">
+            <input type="text" id="assignSearch" class="form-control" placeholder="Search members..." oninput="filterAssignMembers()" style="padding:8px 32px 8px 12px;">
+            <i class="bi bi-search" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);"></i>
+        </div>
+        <!-- Select all -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+            <input type="checkbox" id="selectAll" onclick="toggleSelectAll()" style="width:16px;height:16px;">
+            <label for="selectAll" style="font-size:12px;font-weight:600;cursor:pointer;color:var(--text-muted);">Select All</label>
+            <span id="selectedCount" style="margin-left:auto;font-size:11px;color:var(--primary);font-weight:700;">0 selected</span>
+        </div>
+        <!-- Members list -->
+        <div id="assignMembersList" style="max-height:300px;overflow-y:auto;">
+            {% for m in members|default([]) %}
+            <label class="assign-member-row" data-name="{{ m.first_name|lower }} {{ m.last_name|lower }}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .15s;" onmouseover="this.style.background='rgba(0,220,130,.04)'" onmouseout="this.style.background=''">
+                <input type="checkbox" name="member_ids" value="{{ m.id }}" class="assign-check" onchange="updateSelectedCount()" style="width:16px;height:16px;flex-shrink:0;">
+                <div class="member-photo" style="width:28px;height:28px;font-size:10px;">{{ m.first_name[0] }}{{ m.last_name[0] }}</div>
+                <span style="font-weight:600;">{{ m.first_name }} {{ m.last_name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+            <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('assignModal').style.display='none'">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="bulkAssign()"><i class="bi bi-person-plus"></i> Assign Selected</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -186,7 +187,63 @@
 function openAssignModal(planId, planName) {
     document.getElementById('assignPlanId').value = planId;
     document.getElementById('assignTitle').textContent = 'Assign to ' + planName;
+    // Uncheck all
+    document.querySelectorAll('.assign-check').forEach(c => c.checked = false);
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('assignSearch').value = '';
+    filterAssignMembers();
+    updateSelectedCount();
     document.getElementById('assignModal').style.display = 'flex';
+}
+
+function filterAssignMembers() {
+    const q = document.getElementById('assignSearch').value.toLowerCase();
+    document.querySelectorAll('.assign-member-row').forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        row.style.display = name.includes(q) ? '' : 'none';
+    });
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.assign-member-row').forEach(row => {
+        if (row.style.display !== 'none') {
+            row.querySelector('.assign-check').checked = checked;
+        }
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.assign-check:checked').length;
+    document.getElementById('selectedCount').textContent = count + ' selected';
+}
+
+function bulkAssign() {
+    const planId = document.getElementById('assignPlanId').value;
+    const checked = document.querySelectorAll('.assign-check:checked');
+    const memberIds = Array.from(checked).map(c => parseInt(c.value));
+    if (!memberIds.length) { alert('Select at least one member'); return; }
+
+    fetch('/api/memberships/bulk-assign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plan_id: parseInt(planId), member_ids: memberIds})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
+}
+
+function cancelMembership(msId) {
+    fetch('/api/memberships/cancel', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({membership_id: msId})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
 }
 </script>
 {% endblock %}

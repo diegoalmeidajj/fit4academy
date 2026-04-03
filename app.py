@@ -1499,6 +1499,44 @@ def membership_assign():
     return redirect(url_for('memberships_list'))
 
 
+@app.route('/api/memberships/bulk-assign', methods=['POST'])
+@login_required
+def api_memberships_bulk_assign():
+    """Assign multiple members to a plan at once."""
+    data = request.get_json() or {}
+    plan_id = data.get('plan_id')
+    member_ids = data.get('member_ids', [])
+    if not plan_id or not member_ids:
+        return jsonify({'error': 'plan_id and member_ids required'}), 400
+    try:
+        for mid in member_ids:
+            models.create_membership(
+                member_id=int(mid),
+                plan_id=int(plan_id),
+                status='active',
+                start_date=str(date.today()),
+                auto_renew=True,
+            )
+        return jsonify({'success': True, 'count': len(member_ids)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/memberships/cancel', methods=['POST'])
+@login_required
+def api_memberships_cancel():
+    """Cancel a membership — stops counting and billing."""
+    data = request.get_json() or {}
+    membership_id = data.get('membership_id')
+    if not membership_id:
+        return jsonify({'error': 'membership_id required'}), 400
+    try:
+        models.update_membership(int(membership_id), status='cancelled')
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ═══════════════════════════════════════════════════════════════
 #  CLASSES
 # ═══════════════════════════════════════════════════════════════
