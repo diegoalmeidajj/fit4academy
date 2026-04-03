@@ -2674,9 +2674,9 @@ def set_product_variants(product_id, variants):
 def create_order_item(academy_id=1, **kwargs):
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO order_items (academy_id, member_id, product_id, size, quantity, price, payment_id) VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO order_items (academy_id, member_id, product_id, size, color, quantity, price, payment_id) VALUES (?,?,?,?,?,?,?,?)",
         (academy_id, kwargs.get('member_id'), kwargs.get('product_id'),
-         kwargs.get('size', ''), kwargs.get('quantity', 1),
+         kwargs.get('size', ''), kwargs.get('color', ''), kwargs.get('quantity', 1),
          kwargs.get('price', 0), kwargs.get('payment_id'))
     )
     conn.commit()

@@ -2961,6 +2961,7 @@ def api_prospect_convert():
                         member_id=member_id,
                         product_id=int(item.get('product_id')),
                         size=item.get('size', ''),
+                        color=item.get('color', ''),
                         quantity=int(item.get('quantity', 1)),
                         price=float(item.get('price', 0)),
                         payment_id=payment_id,
