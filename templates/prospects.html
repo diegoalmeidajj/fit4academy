@@ -361,15 +361,14 @@ function archiveProspect(prospectId) {
 }
 
 function deleteProspect(prospectId, name) {
-    if (!confirm('Delete ' + name + '?')) return;
     fetch('/api/prospects/delete', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({prospect_id: prospectId})
     }).then(r => r.json()).then(d => {
         if (d.success) {
-            const card = document.getElementById('prospect-' + prospectId);
-            if (card) card.remove();
+            localStorage.setItem('prospect_tab', 'archived');
+            window.location.reload();
         } else alert('Error: ' + (d.error || 'Unknown'));
     });
 }
