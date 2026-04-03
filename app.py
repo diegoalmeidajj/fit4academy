@@ -3050,7 +3050,11 @@ def store_page():
         orders = [dict(r) for r in orders]
     except Exception:
         orders = []
-    return render_template('store.html', products=products, orders=orders)
+    try:
+        members = models.get_all_members(academy_id)
+    except Exception:
+        members = []
+    return render_template('store.html', products=products, orders=orders, members=members)
 
 
 @app.route('/api/products', methods=['GET'])
@@ -3099,6 +3103,63 @@ def api_products_update(product_id):
         if variants:
             models.set_product_variants(product_id, variants)
         return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/store/sell', methods=['POST'])
+@login_required
+def api_store_sell():
+    """Record a manual product sale."""
+    data = request.get_json() or {}
+    academy_id = _get_academy_id()
+    member_id = data.get('member_id')
+    items = data.get('items', [])
+    payment_method = data.get('payment_method', 'cash')
+    if not items:
+        return jsonify({'error': 'No items selected'}), 400
+    try:
+        total = 0
+        for item in items:
+            total += float(item.get('price', 0)) * int(item.get('quantity', 1))
+
+        # Record payment
+        payment_id = None
+        if total > 0 and member_id:
+            payment_id = models.create_payment(
+                member_id=int(member_id),
+                amount=total,
+                academy_id=academy_id,
+                method=payment_method,
+                status='completed',
+                notes='Store sale',
+                payment_date=str(date.today()),
+            )
+
+        # Create order items + decrease stock
+        for item in items:
+            models.create_order_item(
+                academy_id=academy_id,
+                member_id=int(member_id) if member_id else None,
+                product_id=int(item.get('product_id')),
+                size=item.get('size', ''),
+                color=item.get('color', ''),
+                quantity=int(item.get('quantity', 1)),
+                price=float(item.get('price', 0)),
+                payment_id=payment_id,
+            )
+            # Decrease stock
+            try:
+                prods = models.get_all_products(academy_id)
+                for p in prods:
+                    if p['id'] == int(item.get('product_id')):
+                        new_stock = max(0, p.get('stock', 0) - int(item.get('quantity', 1)))
+                        models.update_product(p['id'], stock=new_stock)
+                        break
+            except Exception:
+                pass
+
+        return jsonify({'success': True, 'total': total})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

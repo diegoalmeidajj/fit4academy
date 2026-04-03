@@ -20,6 +20,7 @@
 <div class="topbar">
     <h1><i class="bi bi-bag" style="color:var(--primary);"></i> Store</h1>
     <div class="topbar-actions">
+        <button class="btn btn-outline-primary" onclick="document.getElementById('newSaleModal').style.display='flex'"><i class="bi bi-cart-plus"></i> New Sale</button>
         <button class="btn btn-primary" onclick="document.getElementById('addProductModal').style.display='flex'"><i class="bi bi-plus-lg"></i> New Product</button>
     </div>
 </div>
@@ -153,6 +154,84 @@
     </div>
 </div>
 {% endif %}
+
+<!-- New Sale Modal -->
+<div id="newSaleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-cart-plus" style="color:var(--primary);"></i> New Sale</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('newSaleModal').style.display='none'">&times;</button>
+        </div>
+
+        <!-- Member -->
+        <div class="form-group">
+            <label class="form-label">Member</label>
+            <select id="saleMember" class="form-select">
+                <option value="">Walk-in (no member)</option>
+                {% for m in members %}
+                <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Cart items -->
+        <div class="form-group">
+            <label class="form-label">Items</label>
+            <div id="saleCart">
+                <div class="sale-item" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;padding:8px;background:rgba(0,220,130,.03);border-radius:8px;margin-bottom:6px;">
+                    <div>
+                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">PRODUCT</div>
+                        <select class="form-select sale-product" onchange="updateSaleOptions(this)" style="font-size:11px;padding:4px 8px;min-width:120px;">
+                            <option value="">Select...</option>
+                            {% for prod in products %}
+                            <option value="{{ prod.id }}" data-price="{{ prod.price }}" data-sizes="{{ prod.sizes or '' }}" data-colors="{{ prod.colors or '' }}">{{ prod.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="sale-color-wrap" style="display:none;">
+                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">COLOR</div>
+                        <select class="form-select sale-color" style="font-size:11px;padding:4px 8px;"></select>
+                    </div>
+                    <div class="sale-size-wrap" style="display:none;">
+                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">SIZE</div>
+                        <select class="form-select sale-size" style="font-size:11px;padding:4px 8px;"></select>
+                    </div>
+                    <div>
+                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">QTY</div>
+                        <input type="number" class="form-control sale-qty" value="1" min="1" style="width:50px;font-size:11px;padding:4px;" onchange="recalcSaleTotal()">
+                    </div>
+                    <div>
+                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">PRICE</div>
+                        <input type="number" class="form-control sale-price" value="0" step="0.01" style="width:70px;font-size:11px;padding:4px;" onchange="recalcSaleTotal()">
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="addSaleItem()" style="font-size:10px;padding:4px 10px;border-radius:6px;border:1px dashed rgba(0,220,130,.4);background:none;color:var(--primary);cursor:pointer;font-weight:600;margin-top:4px;"><i class="bi bi-plus-lg"></i> Add item</button>
+        </div>
+
+        <!-- Total -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,220,130,.06);border-radius:10px;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:600;">Total</span>
+            <span id="saleTotal" style="font-family:'Space Grotesk';font-size:22px;font-weight:800;color:var(--primary);">{{ currency_symbol }}0.00</span>
+        </div>
+
+        <!-- Payment method -->
+        <div class="form-group">
+            <label class="form-label">Payment Method</label>
+            <select id="salePayMethod" class="form-select">
+                <option value="cash">Cash</option>
+                <option value="credit_card">Credit Card</option>
+                <option value="debit_card">Debit Card</option>
+                <option value="pix">PIX</option>
+                <option value="bank_transfer">Bank Transfer</option>
+            </select>
+        </div>
+
+        <button onclick="submitSale()" id="saleBtn" style="width:100%;padding:12px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:linear-gradient(135deg,#00DC82,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;">
+            <i class="bi bi-check-lg"></i> Complete Sale
+        </button>
+    </div>
+</div>
 
 <!-- Add Product Modal -->
 <div id="addProductModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
@@ -409,6 +488,103 @@ function saveProduct() {
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
         else alert('Error: ' + (d.error || 'Unknown'));
+    });
+}
+
+// ── Sale functions ──
+function updateSaleOptions(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const row = sel.closest('.sale-item');
+    const sizes = (opt.getAttribute('data-sizes') || '').split(',').map(s => s.trim()).filter(s => s);
+    const colors = (opt.getAttribute('data-colors') || '').split(',').map(c => c.trim()).filter(c => c);
+    const price = opt.getAttribute('data-price') || '0';
+
+    // Color
+    const colorWrap = row.querySelector('.sale-color-wrap');
+    const colorSel = row.querySelector('.sale-color');
+    if (colors.length) {
+        colorSel.innerHTML = colors.map(c => `<option value="${c}">${c}</option>`).join('');
+        colorWrap.style.display = '';
+    } else { colorWrap.style.display = 'none'; }
+
+    // Size
+    const sizeWrap = row.querySelector('.sale-size-wrap');
+    const sizeSel = row.querySelector('.sale-size');
+    if (sizes.length) {
+        sizeSel.innerHTML = sizes.map(s => `<option value="${s}">${s}</option>`).join('');
+        sizeWrap.style.display = '';
+    } else { sizeWrap.style.display = 'none'; }
+
+    row.querySelector('.sale-price').value = price;
+    recalcSaleTotal();
+}
+
+function addSaleItem() {
+    const cart = document.getElementById('saleCart');
+    const first = cart.querySelector('.sale-item');
+    const clone = first.cloneNode(true);
+    clone.querySelector('.sale-product').value = '';
+    clone.querySelector('.sale-qty').value = 1;
+    clone.querySelector('.sale-price').value = 0;
+    clone.querySelector('.sale-color-wrap').style.display = 'none';
+    clone.querySelector('.sale-size-wrap').style.display = 'none';
+    // Add remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+    removeBtn.style.cssText = 'background:rgba(239,68,68,.08);color:var(--danger);border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;align-self:end;margin-bottom:2px;';
+    removeBtn.onclick = function() { clone.remove(); recalcSaleTotal(); };
+    clone.appendChild(removeBtn);
+    cart.appendChild(clone);
+}
+
+function recalcSaleTotal() {
+    let total = 0;
+    document.querySelectorAll('.sale-item').forEach(row => {
+        const qty = parseInt(row.querySelector('.sale-qty')?.value || 0);
+        const price = parseFloat(row.querySelector('.sale-price')?.value || 0);
+        total += qty * price;
+    });
+    document.getElementById('saleTotal').textContent = '{{ currency_symbol }}' + total.toFixed(2);
+}
+
+function submitSale() {
+    const btn = document.getElementById('saleBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+
+    const items = [];
+    document.querySelectorAll('.sale-item').forEach(row => {
+        const prodId = row.querySelector('.sale-product')?.value;
+        if (!prodId) return;
+        items.push({
+            product_id: parseInt(prodId),
+            color: row.querySelector('.sale-color')?.value || '',
+            size: row.querySelector('.sale-size')?.value || '',
+            quantity: parseInt(row.querySelector('.sale-qty')?.value || 1),
+            price: parseFloat(row.querySelector('.sale-price')?.value || 0),
+        });
+    });
+
+    if (!items.length) { alert('Add at least one item'); btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale'; return; }
+
+    fetch('/api/store/sell', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            member_id: document.getElementById('saleMember').value || null,
+            items: items,
+            payment_method: document.getElementById('salePayMethod').value,
+        })
+    }).then(r => r.json()).then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    }).catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+        alert('Network error');
     });
 }
 
