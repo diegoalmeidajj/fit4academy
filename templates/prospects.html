@@ -131,7 +131,7 @@
                     </form>
                     {% endif %}
                     <a href="/prospects/{{ p.id }}/edit" style="background:rgba(148,163,184,.08);color:var(--text-muted);" title="Edit"><i class="bi bi-pencil"></i></a>
-                    <button onclick="archiveProspect({{ p.id }})" style="background:rgba(148,163,184,.08);color:var(--text-muted);" title="Archive"><i class="bi bi-archive"></i></button>
+                    <button onclick="event.stopPropagation();archiveProspect({{ p.id }})" style="background:rgba(148,163,184,.08);color:var(--text-muted);" title="Archive"><i class="bi bi-archive"></i></button>
                 </div>
             </div>
             {% endfor %}
@@ -341,7 +341,8 @@ function dropProspect(event, stage) {
 }
 
 function archiveProspect(prospectId) {
-    if (!confirm('Archive this prospect?')) return;
+    event.stopPropagation();
+    event.preventDefault();
     fetch('/api/prospects/archive', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -350,8 +351,10 @@ function archiveProspect(prospectId) {
         if (d.success) {
             localStorage.setItem('prospect_tab', 'archived');
             window.location.reload();
+        } else {
+            alert('Error: ' + (d.error || 'Unknown'));
         }
-    });
+    }).catch(e => alert('Network error'));
 }
 
 function unarchiveProspect(prospectId) {
