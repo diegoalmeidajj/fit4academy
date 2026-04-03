@@ -2668,8 +2668,16 @@ def prospects_list():
     archived_prospects = [p for p in all_prospects if p.get('archived')]
 
     # Separate ex-students from real leads — ex-students NEVER go to pipeline
-    ex_students = [p for p in active_prospects if p.get('source') == 'ex_student' or p.get('member_id')]
-    real_leads = [p for p in active_prospects if p.get('source') != 'ex_student' and not p.get('member_id')]
+    # An ex-student is anyone with source='ex_student', or has a member_id, or status='lost' with member_id
+    def is_ex_student(p):
+        if p.get('source') == 'ex_student':
+            return True
+        if p.get('member_id') and int(p.get('member_id', 0)) > 0:
+            return True
+        return False
+
+    ex_students = [p for p in active_prospects if is_ex_student(p)]
+    real_leads = [p for p in active_prospects if not is_ex_student(p)]
 
     # Also include inactive members that don't have a prospect entry yet
     try:

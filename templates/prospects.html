@@ -75,8 +75,8 @@
 <!-- Tabs -->
 {% set active_count = (prospects_by_stage.new|length) + (prospects_by_stage.contacted|length) + (prospects_by_stage.trial|length) + (prospects_by_stage.converted|length) %}
 <div class="prospect-tabs">
-    <div class="prospect-tab active" onclick="switchProspectTab('pipeline')"><i class="bi bi-kanban"></i> Pipeline <span class="tab-count">{{ active_count }}</span></div>
-    <div class="prospect-tab" onclick="switchProspectTab('dashboard')"><i class="bi bi-graph-up"></i> Dashboard</div>
+    <div class="prospect-tab active" onclick="switchProspectTab('pipeline')"><i class="bi bi-person-plus"></i> New Member <span class="tab-count">{{ active_count }}</span></div>
+    <div class="prospect-tab" onclick="switchProspectTab('dashboard')"><i class="bi bi-graph-up"></i> Growth</div>
     <div class="prospect-tab" onclick="switchProspectTab('ex')"><i class="bi bi-person-dash"></i> Ex-Members <span class="tab-count">{{ ex_students|length }}</span></div>
     <div class="prospect-tab" onclick="switchProspectTab('archived')"><i class="bi bi-archive"></i> Archived <span class="tab-count">{{ archived_prospects|length }}</span></div>
 </div>
