@@ -77,12 +77,18 @@
     </div>
 </div>
 
-<!-- Integrations -->
+<!-- Integrations & Platform Fee -->
 <div class="card mb-16">
     <div class="card-body" style="padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <span style="font-size:12px;font-weight:600;color:var(--text-muted);"><i class="bi bi-plug"></i> Integrations:</span>
+        {% if stripe_enabled %}
+        <span style="padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(0,220,130,.1);color:var(--primary);border:1px solid rgba(0,220,130,.2);"><i class="bi bi-check-circle-fill"></i> Stripe Connected</span>
+        {% else %}
+        <span style="padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(139,92,246,.08);color:#8b5cf6;border:1px solid rgba(139,92,246,.15);"><i class="bi bi-stripe"></i> Stripe <span style="font-size:9px;color:var(--text-muted);">(add API key to connect)</span></span>
+        {% endif %}
         <span style="padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(0,220,130,.08);color:var(--primary);border:1px solid rgba(0,220,130,.15);">QuickBooks <span style="font-size:9px;color:var(--text-muted);">(coming soon)</span></span>
         <span style="padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(6,182,212,.08);color:#06b6d4;border:1px solid rgba(6,182,212,.15);">TurboTax <span style="font-size:9px;color:var(--text-muted);">(coming soon)</span></span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text-muted);">Platform fee: <strong style="color:var(--primary);">${{ "%.2f"|format(platform_fee) }}</strong>/transaction</span>
     </div>
 </div>
 
@@ -129,6 +135,7 @@
                     <th>Source</th>
                     <th>Method</th>
                     <th style="text-align:right;">Amount</th>
+                    <th style="text-align:right;">Fee</th>
                     <th>Status</th>
                     <th>Notes</th>
                 </tr>
@@ -147,6 +154,7 @@
                 </td>
                 <td style="font-size:12px;text-transform:capitalize;">{{ (p.method or 'cash')|replace('_',' ') }}</td>
                 <td style="text-align:right;font-family:'Space Grotesk';font-size:16px;font-weight:700;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(p.amount) }}</td>
+                <td style="text-align:right;font-size:11px;color:var(--text-muted);">{{ currency_symbol }}{{ "%.2f"|format(p.platform_fee or 0.30) }}</td>
                 <td>
                     {% if p.status == 'completed' %}
                     <span class="badge-pill badge-paid">Paid</span>
@@ -160,7 +168,7 @@
             </tr>
             {% endfor %}
             {% if not payments %}
-            <tr><td colspan="7" class="empty-state" style="padding:40px;"><i class="bi bi-credit-card"></i><p>No payments found</p></td></tr>
+            <tr><td colspan="8" class="empty-state" style="padding:40px;"><i class="bi bi-credit-card"></i><p>No payments found</p></td></tr>
             {% endif %}
             </tbody>
         </table>

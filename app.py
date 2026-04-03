@@ -9,6 +9,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, jsonify, send_from_directory, Response, abort)
 import config
 import models
+import billing
 from i18n import get_text
 import os
 import json
@@ -126,6 +127,9 @@ def inject_globals():
         user_role=session.get('role', 'user'),
         unread_notifications=unread_count,
         urgent_leads=urgent_leads_count,
+        stripe_enabled=billing.is_enabled(),
+        stripe_pk=billing.get_publishable_key(),
+        platform_fee=billing.PLATFORM_FEE,
     )
 
 
@@ -3055,6 +3059,153 @@ def store_page():
     except Exception:
         members = []
     return render_template('store.html', products=products, orders=orders, members=members)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  BILLING / STRIPE
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/api/billing/setup-intent', methods=['POST'])
+@login_required
+def api_billing_setup_intent():
+    """Create a SetupIntent to save a card/bank for a member."""
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    if not member_id:
+        return jsonify({'error': 'member_id required'}), 400
+    try:
+        member = models.get_member_by_id(int(member_id))
+        if not member:
+            return jsonify({'error': 'Member not found'}), 404
+
+        # Get or create Stripe customer
+        pms = models.get_payment_methods(int(member_id))
+        customer_id = None
+        for pm in (pms or []):
+            if pm.get('stripe_customer_id'):
+                customer_id = pm['stripe_customer_id']
+                break
+
+        if not customer_id:
+            customer_id = billing.create_customer(
+                email=member.get('email', ''),
+                name=f"{member.get('first_name', '')} {member.get('last_name', '')}",
+                member_id=member_id,
+            )
+            if not customer_id:
+                return jsonify({'error': 'Stripe not configured. Add STRIPE_SECRET_KEY to environment.'}), 400
+
+        intent = billing.create_setup_intent(customer_id)
+        if not intent:
+            return jsonify({'error': 'Could not create setup intent'}), 500
+
+        return jsonify({
+            'success': True,
+            'client_secret': intent['client_secret'],
+            'customer_id': customer_id,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/billing/save-method', methods=['POST'])
+@login_required
+def api_billing_save_method():
+    """Save a payment method after SetupIntent completes."""
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    stripe_pm_id = data.get('payment_method_id')
+    customer_id = data.get('customer_id', '')
+    method_type = data.get('type', 'card')
+    last4 = data.get('last4', '')
+    brand = data.get('brand', '')
+
+    if not member_id or not stripe_pm_id:
+        return jsonify({'error': 'member_id and payment_method_id required'}), 400
+    try:
+        models.create_payment_method(
+            int(member_id),
+            method_type=method_type,
+            last4=last4,
+            brand=brand,
+            stripe_pm_id=stripe_pm_id,
+            stripe_customer_id=customer_id,
+            is_default=True,
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/billing/charge', methods=['POST'])
+@login_required
+def api_billing_charge():
+    """Charge a member's saved card/bank. Platform fee ($0.30) added automatically."""
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    amount = float(data.get('amount', 0))
+    description = data.get('description', 'Fit4Academy charge')
+    payment_method_id = data.get('payment_method_id')
+
+    if not member_id or amount <= 0:
+        return jsonify({'error': 'member_id and amount required'}), 400
+
+    academy_id = _get_academy_id()
+
+    # If no Stripe, record as manual payment
+    if not billing.is_enabled():
+        pid = models.create_payment(
+            member_id=int(member_id), amount=amount, academy_id=academy_id,
+            method=data.get('method', 'cash'), status='completed',
+            platform_fee=billing.PLATFORM_FEE,
+            notes=description, payment_date=str(date.today()),
+        )
+        return jsonify({'success': True, 'payment_id': pid, 'mode': 'manual'})
+
+    try:
+        # Find customer and payment method
+        pms = models.get_payment_methods(int(member_id))
+        customer_id = None
+        pm_id = payment_method_id
+
+        for pm in (pms or []):
+            if pm.get('stripe_customer_id'):
+                customer_id = pm['stripe_customer_id']
+            if not pm_id and pm.get('stripe_pm_id') and pm.get('is_default'):
+                pm_id = pm['stripe_pm_id']
+
+        if not customer_id or not pm_id:
+            return jsonify({'error': 'No saved payment method. Add a card first.'}), 400
+
+        result = billing.charge(customer_id, pm_id, amount, description)
+        if not result:
+            return jsonify({'error': 'Stripe not available'}), 500
+
+        if result.get('success'):
+            pid = models.create_payment(
+                member_id=int(member_id), amount=amount, academy_id=academy_id,
+                method='stripe', status='completed',
+                platform_fee=billing.PLATFORM_FEE,
+                stripe_charge_id=result.get('charge_id', ''),
+                notes=f"{description} (charged ${result['total_charged']:.2f} incl. ${billing.PLATFORM_FEE} platform fee)",
+                payment_date=str(date.today()),
+            )
+            return jsonify({'success': True, 'payment_id': pid, 'charge_id': result['charge_id'], 'total_charged': result['total_charged']})
+        else:
+            return jsonify({'error': result.get('error', 'Charge failed')}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/billing/methods/<int:member_id>', methods=['GET'])
+@login_required
+def api_billing_methods(member_id):
+    """List saved payment methods for a member."""
+    try:
+        pms = models.get_payment_methods(member_id)
+        return jsonify([dict(p) for p in (pms or [])])
+    except Exception:
+        return jsonify([])
 
 
 @app.route('/api/products', methods=['GET'])

@@ -190,6 +190,7 @@ def init_db():
             last4           TEXT DEFAULT '',
             brand           TEXT DEFAULT '',
             stripe_pm_id    TEXT DEFAULT '',
+            stripe_customer_id TEXT DEFAULT '',
             is_default      BOOLEAN DEFAULT 0,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -439,6 +440,9 @@ def init_db():
             price_override REAL DEFAULT 0
         )""",
         "ALTER TABLE order_items ADD COLUMN color TEXT DEFAULT ''",
+        "ALTER TABLE payment_methods ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
+        "ALTER TABLE payments ADD COLUMN platform_fee REAL DEFAULT 0",
+        "ALTER TABLE payments ADD COLUMN stripe_charge_id TEXT DEFAULT ''",
         """CREATE TABLE IF NOT EXISTS programs (
             id SERIAL PRIMARY KEY,
             academy_id INTEGER DEFAULT 1,
@@ -1491,16 +1495,17 @@ def get_payments_by_member(member_id):
 
 
 def create_payment(member_id, amount, academy_id=1, **kwargs):
+    platform_fee = kwargs.get('platform_fee', 0.30)
     conn = get_db()
     cur = conn.execute(
         """INSERT INTO payments (member_id, academy_id, membership_id, amount, method,
-           status, reference, notes, payment_date, due_date)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           status, reference, notes, payment_date, due_date, platform_fee, stripe_charge_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (member_id, academy_id, kwargs.get('membership_id'),
          amount, kwargs.get('method', 'cash'),
          kwargs.get('status', 'completed'), kwargs.get('reference', ''),
          kwargs.get('notes', ''), kwargs.get('payment_date', str(date.today())),
-         kwargs.get('due_date'))
+         kwargs.get('due_date'), platform_fee, kwargs.get('stripe_charge_id', ''))
     )
     conn.commit()
     new_id = cur.lastrowid
@@ -1576,11 +1581,12 @@ def get_payment_method_by_id(pm_id):
 def create_payment_method(member_id, **kwargs):
     conn = get_db()
     cur = conn.execute(
-        """INSERT INTO payment_methods (member_id, method_type, last4, brand, stripe_pm_id, is_default)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO payment_methods (member_id, method_type, last4, brand, stripe_pm_id, stripe_customer_id, is_default)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
         (member_id, kwargs.get('method_type', 'credit_card'),
          kwargs.get('last4', ''), kwargs.get('brand', ''),
-         kwargs.get('stripe_pm_id', ''), kwargs.get('is_default', False))
+         kwargs.get('stripe_pm_id', ''), kwargs.get('stripe_customer_id', ''),
+         kwargs.get('is_default', False))
     )
     conn.commit()
     new_id = cur.lastrowid
