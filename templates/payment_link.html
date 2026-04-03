@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Payment — {{ academy_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { min-height: 100vh; background: #0a0f1a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .payment-card {
+            width: 100%; max-width: 440px; background: rgba(15,25,40,0.8);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+            padding: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+        .logo-icon { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg,#00DC82,#059669); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 16px; font-family: 'Space Grotesk'; }
+        .logo-text { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; color: #fff; }
+        .logo-text span { color: #00DC82; }
+        .secure-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #00DC82; margin-bottom: 20px; padding: 8px 12px; background: rgba(0,220,130,0.06); border: 1px solid rgba(0,220,130,0.15); border-radius: 8px; }
+        .member-info { padding: 14px; background: rgba(255,255,255,0.04); border-radius: 12px; margin-bottom: 20px; }
+        .member-name { font-weight: 700; font-size: 16px; }
+        .member-detail { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+        .amount-box { text-align: center; padding: 20px; margin-bottom: 20px; }
+        .amount-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+        .amount-value { font-family: 'Space Grotesk'; font-size: 42px; font-weight: 700; color: #00DC82; }
+        .amount-fee { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .amount-desc { font-size: 12px; color: #94a3b8; margin-top: 8px; }
+        .method-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+        .method-tab {
+            flex: 1; padding: 10px; border-radius: 10px; text-align: center;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            border: 1.5px solid rgba(255,255,255,0.1); background: none; color: #94a3b8;
+            transition: all .2s;
+        }
+        .method-tab.active { border-color: #00DC82; color: #00DC82; background: rgba(0,220,130,0.06); }
+        .method-tab i { font-size: 18px; display: block; margin-bottom: 4px; }
+        .form-group { margin-bottom: 14px; }
+        .form-label { font-size: 11px; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control {
+            width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 14px;
+            background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1);
+            color: #fff; outline: none; transition: all .2s;
+        }
+        .form-control:focus { border-color: #00DC82; box-shadow: 0 0 0 3px rgba(0,220,130,0.15); }
+        .form-control::placeholder { color: #475569; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .pay-btn {
+            width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px;
+            font-weight: 700; cursor: pointer; margin-top: 8px;
+            background: linear-gradient(135deg, #00DC82, #059669); color: #fff;
+            transition: all .3s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .pay-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,220,130,0.3); }
+        .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .footer-text { text-align: center; margin-top: 20px; font-size: 10px; color: #475569; }
+        .footer-text a { color: #00DC82; text-decoration: none; }
+        .success-msg { text-align: center; padding: 40px 20px; }
+        .success-msg i { font-size: 48px; color: #00DC82; margin-bottom: 12px; }
+        .success-msg h2 { font-family: 'Space Grotesk'; margin-bottom: 8px; }
+        .error-msg { padding: 10px 14px; border-radius: 8px; background: rgba(239,68,68,0.1); color: #f87171; font-size: 12px; margin-bottom: 12px; display: none; }
+        .shield { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
+        .shield span { font-size: 10px; color: #64748b; display: flex; align-items: center; gap: 4px; }
+    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="payment-card">
+        <div class="logo">
+            <div class="logo-icon">F4</div>
+            <div class="logo-text">{{ academy_name }}</div>
+        </div>
+
+        <div class="secure-badge">
+            <i class="bi bi-shield-lock-fill"></i>
+            <span>256-bit SSL Encrypted · PCI-DSS Compliant · Bank-level Security</span>
+        </div>
+
+        <div id="paymentForm">
+            <div class="member-info">
+                <div class="member-name">{{ member_name }}</div>
+                <div class="member-detail">{{ description }}</div>
+            </div>
+
+            <div class="amount-box">
+                <div class="amount-label">Amount Due</div>
+                <div class="amount-value">${{ "%.2f"|format(amount) }}</div>
+                <div class="amount-fee">+ ${{ "%.2f"|format(platform_fee) }} processing fee</div>
+                <div class="amount-desc">Total: ${{ "%.2f"|format(amount + platform_fee) }}</div>
+            </div>
+
+            <!-- Payment method tabs -->
+            <div class="method-tabs">
+                <div class="method-tab active" onclick="switchMethod('bank')">
+                    <i class="bi bi-bank"></i> Bank Account (ACH)
+                </div>
+                <div class="method-tab" onclick="switchMethod('card')">
+                    <i class="bi bi-credit-card"></i> Debit Card
+                </div>
+            </div>
+
+            <!-- Bank Account Form -->
+            <div id="bankForm">
+                <div class="form-group">
+                    <label class="form-label">Account Holder Name</label>
+                    <input type="text" id="bankName" class="form-control" placeholder="Full legal name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Routing Number</label>
+                    <input type="text" id="bankRouting" class="form-control" placeholder="9 digits" maxlength="9" inputmode="numeric">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account Number</label>
+                    <input type="text" id="bankAccount" class="form-control" placeholder="Account number" inputmode="numeric">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account Type</label>
+                    <div class="grid-2">
+                        <label style="display:flex;align-items:center;gap:6px;padding:10px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.1);cursor:pointer;font-size:13px;">
+                            <input type="radio" name="accountType" value="checking" checked> Checking
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;padding:10px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.1);cursor:pointer;font-size:13px;">
+                            <input type="radio" name="accountType" value="savings"> Savings
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Form (hidden by default) -->
+            <div id="cardForm" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">Cardholder Name</label>
+                    <input type="text" id="cardName" class="form-control" placeholder="Name on card">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Card Number</label>
+                    <input type="text" id="cardNumber" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Expiry</label>
+                        <input type="text" id="cardExpiry" class="form-control" placeholder="MM/YY" maxlength="5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CVV</label>
+                        <input type="text" id="cardCvv" class="form-control" placeholder="123" maxlength="4" inputmode="numeric">
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorMsg" class="error-msg"></div>
+
+            <button class="pay-btn" id="payBtn" onclick="submitPayment()">
+                <i class="bi bi-lock-fill"></i> Pay ${{ "%.2f"|format(amount + platform_fee) }} Securely
+            </button>
+
+            <div class="shield">
+                <span><i class="bi bi-shield-check"></i> Fraud Protection</span>
+                <span><i class="bi bi-lock"></i> Encrypted</span>
+                <span><i class="bi bi-bank"></i> FDIC Insured</span>
+            </div>
+        </div>
+
+        <!-- Success state -->
+        <div id="successMsg" class="success-msg" style="display:none;">
+            <i class="bi bi-check-circle-fill"></i>
+            <h2>Payment Successful!</h2>
+            <p style="color:#94a3b8;font-size:14px;">Your payment of ${{ "%.2f"|format(amount + platform_fee) }} has been processed.</p>
+            <p style="color:#64748b;font-size:12px;margin-top:12px;">You can close this page.</p>
+        </div>
+
+        <div class="footer-text">
+            Powered by <a href="#">Fit4Academy</a> · Processed by Stripe
+        </div>
+    </div>
+
+    <script>
+    let selectedMethod = 'bank';
+
+    function switchMethod(method) {
+        selectedMethod = method;
+        document.querySelectorAll('.method-tab').forEach(t => t.classList.remove('active'));
+        event.target.closest('.method-tab').classList.add('active');
+        document.getElementById('bankForm').style.display = method === 'bank' ? '' : 'none';
+        document.getElementById('cardForm').style.display = method === 'card' ? '' : 'none';
+    }
+
+    function submitPayment() {
+        const btn = document.getElementById('payBtn');
+        const err = document.getElementById('errorMsg');
+        err.style.display = 'none';
+
+        // Validate
+        if (selectedMethod === 'bank') {
+            if (!document.getElementById('bankName').value || !document.getElementById('bankRouting').value || !document.getElementById('bankAccount').value) {
+                err.textContent = 'Please fill in all bank account fields.';
+                err.style.display = 'block';
+                return;
+            }
+            if (document.getElementById('bankRouting').value.length !== 9) {
+                err.textContent = 'Routing number must be 9 digits.';
+                err.style.display = 'block';
+                return;
+            }
+        } else {
+            if (!document.getElementById('cardName').value || !document.getElementById('cardNumber').value || !document.getElementById('cardExpiry').value || !document.getElementById('cardCvv').value) {
+                err.textContent = 'Please fill in all card fields.';
+                err.style.display = 'block';
+                return;
+            }
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+
+        const data = {
+            token: '{{ token }}',
+            method: selectedMethod,
+        };
+
+        if (selectedMethod === 'bank') {
+            data.bank_name = document.getElementById('bankName').value;
+            data.routing = document.getElementById('bankRouting').value;
+            data.account = document.getElementById('bankAccount').value;
+            data.account_type = document.querySelector('input[name="accountType"]:checked').value;
+        } else {
+            data.card_name = document.getElementById('cardName').value;
+            data.card_number = document.getElementById('cardNumber').value.replace(/\s/g, '');
+            data.card_expiry = document.getElementById('cardExpiry').value;
+            data.card_cvv = document.getElementById('cardCvv').value;
+        }
+
+        fetch('/api/payment-link/process', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(r => r.json()).then(d => {
+            if (d.success) {
+                document.getElementById('paymentForm').style.display = 'none';
+                document.getElementById('successMsg').style.display = '';
+            } else {
+                err.textContent = d.error || 'Payment failed. Please try again.';
+                err.style.display = 'block';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-lock-fill"></i> Pay ${{ "%.2f"|format(amount + platform_fee) }} Securely';
+            }
+        }).catch(() => {
+            err.textContent = 'Network error. Please try again.';
+            err.style.display = 'block';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-lock-fill"></i> Pay ${{ "%.2f"|format(amount + platform_fee) }} Securely';
+        });
+    }
+
+    // Auto-format card number
+    document.getElementById('cardNumber')?.addEventListener('input', function(e) {
+        let v = e.target.value.replace(/\s/g, '').replace(/\D/g, '');
+        e.target.value = v.replace(/(\d{4})(?=\d)/g, '$1 ');
+    });
+    // Auto-format expiry
+    document.getElementById('cardExpiry')?.addEventListener('input', function(e) {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length >= 2) v = v.slice(0,2) + '/' + v.slice(2);
+        e.target.value = v;
+    });
+    </script>
+</body>
+</html>

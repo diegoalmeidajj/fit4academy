@@ -5,6 +5,7 @@
 <div class="topbar">
     <h1><i class="bi bi-credit-card" style="color:var(--primary);"></i> Payments</h1>
     <div class="topbar-actions">
+        <button class="btn btn-outline-primary" onclick="document.getElementById('sendLinkModal').style.display='flex'"><i class="bi bi-send"></i> Send Payment Link</button>
         <a href="/payments/add" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Record Payment</a>
     </div>
 </div>
@@ -176,7 +177,85 @@
     </div>
 </div>
 
+<!-- Send Payment Link Modal -->
+<div id="sendLinkModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:460px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-send" style="color:var(--primary);"></i> Send Payment Link</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('sendLinkModal').style.display='none'">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Member *</label>
+            <select id="linkMember" class="form-select">
+                <option value="">Select member...</option>
+                {% for p in payments %}
+                {% if p.member_id %}
+                <option value="{{ p.member_id }}">{{ p.first_name }} {{ p.last_name }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Amount *</label>
+                <div style="position:relative;">
+                    <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
+                    <input type="number" id="linkAmount" class="form-control" step="0.01" min="0" style="padding-left:28px;" placeholder="99.00">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Fee</label>
+                <input type="text" class="form-control" value="${{ "%.2f"|format(platform_fee) }}" disabled style="color:var(--text-muted);">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Description</label>
+            <input type="text" id="linkDesc" class="form-control" placeholder="e.g. Monthly membership, Kimono purchase...">
+        </div>
+        <div id="linkResult" style="margin-bottom:12px;"></div>
+        <button onclick="createPaymentLink()" id="linkBtn" class="btn btn-primary" style="width:100%;justify-content:center;"><i class="bi bi-link-45deg"></i> Generate Link</button>
+    </div>
+</div>
+
 <script>
+function createPaymentLink() {
+    const btn = document.getElementById('linkBtn');
+    const memberId = document.getElementById('linkMember').value;
+    const amount = document.getElementById('linkAmount').value;
+    const desc = document.getElementById('linkDesc').value;
+
+    if (!memberId || !amount) { alert('Select member and amount'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
+
+    fetch('/api/payment-link/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({member_id: parseInt(memberId), amount: parseFloat(amount), description: desc, send_sms: true})
+    }).then(r => r.json()).then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-link-45deg"></i> Generate Link';
+        if (d.success) {
+            document.getElementById('linkResult').innerHTML = `
+                <div style="padding:12px;background:rgba(0,220,130,.06);border:1px solid rgba(0,220,130,.15);border-radius:10px;">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Payment link created! Send to client:</div>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input type="text" value="${d.link}" id="linkUrl" class="form-control" style="font-size:11px;" readonly>
+                        <button onclick="navigator.clipboard.writeText(document.getElementById('linkUrl').value);this.innerHTML='<i class=\\'bi bi-check\\'></i>'" class="btn btn-sm btn-primary" style="white-space:nowrap;"><i class="bi bi-clipboard"></i></button>
+                    </div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                        <a href="sms:?body=Pay securely: ${d.link}" class="btn btn-sm btn-success" style="flex:1;justify-content:center;"><i class="bi bi-chat-dots"></i> SMS</a>
+                        <a href="https://wa.me/?text=Pay securely: ${encodeURIComponent(d.link)}" target="_blank" class="btn btn-sm btn-success" style="flex:1;justify-content:center;"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+                        <a href="mailto:?subject=Payment Request&body=Pay securely: ${d.link}" class="btn btn-sm btn-outline-primary" style="flex:1;justify-content:center;"><i class="bi bi-envelope"></i> Email</a>
+                    </div>
+                </div>`;
+        } else {
+            alert('Error: ' + (d.error || 'Unknown'));
+        }
+    });
+}
+
 function filterPayments() {
     const q = document.getElementById('paymentSearch').value.toLowerCase();
     document.querySelectorAll('.data-table tbody tr[data-name]').forEach(row => {

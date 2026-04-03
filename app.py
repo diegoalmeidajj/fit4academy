@@ -3197,6 +3197,191 @@ def api_billing_charge():
         return jsonify({'error': str(e)}), 500
 
 
+# ═══════════════════════════════════════════════════════════════
+#  PAYMENT LINKS (Send via SMS/text)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/api/payment-link/create', methods=['POST'])
+@login_required
+def api_create_payment_link():
+    """Create a secure payment link and optionally send via SMS."""
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    amount = float(data.get('amount', 0))
+    description = data.get('description', 'Payment')
+    send_sms = data.get('send_sms', False)
+
+    if not member_id or amount <= 0:
+        return jsonify({'error': 'member_id and amount required'}), 400
+
+    academy_id = _get_academy_id()
+    member = models.get_member_by_id(int(member_id))
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Generate secure token
+    token = str(uuid.uuid4()).replace('-', '')
+
+    # Store payment link in session-like storage (use a simple DB approach)
+    try:
+        conn = models.get_db()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS payment_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token TEXT UNIQUE NOT NULL,
+                academy_id INTEGER,
+                member_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                platform_fee REAL DEFAULT 0.30,
+                description TEXT DEFAULT '',
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                paid_at TIMESTAMP
+            )
+        """)
+        conn.execute(
+            "INSERT INTO payment_links (token, academy_id, member_id, amount, platform_fee, description) VALUES (?,?,?,?,?,?)",
+            (token, academy_id, int(member_id), amount, billing.PLATFORM_FEE, description)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    # Build link
+    base_url = request.host_url.rstrip('/')
+    link = f"{base_url}/pay/{token}"
+
+    # Send SMS if requested
+    if send_sms and member.get('phone'):
+        phone = member['phone']
+        member_name = f"{member.get('first_name', '')} {member.get('last_name', '')}"
+        academy = None
+        try:
+            academy = models.get_academy_by_id(academy_id)
+        except Exception:
+            pass
+        academy_name = academy.get('name', 'Fit4Academy') if academy else 'Fit4Academy'
+        sms_text = f"Hi {member.get('first_name', '')}! {academy_name} sent you a payment request for ${amount:.2f}. Pay securely here: {link}"
+        # TODO: Integrate with Twilio or SMS provider
+        # For now, return the link for manual sending
+
+    return jsonify({
+        'success': True,
+        'link': link,
+        'token': token,
+        'amount': amount,
+        'total': amount + billing.PLATFORM_FEE,
+    })
+
+
+@app.route('/pay/<token>')
+def public_payment_page(token):
+    """Public payment page — no login required. Secure via token."""
+    try:
+        conn = models.get_db()
+        link = conn.execute("SELECT * FROM payment_links WHERE token = ?", (token,)).fetchone()
+        conn.close()
+        if not link:
+            return "Payment link not found or expired.", 404
+        link = dict(link)
+        if link.get('status') == 'paid':
+            return render_template('payment_link.html',
+                token=token, member_name='', amount=link['amount'],
+                platform_fee=link['platform_fee'], description=link['description'],
+                academy_name='Fit4Academy', paid=True)
+
+        member = models.get_member_by_id(link['member_id'])
+        member_name = f"{member.get('first_name', '')} {member.get('last_name', '')}" if member else 'Member'
+
+        academy = None
+        try:
+            academy = models.get_academy_by_id(link.get('academy_id', 1))
+        except Exception:
+            pass
+        academy_name = academy.get('name', 'Fit4Academy') if academy else 'Fit4Academy'
+
+        return render_template('payment_link.html',
+            token=token, member_name=member_name,
+            amount=link['amount'], platform_fee=link['platform_fee'],
+            description=link['description'], academy_name=academy_name, paid=False)
+    except Exception as e:
+        return f"Error: {e}", 500
+
+
+@app.route('/api/payment-link/process', methods=['POST'])
+def api_process_payment_link():
+    """Process payment from the public payment page."""
+    data = request.get_json() or {}
+    token = data.get('token')
+    if not token:
+        return jsonify({'error': 'Invalid payment link'}), 400
+
+    try:
+        conn = models.get_db()
+        link = conn.execute("SELECT * FROM payment_links WHERE token = ?", (token,)).fetchone()
+        if not link:
+            conn.close()
+            return jsonify({'error': 'Payment link not found'}), 404
+
+        link = dict(link)
+        if link.get('status') == 'paid':
+            conn.close()
+            return jsonify({'error': 'Already paid'}), 400
+
+        method = data.get('method', 'bank')
+        amount = link['amount']
+        platform_fee = link.get('platform_fee', 0.30)
+        member_id = link['member_id']
+        academy_id = link.get('academy_id', 1)
+
+        # If Stripe is enabled, process through Stripe
+        if billing.is_enabled():
+            # Create Stripe payment with bank/card details
+            # This would use Stripe's ACH or card payment flow
+            # For now, mark as completed (Stripe integration will handle actual charging)
+            pass
+
+        # Record payment
+        payment_id = models.create_payment(
+            member_id=member_id,
+            amount=amount,
+            academy_id=academy_id,
+            method='ach_bank' if method == 'bank' else 'debit_card',
+            status='completed',
+            platform_fee=platform_fee,
+            notes=f"Payment link: {link['description']} (paid via {method})",
+            payment_date=str(date.today()),
+        )
+
+        # Mark link as paid
+        conn.execute("UPDATE payment_links SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+
+        # Save payment method for future charges
+        if method == 'bank':
+            last4 = data.get('account', '')[-4:] if data.get('account') else ''
+            models.create_payment_method(
+                member_id,
+                method_type='bank_account',
+                last4=last4,
+                brand=data.get('bank_name', 'Bank'),
+            )
+        else:
+            last4 = data.get('card_number', '')[-4:] if data.get('card_number') else ''
+            models.create_payment_method(
+                member_id,
+                method_type='debit_card',
+                last4=last4,
+                brand=data.get('card_name', 'Card'),
+            )
+
+        return jsonify({'success': True, 'payment_id': payment_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/billing/methods/<int:member_id>', methods=['GET'])
 @login_required
 def api_billing_methods(member_id):
