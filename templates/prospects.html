@@ -348,7 +348,17 @@ function archiveProspect(prospectId) {
         body: JSON.stringify({prospect_id: prospectId, archive: true})
     }).then(r => r.json()).then(d => {
         if (d.success) {
-            window.location.href = '/prospects?tab=archived';
+            // Remove card from pipeline
+            const card = document.getElementById('prospect-' + prospectId);
+            if (card) card.remove();
+            // Switch to archived tab
+            switchProspectTab('archived');
+            // Add a temporary notice
+            const archivedTab = document.getElementById('tab-archived');
+            const notice = document.createElement('div');
+            notice.className = 'alert alert-success';
+            notice.innerHTML = '<i class="bi bi-check-circle"></i> Prospect archived! Reload to see updated list.';
+            archivedTab.prepend(notice);
         }
     });
 }
