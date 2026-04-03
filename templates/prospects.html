@@ -127,7 +127,7 @@
                         <i class="bi bi-person-check"></i> View Member
                     </a>
                     {% else %}
-                    <button onclick="event.stopPropagation();convertToMember({{ p.id }})" style="width:100%;padding:8px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:700;background:linear-gradient(135deg,#00DC82,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <button onclick="event.stopPropagation();openEnrollModal({{ p.id }}, '{{ p.first_name }} {{ p.last_name }}')" style="width:100%;padding:8px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:700;background:linear-gradient(135deg,#00DC82,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;">
                         <i class="bi bi-person-plus-fill"></i> New Member
                     </button>
                     {% endif %}
@@ -319,6 +319,65 @@
     <div class="card"><div class="card-body empty-state"><i class="bi bi-archive"></i><p>No archived prospects</p></div></div>
     {% endif %}
 </div>
+
+<!-- ═══ ENROLLMENT MODAL ═══ -->
+<div id="enrollModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px);" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width:100%;max-width:500px;margin:20px;">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-weight:700;"><i class="bi bi-person-plus-fill" style="color:var(--primary);"></i> New Member Enrollment</span>
+            <button onclick="document.getElementById('enrollModal').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="card-body">
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;" id="enrollName"></div>
+            <input type="hidden" id="enrollProspectId">
+
+            <div class="form-group">
+                <label class="form-label">Program</label>
+                <select id="enrollProgram" class="form-select">
+                    <option value="">No program</option>
+                    {% for prog in programs %}
+                    <option value="{{ prog.id }}">{{ prog.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Membership Plan</label>
+                <select id="enrollPlan" class="form-select" onchange="updatePlanPrice()">
+                    <option value="" data-price="0">No plan</option>
+                    {% for plan in membership_plans %}
+                    <option value="{{ plan.id }}" data-price="{{ plan.price }}">{{ plan.name }} — {{ currency_symbol }}{{ "%.2f"|format(plan.price) }}/{{ plan.billing_cycle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Amount Paid</label>
+                    <div style="position:relative;">
+                        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px;">{{ currency_symbol }}</span>
+                        <input type="number" id="enrollAmount" class="form-control" step="0.01" min="0" value="0" style="padding-left:30px;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select id="enrollPayMethod" class="form-select">
+                        <option value="cash">Cash</option>
+                        <option value="credit_card">Credit Card</option>
+                        <option value="debit_card">Debit Card</option>
+                        <option value="pix">PIX</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="submitEnrollment()" id="enrollBtn" style="width:100%;padding:10px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:linear-gradient(135deg,#00DC82,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;">
+                <i class="bi bi-check-lg"></i> Create Member & Record Payment
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -390,18 +449,54 @@ function unarchiveProspect(prospectId) {
     });
 }
 
-// Convert lead to member
-function convertToMember(prospectId) {
+// Open enrollment modal
+function openEnrollModal(prospectId, name) {
+    document.getElementById('enrollProspectId').value = prospectId;
+    document.getElementById('enrollName').textContent = name;
+    document.getElementById('enrollAmount').value = '0';
+    document.getElementById('enrollProgram').value = '';
+    document.getElementById('enrollPlan').value = '';
+    document.getElementById('enrollModal').style.display = 'flex';
+}
+
+// Auto-fill amount from plan price
+function updatePlanPrice() {
+    const sel = document.getElementById('enrollPlan');
+    const opt = sel.options[sel.selectedIndex];
+    const price = opt.getAttribute('data-price') || '0';
+    document.getElementById('enrollAmount').value = price;
+}
+
+// Submit enrollment
+function submitEnrollment() {
+    const btn = document.getElementById('enrollBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
+
+    const data = {
+        prospect_id: parseInt(document.getElementById('enrollProspectId').value),
+        program_id: document.getElementById('enrollProgram').value || null,
+        plan_id: document.getElementById('enrollPlan').value || null,
+        amount: document.getElementById('enrollAmount').value || 0,
+        payment_method: document.getElementById('enrollPayMethod').value,
+    };
+
     fetch('/api/prospects/convert', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({prospect_id: prospectId})
+        body: JSON.stringify(data)
     }).then(r => r.json()).then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Create Member & Record Payment';
         if (d.success && d.member_id) {
             window.location.href = '/members/' + d.member_id;
         } else {
             alert('Error: ' + (d.error || 'Unknown'));
         }
+    }).catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Create Member & Record Payment';
+        alert('Network error');
     });
 }
 

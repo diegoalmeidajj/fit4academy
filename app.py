@@ -2768,6 +2768,8 @@ def prospects_list():
         leads_lost=leads_lost, conversion_rate=conversion_rate,
         source_counts=source_counts, total_leads=total_leads,
         period=period, date_from=date_from, date_to=date_to,
+        programs=models.get_programs(academy_id),
+        membership_plans=models.get_all_membership_plans(academy_id),
     )
 
 
@@ -2859,7 +2861,7 @@ def prospect_convert(prospect_id):
 @app.route('/api/prospects/convert', methods=['POST'])
 @login_required
 def api_prospect_convert():
-    """Convert a prospect to a member via JSON API."""
+    """Convert a prospect to a member with program, membership plan and payment."""
     data = request.get_json() or {}
     prospect_id = data.get('prospect_id')
     if not prospect_id:
@@ -2867,10 +2869,44 @@ def api_prospect_convert():
     academy_id = _get_academy_id()
     try:
         member_id = models.convert_prospect_to_member(int(prospect_id), academy_id)
-        if member_id:
-            return jsonify({'success': True, 'member_id': member_id})
-        else:
+        if not member_id:
             return jsonify({'error': 'Could not convert prospect'}), 500
+
+        # Assign program
+        program_id = data.get('program_id')
+        if program_id:
+            try:
+                models.enroll_member_program(member_id, int(program_id))
+            except Exception:
+                pass
+
+        # Create membership
+        plan_id = data.get('plan_id')
+        membership_id = None
+        if plan_id:
+            try:
+                membership_id = models.create_membership(member_id, int(plan_id))
+            except Exception:
+                pass
+
+        # Record payment
+        amount = data.get('amount')
+        if amount and float(amount) > 0:
+            try:
+                models.create_payment(
+                    member_id=member_id,
+                    amount=float(amount),
+                    academy_id=academy_id,
+                    membership_id=membership_id,
+                    method=data.get('payment_method', 'cash'),
+                    status='completed',
+                    notes=f"Enrollment payment — converted from lead #{prospect_id}",
+                    payment_date=str(date.today()),
+                )
+            except Exception:
+                pass
+
+        return jsonify({'success': True, 'member_id': member_id})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
