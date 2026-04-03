@@ -1655,7 +1655,10 @@ def convert_prospect_to_member(prospect_id, academy_id=1):
         source=prospect.get('source', 'prospect')
     )
     if member_id:
-        update_prospect(prospect_id, status='converted')
+        conn = get_db()
+        conn.execute("UPDATE prospects SET status = 'converted', member_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (member_id, prospect_id))
+        conn.commit()
+        conn.close()
     return member_id
 
 

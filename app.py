@@ -2668,11 +2668,9 @@ def prospects_list():
     archived_prospects = [p for p in all_prospects if p.get('archived')]
 
     # Separate ex-students from real leads — ex-students NEVER go to pipeline
-    # An ex-student is anyone with source='ex_student', or has a member_id, or status='lost' with member_id
+    # An ex-student is ONLY source='ex_student'. Converted leads with member_id stay in pipeline.
     def is_ex_student(p):
         if p.get('source') == 'ex_student':
-            return True
-        if p.get('member_id') and int(p.get('member_id', 0)) > 0:
             return True
         return False
 
