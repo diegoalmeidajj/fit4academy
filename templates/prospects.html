@@ -347,7 +347,9 @@ function archiveProspect(prospectId) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({prospect_id: prospectId, archive: true})
     }).then(r => r.json()).then(d => {
-        if (d.success) location.reload();
+        if (d.success) {
+            window.location.href = '/prospects?tab=archived';
+        }
     });
 }
 
@@ -386,8 +388,11 @@ function deleteExMember(prospectId, name) {
     });
 }
 
-// Auto-switch to dashboard if URL has period filter
-if (new URL(window.location).searchParams.has('period')) {
+// Auto-switch tab based on URL params
+const urlParams = new URL(window.location).searchParams;
+if (urlParams.get('tab')) {
+    switchProspectTab(urlParams.get('tab'));
+} else if (urlParams.has('period')) {
     switchProspectTab('dashboard');
 }
 </script>
