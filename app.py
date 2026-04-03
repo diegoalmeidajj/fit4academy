@@ -1436,6 +1436,12 @@ def memberships_list():
     except Exception:
         members = []
 
+    # Enrich plans with display fields and active member count
+    for plan in plans:
+        plan['cycle'] = plan.get('billing_cycle', 'monthly')
+        plan['type'] = plan.get('plan_type', 'Standard')
+        plan['active_members'] = len([ms for ms in memberships if ms.get('plan_id') == plan.get('id') and ms.get('status') == 'active'])
+
     return render_template('memberships.html',
         plans=plans,
         memberships=memberships,
