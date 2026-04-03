@@ -132,6 +132,7 @@
                     {% endif %}
                     <a href="/prospects/{{ p.id }}/edit" style="background:rgba(148,163,184,.08);color:var(--text-muted);" title="Edit"><i class="bi bi-pencil"></i></a>
                     <button onclick="event.stopPropagation();archiveProspect({{ p.id }})" style="background:rgba(148,163,184,.08);color:var(--text-muted);" title="Archive"><i class="bi bi-archive"></i></button>
+                    <button onclick="event.stopPropagation();deleteProspect({{ p.id }}, '{{ p.first_name }} {{ p.last_name }}')" style="background:rgba(239,68,68,.08);color:var(--danger);" title="Delete"><i class="bi bi-trash3"></i></button>
                 </div>
             </div>
             {% endfor %}
@@ -355,6 +356,20 @@ function archiveProspect(prospectId) {
             alert('Error: ' + (d.error || 'Unknown'));
         }
     }).catch(e => alert('Network error'));
+}
+
+function deleteProspect(prospectId, name) {
+    if (!confirm('Delete ' + name + '?')) return;
+    fetch('/api/prospects/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prospect_id: prospectId})
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            const card = document.getElementById('prospect-' + prospectId);
+            if (card) card.remove();
+        } else alert('Error: ' + (d.error || 'Unknown'));
+    });
 }
 
 function unarchiveProspect(prospectId) {
