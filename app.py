@@ -95,6 +95,25 @@ def inject_globals():
         except Exception:
             pass
 
+    # Leads waiting 24h+ without contact (only 'new' stage leads)
+    urgent_leads_count = 0
+    if session.get('logged_in'):
+        try:
+            from datetime import datetime as dt_cls
+            all_prsp = models.get_all_prospects(academy_id)
+            now = dt_cls.now()
+            for p in (all_prsp or []):
+                if p.get('status') == 'new' and p.get('source') != 'ex_student' and not p.get('member_id') and not p.get('archived'):
+                    created = str(p.get('created_at', ''))[:19]
+                    try:
+                        created_dt = dt_cls.strptime(created, '%Y-%m-%d %H:%M:%S')
+                        if (now - created_dt).total_seconds() > 86400:
+                            urgent_leads_count += 1
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
     return dict(
         t=t,
         ui_lang=ui_lang,
@@ -106,6 +125,7 @@ def inject_globals():
         user_name=session.get('display_name', ''),
         user_role=session.get('role', 'user'),
         unread_notifications=unread_count,
+        urgent_leads=urgent_leads_count,
     )
 
 
@@ -2666,7 +2686,20 @@ def prospects_list():
     except Exception:
         pass
 
-    # Group real leads by stage for pipeline view
+    # Add urgency info to each lead and sort by oldest first (priority)
+    now = datetime.now()
+    for p in real_leads:
+        created = str(p.get('created_at', ''))[:19]
+        try:
+            created_dt = datetime.strptime(created, '%Y-%m-%d %H:%M:%S')
+            hours_waiting = (now - created_dt).total_seconds() / 3600
+            p['hours_waiting'] = round(hours_waiting, 1)
+            p['is_urgent'] = hours_waiting >= 24 and p.get('status') == 'new'
+        except Exception:
+            p['hours_waiting'] = 0
+            p['is_urgent'] = False
+
+    # Group real leads by stage for pipeline view — sorted oldest first
     prospects_by_stage = {
         'new': [], 'contacted': [], 'trial': [], 'converted': [],
     }
@@ -2676,6 +2709,10 @@ def prospects_list():
             prospects_by_stage[stage].append(p)
         else:
             prospects_by_stage['new'].append(p)
+
+    # Sort each stage: oldest first (highest priority)
+    for stage in prospects_by_stage:
+        prospects_by_stage[stage].sort(key=lambda x: str(x.get('created_at', '')), reverse=False)
 
     # Dashboard stats
     total_leads = len([p for p in all_prospects if p.get('source') != 'ex_student'])

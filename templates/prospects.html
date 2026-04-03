@@ -99,7 +99,16 @@
             {% for p in prospects_by_stage.get(stage, []) %}
             <div class="prospect-card" id="prospect-{{ p.id }}" draggable="true"
                  ondragstart="event.dataTransfer.setData('text/plain','{{ p.id }}');this.classList.add('dragging')"
-                 ondragend="this.classList.remove('dragging')">
+                 ondragend="this.classList.remove('dragging')"
+                 style="{% if p.is_urgent %}border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.03);{% endif %}">
+                <!-- Urgency badge -->
+                {% if p.is_urgent %}
+                <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;padding:4px 8px;border-radius:6px;background:rgba(239,68,68,0.1);font-size:10px;font-weight:700;color:var(--danger);">
+                    <i class="bi bi-exclamation-triangle-fill"></i> {{ p.hours_waiting|int }}h waiting — Contact now!
+                </div>
+                {% elif p.hours_waiting and p.hours_waiting > 0 and stage == 'new' %}
+                <div style="font-size:9px;color:var(--text-muted);margin-bottom:4px;"><i class="bi bi-clock"></i> {{ p.hours_waiting|int }}h ago</div>
+                {% endif %}
                 <div class="prospect-name">{{ p.first_name }} {{ p.last_name }}</div>
                 <div class="prospect-meta">
                     {% if p.phone %}<i class="bi bi-telephone"></i> {{ p.phone }}<br>{% endif %}
