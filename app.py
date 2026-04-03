@@ -2980,6 +2980,30 @@ def api_prospect_convert():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/store')
+@login_required
+def store_page():
+    academy_id = _get_academy_id()
+    products = models.get_all_products(academy_id)
+    # Get recent orders
+    try:
+        conn = models.get_db()
+        orders = conn.execute(
+            """SELECT oi.*, m.first_name, m.last_name, p.name as product_name
+               FROM order_items oi
+               LEFT JOIN members m ON oi.member_id = m.id
+               LEFT JOIN products p ON oi.product_id = p.id
+               WHERE oi.academy_id = ?
+               ORDER BY oi.created_at DESC LIMIT 50""",
+            (academy_id,)
+        ).fetchall()
+        conn.close()
+        orders = [dict(r) for r in orders]
+    except Exception:
+        orders = []
+    return render_template('store.html', products=products, orders=orders)
+
+
 @app.route('/api/products', methods=['GET'])
 @login_required
 def api_products_list():

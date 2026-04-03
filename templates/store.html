@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Store{% endblock %}
+
+{% block extra_css %}
+.product-card {
+    border: 1px solid var(--border); border-radius: 14px; background: var(--card-bg);
+    overflow: hidden; transition: all .2s;
+}
+.product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-bag" style="color:var(--primary);"></i> Store</h1>
+    <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('addProductModal').style.display='flex'"><i class="bi bi-plus-lg"></i> New Product</button>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid-3 mb-16">
+    <div class="stat-card stat-blue">
+        <div class="stat-icon"><i class="bi bi-bag"></i></div>
+        <div class="stat-value">{{ products|length }}</div>
+        <div class="stat-label">Products</div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
+        <div class="stat-value">{{ products|sum(attribute='stock') }}</div>
+        <div class="stat-label">Total Stock</div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+        <div class="stat-value">{{ orders|length }}</div>
+        <div class="stat-label">Items Sold</div>
+    </div>
+</div>
+
+<!-- Products Grid -->
+{% if products %}
+<div class="grid-3 mb-24">
+    {% for prod in products %}
+    <div class="product-card" id="prod-card-{{ prod.id }}">
+        <div style="padding:18px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="font-family:'Space Grotesk';font-size:17px;font-weight:700;">{{ prod.name }}</div>
+                    <div style="font-size:11px;color:var(--text-muted);text-transform:capitalize;margin-top:2px;">{{ prod.category }}</div>
+                </div>
+                <div style="font-family:'Space Grotesk';font-size:24px;font-weight:800;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(prod.price) }}</div>
+            </div>
+        </div>
+        <div style="padding:14px 18px;">
+            <!-- Sizes -->
+            {% if prod.sizes %}
+            <div style="margin-bottom:10px;">
+                <div style="font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:4px;">SIZES</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    {% for s in prod.sizes.split(',') %}
+                    {% if s.strip() %}
+                    <span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(0,220,130,.08);color:var(--primary);border:1px solid rgba(0,220,130,.15);">{{ s.strip() }}</span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            <!-- Stock -->
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:12px;font-weight:600;">Stock:</div>
+                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:{% if prod.stock > 5 %}var(--success){% elif prod.stock > 0 %}var(--warning){% else %}var(--danger){% endif %};">{{ prod.stock }}</div>
+                {% if prod.stock == 0 %}<span style="font-size:10px;color:var(--danger);font-weight:700;">OUT OF STOCK</span>{% endif %}
+            </div>
+        </div>
+        <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:6px;">
+            <button class="btn btn-sm btn-outline-primary" style="flex:1;justify-content:center;" onclick="openEditProduct({{ prod.id }}, '{{ prod.name }}', '{{ prod.category }}', '{{ prod.sizes }}', {{ prod.price }}, {{ prod.stock }})"><i class="bi bi-pencil"></i> Edit</button>
+            <button class="btn btn-sm" style="background:rgba(239,68,68,.08);color:var(--danger);border:none;" onclick="deleteProduct({{ prod.id }})"><i class="bi bi-trash3"></i></button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card"><div class="card-body empty-state"><i class="bi bi-bag"></i><p>No products yet. Add your first product — kimonos, rash guards, shorts, etc.</p></div></div>
+{% endif %}
+
+<!-- Recent Orders -->
+{% if orders %}
+<div class="card">
+    <div class="card-header"><i class="bi bi-receipt" style="color:var(--primary);"></i> Recent Sales</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="data-table">
+            <thead><tr><th>Date</th><th>Member</th><th>Product</th><th>Size</th><th>Qty</th><th>Price</th></tr></thead>
+            <tbody>
+            {% for o in orders %}
+            <tr>
+                <td style="font-size:12px;">{{ (o.created_at|string)[:10] }}</td>
+                <td style="font-weight:600;font-size:13px;">{{ o.first_name }} {{ o.last_name }}</td>
+                <td style="font-size:13px;">{{ o.product_name }}</td>
+                <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:rgba(0,220,130,.08);color:var(--primary);font-weight:600;">{{ o.size or '—' }}</span></td>
+                <td style="font-family:'Space Grotesk';font-weight:700;">{{ o.quantity }}</td>
+                <td style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(o.price) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Add Product Modal -->
+<div id="addProductModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-bag-plus" style="color:var(--primary);"></i> New Product</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('addProductModal').style.display='none'">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Product Name *</label>
+            <input type="text" id="prodName" class="form-control" required placeholder="e.g. Kimono GI">
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select id="prodCategory" class="form-select">
+                    <option value="kimono">Kimono / GI</option>
+                    <option value="rashguard">Rash Guard</option>
+                    <option value="shorts">Shorts</option>
+                    <option value="belt">Belt</option>
+                    <option value="mouthguard">Mouth Guard</option>
+                    <option value="gear">Other Gear</option>
+                    <option value="supplement">Supplement</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Price *</label>
+                <div style="position:relative;">
+                    <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
+                    <input type="number" id="prodPrice" class="form-control" step="0.01" min="0" required style="padding-left:28px;" placeholder="149.99">
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Sizes (comma-separated)</label>
+            <input type="text" id="prodSizes" class="form-control" placeholder="A0, A1, A2, A3, A4, A5">
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Leave empty if not applicable. Example: XS, S, M, L, XL, XXL</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Stock Quantity *</label>
+            <input type="number" id="prodStock" class="form-control" min="0" value="0" placeholder="10">
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+            <button class="btn btn-outline-secondary" onclick="document.getElementById('addProductModal').style.display='none'">Cancel</button>
+            <button class="btn btn-primary" onclick="addProduct()"><i class="bi bi-check-lg"></i> Add Product</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div id="editProductModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-pencil" style="color:var(--primary);"></i> Edit Product</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('editProductModal').style.display='none'">&times;</button>
+        </div>
+        <input type="hidden" id="editProdId">
+        <div class="form-group">
+            <label class="form-label">Product Name *</label>
+            <input type="text" id="editProdName" class="form-control" required>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select id="editProdCategory" class="form-select">
+                    <option value="kimono">Kimono / GI</option>
+                    <option value="rashguard">Rash Guard</option>
+                    <option value="shorts">Shorts</option>
+                    <option value="belt">Belt</option>
+                    <option value="mouthguard">Mouth Guard</option>
+                    <option value="gear">Other Gear</option>
+                    <option value="supplement">Supplement</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Price *</label>
+                <div style="position:relative;">
+                    <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
+                    <input type="number" id="editProdPrice" class="form-control" step="0.01" min="0" style="padding-left:28px;">
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Sizes (comma-separated)</label>
+            <input type="text" id="editProdSizes" class="form-control">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Stock Quantity</label>
+            <input type="number" id="editProdStock" class="form-control" min="0">
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+            <button class="btn btn-outline-secondary" onclick="document.getElementById('editProductModal').style.display='none'">Cancel</button>
+            <button class="btn btn-primary" onclick="saveProduct()"><i class="bi bi-check-lg"></i> Save</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addProduct() {
+    const data = {
+        name: document.getElementById('prodName').value,
+        category: document.getElementById('prodCategory').value,
+        price: document.getElementById('prodPrice').value,
+        sizes: document.getElementById('prodSizes').value,
+        stock: document.getElementById('prodStock').value,
+    };
+    if (!data.name) { alert('Name is required'); return; }
+    fetch('/api/products/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
+}
+
+function openEditProduct(id, name, category, sizes, price, stock) {
+    document.getElementById('editProdId').value = id;
+    document.getElementById('editProdName').value = name;
+    document.getElementById('editProdCategory').value = category;
+    document.getElementById('editProdSizes').value = sizes;
+    document.getElementById('editProdPrice').value = price;
+    document.getElementById('editProdStock').value = stock;
+    document.getElementById('editProductModal').style.display = 'flex';
+}
+
+function saveProduct() {
+    const id = document.getElementById('editProdId').value;
+    const data = {
+        name: document.getElementById('editProdName').value,
+        category: document.getElementById('editProdCategory').value,
+        price: document.getElementById('editProdPrice').value,
+        sizes: document.getElementById('editProdSizes').value,
+        stock: document.getElementById('editProdStock').value,
+    };
+    fetch('/api/products/' + id + '/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
+}
+
+function deleteProduct(id) {
+    fetch('/api/products/' + id + '/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
+}
+</script>
+{% endblock %}
