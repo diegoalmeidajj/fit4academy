@@ -941,6 +941,15 @@ def member_toggle_status(member_id):
         else:
             # Reactivate
             models.update_member(member_id, membership_status='active')
+            # Remove from prospects (ex_student entry)
+            try:
+                all_prsp = models.get_all_prospects(academy_id)
+                for p in (all_prsp or []):
+                    if p.get('member_id') == member_id and p.get('source') == 'ex_student':
+                        models.delete_prospect(p['id'])
+                        break
+            except Exception:
+                pass
             flash(f"{member.get('first_name')} reactivated!", 'success')
     except Exception as e:
         print(f"[Members] Toggle status error: {e}")
@@ -2634,28 +2643,72 @@ def prospects_list():
     except Exception:
         all_prospects = []
 
-    # Group by stage for pipeline view
+    # Separate archived and active
+    active_prospects = [p for p in all_prospects if not p.get('archived')]
+    archived_prospects = [p for p in all_prospects if p.get('archived')]
+
+    # Group active by stage for pipeline view
     prospects_by_stage = {
-        'new': [],
-        'contacted': [],
-        'trial': [],
-        'converted': [],
-        'lost': [],
-        'ex_student': [],
+        'new': [], 'contacted': [], 'trial': [], 'converted': [],
     }
-    for p in (all_prospects or []):
+    ex_students = []
+    for p in active_prospects:
         stage = p.get('status', 'new')
-        # Ex-students: source=ex_student OR status=lost with member_id
         if p.get('source') == 'ex_student' or (stage == 'lost' and p.get('member_id')):
-            prospects_by_stage['ex_student'].append(p)
+            ex_students.append(p)
         elif stage in prospects_by_stage:
             prospects_by_stage[stage].append(p)
         else:
             prospects_by_stage['new'].append(p)
 
+    # Dashboard stats
+    total_leads = len([p for p in all_prospects if p.get('source') != 'ex_student'])
+    period = request.args.get('period', 'month')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+
+    today = date.today()
+    if period == 'day':
+        period_start = str(today)
+    elif period == 'week':
+        period_start = str(today - timedelta(days=today.weekday()))
+    elif period == 'year':
+        period_start = f"{today.year}-01-01"
+    elif period == 'custom' and date_from:
+        period_start = date_from
+    else:
+        period_start = f"{today.year}-{str(today.month).zfill(2)}-01"
+
+    period_end = date_to if (period == 'custom' and date_to) else str(today)
+
+    leads_in = len([p for p in all_prospects if p.get('source') != 'ex_student'
+                    and str(p.get('created_at', ''))[:10] >= period_start
+                    and str(p.get('created_at', ''))[:10] <= period_end])
+    leads_converted = len([p for p in all_prospects if p.get('status') == 'converted'
+                           and str(p.get('updated_at', ''))[:10] >= period_start
+                           and str(p.get('updated_at', ''))[:10] <= period_end])
+    leads_lost = len([p for p in all_prospects if p.get('status') == 'lost'
+                      and p.get('source') != 'ex_student'
+                      and str(p.get('updated_at', ''))[:10] >= period_start
+                      and str(p.get('updated_at', ''))[:10] <= period_end])
+    conversion_rate = round(leads_converted / leads_in * 100, 1) if leads_in > 0 else 0
+
+    # Source breakdown for acquisition channel analytics
+    source_counts = {}
+    for p in all_prospects:
+        if p.get('source') and p.get('source') != 'ex_student':
+            src = p.get('source', 'unknown')
+            source_counts[src] = source_counts.get(src, 0) + 1
+
     return render_template('prospects.html',
         prospects=all_prospects,
         prospects_by_stage=prospects_by_stage,
+        ex_students=ex_students,
+        archived_prospects=archived_prospects,
+        leads_in=leads_in, leads_converted=leads_converted,
+        leads_lost=leads_lost, conversion_rate=conversion_rate,
+        source_counts=source_counts, total_leads=total_leads,
+        period=period, date_from=date_from, date_to=date_to,
     )
 
 
@@ -2676,6 +2729,7 @@ def prospect_add():
                 phone=request.form.get('phone', '').strip(),
                 source=request.form.get('source', ''),
                 status=request.form.get('status', 'new'),
+                previous_experience=request.form.get('previous_experience', ''),
                 follow_up_date=request.form.get('follow_up_date') or None,
                 notes=request.form.get('notes', ''),
             )
@@ -2711,6 +2765,7 @@ def prospect_edit(prospect_id):
                 phone=request.form.get('phone', '').strip(),
                 source=request.form.get('source', ''),
                 status=request.form.get('status', 'new'),
+                previous_experience=request.form.get('previous_experience', ''),
                 follow_up_date=request.form.get('follow_up_date') or None,
                 notes=request.form.get('notes', ''),
             )
@@ -2739,6 +2794,70 @@ def prospect_convert(prospect_id):
     except Exception as e:
         print(f"[Prospects] Convert error: {e}")
         flash('Error converting prospect.', 'error')
+    return redirect(url_for('prospects_list'))
+
+
+@app.route('/api/prospects/move', methods=['POST'])
+@login_required
+def api_prospect_move():
+    """Move a prospect to a different pipeline stage."""
+    data = request.get_json() or {}
+    prospect_id = data.get('prospect_id')
+    new_stage = data.get('stage')
+    valid_stages = ['new', 'contacted', 'trial', 'converted', 'lost']
+    if not prospect_id or new_stage not in valid_stages:
+        return jsonify({'error': 'Invalid prospect_id or stage'}), 400
+    try:
+        models.update_prospect(int(prospect_id), status=new_stage)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/prospects/archive', methods=['POST'])
+@login_required
+def api_prospect_archive():
+    """Archive or unarchive a prospect."""
+    data = request.get_json() or {}
+    prospect_id = data.get('prospect_id')
+    archive = data.get('archive', True)
+    if not prospect_id:
+        return jsonify({'error': 'prospect_id required'}), 400
+    try:
+        models.update_prospect(int(prospect_id),
+            archived=1 if archive else 0,
+            archived_at=str(datetime.now()) if archive else None)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/prospects/notes', methods=['POST'])
+@login_required
+def api_prospect_notes():
+    """Update notes for a prospect."""
+    data = request.get_json() or {}
+    prospect_id = data.get('prospect_id')
+    notes = data.get('notes', '')
+    if not prospect_id:
+        return jsonify({'error': 'prospect_id required'}), 400
+    try:
+        models.update_prospect(int(prospect_id), notes=notes)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/prospects/<int:prospect_id>/delete', methods=['POST'])
+@login_required
+def prospect_delete(prospect_id):
+    if not validate_csrf():
+        return redirect(url_for('prospects_list'))
+    try:
+        models.delete_prospect(prospect_id)
+        flash('Prospect deleted.', 'success')
+    except Exception as e:
+        flash('Error deleting prospect.', 'error')
     return redirect(url_for('prospects_list'))
 
 

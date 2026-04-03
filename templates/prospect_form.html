@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{{ t('prospect_form_edit') if prospect else t('prospect_form_add') }}{% endblock %}
+{% block title %}{{ 'Edit Prospect' if prospect else 'New Lead' }}{% endblock %}
 
 {% block content %}
 <div class="topbar">
-    <h1><i class="bi bi-funnel" style="color:var(--primary);"></i> {{ t('prospect_form_edit') if prospect else t('prospect_form_add') }}</h1>
+    <h1><i class="bi bi-funnel" style="color:var(--primary);"></i> {{ 'Edit Prospect' if prospect else 'New Lead' }}</h1>
     <div class="topbar-actions">
-        <a href="/prospects" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> {{ t('back') }}</a>
+        <a href="/prospects" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
     </div>
 </div>
 
@@ -16,68 +16,83 @@
 
             <div class="grid-2 mb-24">
                 <div class="form-group">
-                    <label class="form-label">{{ t('prospect_name') }} *</label>
-                    <input type="text" name="name" class="form-control" value="{{ prospect.name if prospect else '' }}" required>
+                    <label class="form-label">First Name *</label>
+                    <input type="text" name="first_name" class="form-control" value="{{ prospect.first_name if prospect else '' }}" required placeholder="John">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">{{ t('prospect_email') }}</label>
-                    <input type="email" name="email" class="form-control" value="{{ prospect.email if prospect else '' }}">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" name="last_name" class="form-control" value="{{ prospect.last_name if prospect else '' }}" placeholder="Doe">
                 </div>
             </div>
 
             <div class="grid-2 mb-24">
                 <div class="form-group">
-                    <label class="form-label">{{ t('prospect_phone') }}</label>
-                    <input type="tel" name="phone" class="form-control" value="{{ prospect.phone if prospect else '' }}">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ prospect.email if prospect else '' }}" placeholder="john@email.com">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">{{ t('prospect_source') }}</label>
-                    <select name="source" class="form-select">
-                        <option value="">{{ t('select') }}</option>
-                        <option value="walk-in" {{ 'selected' if prospect and prospect.source == 'walk-in' }}>{{ t('source_walkin') }}</option>
-                        <option value="referral" {{ 'selected' if prospect and prospect.source == 'referral' }}>{{ t('source_referral') }}</option>
-                        <option value="website" {{ 'selected' if prospect and prospect.source == 'website' }}>{{ t('source_website') }}</option>
-                        <option value="social" {{ 'selected' if prospect and prospect.source == 'social' }}>{{ t('source_social') }}</option>
-                        <option value="event" {{ 'selected' if prospect and prospect.source == 'event' }}>{{ t('source_event') }}</option>
-                        <option value="other" {{ 'selected' if prospect and prospect.source == 'other' }}>{{ t('source_other') }}</option>
-                    </select>
+                    <label class="form-label">Phone</label>
+                    <input type="tel" name="phone" class="form-control" value="{{ prospect.phone if prospect else '' }}" placeholder="+1 555-1234">
                 </div>
             </div>
 
             <div class="grid-3 mb-24">
                 <div class="form-group">
-                    <label class="form-label">{{ t('prospect_status') }} *</label>
-                    <select name="status" class="form-select" required>
-                        <option value="new" {{ 'selected' if prospect and prospect.status == 'new' }}>{{ t('stage_new') }}</option>
-                        <option value="contacted" {{ 'selected' if prospect and prospect.status == 'contacted' }}>{{ t('stage_contacted') }}</option>
-                        <option value="trial" {{ 'selected' if prospect and prospect.status == 'trial' }}>{{ t('stage_trial') }}</option>
-                        <option value="converted" {{ 'selected' if prospect and prospect.status == 'converted' }}>{{ t('stage_converted') }}</option>
-                        <option value="lost" {{ 'selected' if prospect and prospect.status == 'lost' }}>{{ t('stage_lost') }}</option>
+                    <label class="form-label">How did they find us? *</label>
+                    <select name="source" class="form-select">
+                        <option value="">Select...</option>
+                        {% set sources = [('walk-in','Walk-in'), ('referral','Referral'), ('instagram','Instagram'), ('facebook','Facebook'), ('google','Google'), ('website','Website'), ('flyer','Flyer'), ('event','Event'), ('other','Other')] %}
+                        {% for val, label in sources %}
+                        <option value="{{ val }}" {{ 'selected' if prospect and prospect.source == val }}>{{ label }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">{{ t('prospect_interested') }}</label>
-                    <input type="text" name="interested_in" class="form-control" value="{{ prospect.interested_in if prospect else '' }}" placeholder="{{ t('prospect_interested_ph') }}">
+                    <label class="form-label">Previous BJJ Experience</label>
+                    <select name="previous_experience" class="form-select">
+                        <option value="">Select...</option>
+                        {% set exp_options = [('none','No experience'), ('less_1y','Less than 1 year'), ('1_3y','1-3 years'), ('3_5y','3-5 years'), ('5y_plus','5+ years')] %}
+                        {% for val, label in exp_options %}
+                        <option value="{{ val }}" {{ 'selected' if prospect and prospect.previous_experience == val }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">{{ t('prospect_followup_date') }}</label>
+                    <label class="form-label">Stage</label>
+                    <select name="status" class="form-select">
+                        <option value="new" {{ 'selected' if prospect and prospect.status == 'new' }}>Lead</option>
+                        <option value="contacted" {{ 'selected' if prospect and prospect.status == 'contacted' }}>Contacted</option>
+                        <option value="trial" {{ 'selected' if prospect and prospect.status == 'trial' }}>Trial</option>
+                        <option value="converted" {{ 'selected' if prospect and prospect.status == 'converted' }}>Converted</option>
+                        <option value="lost" {{ 'selected' if prospect and prospect.status == 'lost' }}>Lost</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2 mb-24">
+                <div class="form-group">
+                    <label class="form-label">Interested In</label>
+                    <input type="text" name="interested_in" class="form-control" value="{{ prospect.interested_in if prospect else '' }}" placeholder="Gi, No-Gi, Kids...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Follow-up Date</label>
                     <input type="date" name="follow_up_date" class="form-control" value="{{ prospect.follow_up_date if prospect else '' }}">
                 </div>
             </div>
 
             <div class="form-group mb-24">
-                <label class="form-label">{{ t('prospect_notes') }}</label>
-                <textarea name="notes" class="form-control" placeholder="{{ t('prospect_notes_ph') }}">{{ prospect.notes if prospect else '' }}</textarea>
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" placeholder="Any notes about this prospect...">{{ prospect.notes if prospect else '' }}</textarea>
             </div>
 
             <div style="display:flex;gap:10px;justify-content:flex-end;">
-                <a href="/prospects" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
+                <a href="/prospects" class="btn btn-outline-secondary">Cancel</a>
                 {% if prospect %}
-                <button type="button" class="btn btn-outline-danger" onclick="if(confirm('{{ t('prospect_delete_confirm') }}'))document.getElementById('deleteForm').submit();">
-                    <i class="bi bi-trash"></i> {{ t('delete') }}
+                <button type="button" class="btn btn-outline-danger" onclick="if(confirm('Delete this prospect?'))document.getElementById('deleteForm').submit();">
+                    <i class="bi bi-trash"></i> Delete
                 </button>
                 {% endif %}
-                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ t('save') }}</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save</button>
             </div>
         </form>
 

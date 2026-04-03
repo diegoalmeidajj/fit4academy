@@ -2,128 +2,360 @@
 {% block title %}{{ t('nav_prospects') }}{% endblock %}
 
 {% block extra_css %}
-.pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.pipeline-col { min-height: 300px; }
-.pipeline-header { font-family: 'Space Grotesk'; font-size: 13px; font-weight: 700; padding: 10px 14px; border-radius: 10px 10px 0 0; text-align: center; }
-.pipeline-header .count { background: rgba(255,255,255,.2); padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; }
-.pipeline-body { background: var(--card-bg); border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; padding: 8px; min-height: 250px; }
-.pipeline-new .pipeline-header { background: #00DC82; color: #fff; }
-.pipeline-contacted .pipeline-header { background: #06b6d4; color: #fff; }
-.pipeline-trial .pipeline-header { background: #f59e0b; color: #1e293b; }
-.pipeline-converted .pipeline-header { background: #10b981; color: #fff; }
-.pipeline-lost .pipeline-header { background: #6b7280; color: #fff; }
-.pipeline-ex_student .pipeline-header { background: linear-gradient(135deg, #eab308, #f59e0b); color: #1e293b; }
+/* Pipeline Kanban */
+.pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.pipeline-col { min-height: 280px; }
+.pipeline-header {
+    font-family: 'Space Grotesk'; font-size: 13px; font-weight: 700;
+    padding: 10px 14px; border-radius: 12px 12px 0 0; text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.pipeline-header .count {
+    background: rgba(255,255,255,.25); padding: 2px 8px; border-radius: 10px; font-size: 11px;
+}
+.pipeline-body {
+    background: var(--card-bg); border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 12px 12px; padding: 8px; min-height: 200px;
+}
+.pipeline-body.drag-over { background: rgba(0,220,130,0.06); border-color: rgba(0,220,130,0.3); }
+.ph-new { background: linear-gradient(135deg, #00DC82, #059669); color: #fff; }
+.ph-contacted { background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; }
+.ph-trial { background: linear-gradient(135deg, #f59e0b, #d97706); color: #1e293b; }
+.ph-converted { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
 
-.prospect-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all .2s; }
-.prospect-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.08); border-color: var(--primary); }
-.prospect-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-.prospect-meta { font-size: 11px; color: var(--text-muted); }
-.prospect-meta i { margin-right: 3px; }
-.prospect-source { display: inline-block; font-size: 10px; background: rgba(0,220,130,.08); color: var(--primary); padding: 2px 6px; border-radius: 6px; font-weight: 600; margin-top: 6px; }
-.prospect-followup { font-size: 10px; color: var(--warning); font-weight: 600; margin-top: 4px; }
+.prospect-card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; margin-bottom: 8px; cursor: grab; transition: all .2s;
+    display: block; text-decoration: none; color: inherit;
+}
+.prospect-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); border-color: var(--primary); }
+.prospect-card.dragging { opacity: 0.5; transform: rotate(2deg); }
+.prospect-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.prospect-meta { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+.prospect-source-badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 6px;
+    font-weight: 600; margin-top: 6px;
+}
+.prospect-actions { display: flex; gap: 4px; margin-top: 8px; }
+.prospect-actions button, .prospect-actions a {
+    font-size: 10px; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 3px; text-decoration: none;
+}
+
+/* Tabs */
+.prospect-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.prospect-tab {
+    padding: 8px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid var(--border); background: var(--card-bg);
+    color: var(--text); transition: all .2s; font-family: 'Space Grotesk';
+}
+.prospect-tab:hover { border-color: var(--primary); }
+.prospect-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.prospect-tab .tab-count {
+    background: rgba(255,255,255,.2); padding: 1px 7px; border-radius: 6px;
+    font-size: 11px; margin-left: 4px;
+}
 
 @media (max-width: 768px) {
+    .pipeline { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
     .pipeline { grid-template-columns: 1fr; }
-    .pipeline-col { min-height: auto; }
 }
 {% endblock %}
 
 {% block content %}
 <div class="topbar">
-    <h1><i class="bi bi-funnel" style="color:var(--primary);"></i> {{ t('prospects_title') }}</h1>
+    <h1><i class="bi bi-funnel" style="color:var(--primary);"></i> Prospects</h1>
     <div class="topbar-actions">
-        <a href="/prospects/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('prospects_add') }}</a>
+        <a href="/prospects/add" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Lead</a>
     </div>
 </div>
 
-<!-- Pipeline view -->
+<!-- Tabs -->
+{% set active_count = (prospects_by_stage.new|length) + (prospects_by_stage.contacted|length) + (prospects_by_stage.trial|length) + (prospects_by_stage.converted|length) %}
+<div class="prospect-tabs">
+    <div class="prospect-tab active" onclick="switchProspectTab('pipeline')"><i class="bi bi-kanban"></i> Pipeline <span class="tab-count">{{ active_count }}</span></div>
+    <div class="prospect-tab" onclick="switchProspectTab('dashboard')"><i class="bi bi-graph-up"></i> Dashboard</div>
+    <div class="prospect-tab" onclick="switchProspectTab('ex')"><i class="bi bi-person-dash"></i> Ex-Members <span class="tab-count">{{ ex_students|length }}</span></div>
+    <div class="prospect-tab" onclick="switchProspectTab('archived')"><i class="bi bi-archive"></i> Archived <span class="tab-count">{{ archived_prospects|length }}</span></div>
+</div>
+
+<!-- ═══ PIPELINE TAB ═══ -->
+<div id="tab-pipeline">
 <div class="pipeline">
-    {% set stages = [
-        ('new', 'pipeline-new'),
-        ('contacted', 'pipeline-contacted'),
-        ('trial', 'pipeline-trial'),
-        ('converted', 'pipeline-converted'),
-        ('ex_student', 'pipeline-lost')
-    ] %}
-    {% for stage, css_class in stages %}
-    <div class="pipeline-col {{ css_class }}">
-        <div class="pipeline-header">
-            {{ t('stage_' + stage) }}
+    {% set stages = [('new','ph-new','bi-star'), ('contacted','ph-contacted','bi-telephone'), ('trial','ph-trial','bi-calendar-check'), ('converted','ph-converted','bi-person-check')] %}
+    {% for stage, css, icon in stages %}
+    <div class="pipeline-col">
+        <div class="pipeline-header {{ css }}">
+            <i class="bi {{ icon }}"></i>
+            {% if stage == 'new' %}Lead{% elif stage == 'contacted' %}Contacted{% elif stage == 'trial' %}Trial{% else %}Converted{% endif %}
             <span class="count">{{ prospects_by_stage.get(stage, [])|length }}</span>
         </div>
-        <div class="pipeline-body">
-            {% for prospect in prospects_by_stage.get(stage, []) %}
-            <a href="/prospects/{{ prospect.id }}/edit" class="prospect-card" style="display:block;text-decoration:none;color:inherit;">
-                <div class="prospect-name">{{ prospect.name }}</div>
+        <div class="pipeline-body" data-stage="{{ stage }}"
+             ondragover="event.preventDefault();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="dropProspect(event, '{{ stage }}');this.classList.remove('drag-over')">
+            {% for p in prospects_by_stage.get(stage, []) %}
+            <div class="prospect-card" id="prospect-{{ p.id }}" draggable="true"
+                 ondragstart="event.dataTransfer.setData('text/plain','{{ p.id }}');this.classList.add('dragging')"
+                 ondragend="this.classList.remove('dragging')">
+                <div class="prospect-name">{{ p.first_name }} {{ p.last_name }}</div>
                 <div class="prospect-meta">
-                    {% if prospect.phone %}<i class="bi bi-telephone"></i> {{ prospect.phone }}{% endif %}
-                    {% if prospect.email %}<br><i class="bi bi-envelope"></i> {{ prospect.email }}{% endif %}
+                    {% if p.phone %}<i class="bi bi-telephone"></i> {{ p.phone }}<br>{% endif %}
+                    {% if p.email %}<i class="bi bi-envelope"></i> {{ p.email }}{% endif %}
                 </div>
-                {% if prospect.interested_in %}
-                <div class="prospect-meta" style="margin-top:4px;"><i class="bi bi-bookmark"></i> {{ prospect.interested_in }}</div>
+                {% if p.previous_experience %}<div style="font-size:10px;color:var(--info);margin-top:4px;"><i class="bi bi-award"></i> {{ p.previous_experience }}</div>{% endif %}
+                {% if p.source and p.source != 'ex_student' %}
+                <div class="prospect-source-badge" style="background:rgba(0,220,130,.1);color:var(--primary);">{{ p.source }}</div>
                 {% endif %}
-                {% if prospect.source == 'ex_student' %}
-                <div class="prospect-source" style="background:rgba(234,179,8,.15);color:#eab308;">{{ t('stage_ex_student') }}</div>
-                {% elif prospect.source %}
-                <div class="prospect-source">{{ prospect.source }}</div>
-                {% endif %}
-                {% if prospect.follow_up_date %}
-                <div class="prospect-followup"><i class="bi bi-clock"></i> {{ t('prospects_followup') }}: {{ prospect.follow_up_date }}</div>
-                {% endif %}
-                {% if stage == 'ex_student' and prospect.member_id %}
-                <div style="margin-top:8px;display:flex;gap:6px;">
-                    <a href="/members/{{ prospect.member_id }}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();"><i class="bi bi-eye"></i> {{ t('view_profile') }}</a>
-                    <form method="post" action="/members/{{ prospect.member_id }}/toggle-status" style="display:inline;" onclick="event.stopPropagation();">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-person-check"></i> {{ t('members_reactivate') }}</button>
-                    </form>
-                </div>
-                {% elif stage != 'converted' and stage != 'lost' and stage != 'ex_student' %}
-                <div style="margin-top:8px;">
+                {% if p.follow_up_date %}<div style="font-size:10px;color:var(--warning);margin-top:4px;font-weight:600;"><i class="bi bi-clock"></i> Follow-up: {{ p.follow_up_date }}</div>{% endif %}
+                {% if p.notes %}<div style="font-size:10px;color:var(--text-muted);margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">{{ p.notes[:80] }}{% if p.notes|length > 80 %}...{% endif %}</div>{% endif %}
+                <div class="prospect-actions">
+                    {% if stage != 'new' %}<button onclick="moveProspect({{ p.id }}, 'new')" style="background:rgba(0,220,130,.08);color:var(--primary);" title="Move to Lead"><i class="bi bi-arrow-left"></i></button>{% endif %}
+                    {% if stage != 'contacted' %}<button onclick="moveProspect({{ p.id }}, 'contacted')" style="background:rgba(6,182,212,.08);color:#06b6d4;" title="Move to Contacted"><i class="bi bi-telephone"></i></button>{% endif %}
+                    {% if stage != 'trial' %}<button onclick="moveProspect({{ p.id }}, 'trial')" style="background:rgba(245,158,11,.08);color:#f59e0b;" title="Move to Trial"><i class="bi bi-calendar-check"></i></button>{% endif %}
                     {% if stage == 'trial' %}
-                    <form method="post" action="/prospects/{{ prospect.id }}/convert" style="display:inline;" onclick="event.stopPropagation();">
+                    <form method="post" action="/prospects/{{ p.id }}/convert" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-person-check"></i> {{ t('prospects_convert') }}</button>
+                        <button type="submit" style="background:rgba(16,185,129,.1);color:#10b981;"><i class="bi bi-person-check"></i> Convert</button>
                     </form>
                     {% endif %}
+                    <a href="/prospects/{{ p.id }}/edit" style="background:rgba(148,163,184,.08);color:var(--text-muted);" title="Edit"><i class="bi bi-pencil"></i></a>
+                    <button onclick="archiveProspect({{ p.id }})" style="background:rgba(148,163,184,.08);color:var(--text-muted);" title="Archive"><i class="bi bi-archive"></i></button>
                 </div>
-                {% endif %}
-            </a>
+            </div>
             {% endfor %}
             {% if not prospects_by_stage.get(stage) %}
-            <div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:12px;">{{ t('prospects_empty_stage') }}</div>
+            <div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:12px;"><i class="bi bi-inbox" style="font-size:20px;opacity:.3;display:block;margin-bottom:6px;"></i>Empty</div>
             {% endif %}
         </div>
     </div>
     {% endfor %}
 </div>
+</div>
 
-<!-- Lost column (smaller) -->
-{% if prospects_by_stage.get('lost') %}
-<div style="margin-top:24px;">
-    <div style="font-family:'Space Grotesk';font-size:14px;font-weight:600;color:var(--text-muted);margin-bottom:10px;"><i class="bi bi-x-circle"></i> {{ t('stage_lost') }} ({{ prospects_by_stage.get('lost', [])|length }})</div>
+<!-- ═══ DASHBOARD TAB ═══ -->
+<div id="tab-dashboard" style="display:none;">
+    <!-- Period filter -->
+    <div class="card mb-16">
+        <div class="card-body" style="padding:12px 16px;">
+            <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <a href="?period=day" class="btn btn-sm {{ 'btn-primary' if period=='day' else 'btn-outline-secondary' }}">Today</a>
+                <a href="?period=week" class="btn btn-sm {{ 'btn-primary' if period=='week' else 'btn-outline-secondary' }}">Week</a>
+                <a href="?period=month" class="btn btn-sm {{ 'btn-primary' if period=='month' else 'btn-outline-secondary' }}">Month</a>
+                <a href="?period=year" class="btn btn-sm {{ 'btn-primary' if period=='year' else 'btn-outline-secondary' }}">Year</a>
+                <span style="border-left:1px solid var(--border);height:24px;margin:0 4px;"></span>
+                <input type="hidden" name="period" value="custom">
+                <input type="date" name="date_from" value="{{ date_from }}" class="form-control" style="width:auto;font-size:12px;">
+                <span style="font-size:12px;color:var(--text-muted);">to</span>
+                <input type="date" name="date_to" value="{{ date_to }}" class="form-control" style="width:auto;font-size:12px;">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid-4 mb-16">
+        <div class="stat-card stat-green">
+            <div class="stat-icon"><i class="bi bi-box-arrow-in-right"></i></div>
+            <div class="stat-value">{{ leads_in }}</div>
+            <div class="stat-label">Leads In</div>
+        </div>
+        <div class="stat-card stat-blue">
+            <div class="stat-icon"><i class="bi bi-person-check"></i></div>
+            <div class="stat-value">{{ leads_converted }}</div>
+            <div class="stat-label">Converted</div>
+        </div>
+        <div class="stat-card stat-red">
+            <div class="stat-icon"><i class="bi bi-person-x"></i></div>
+            <div class="stat-value">{{ leads_lost }}</div>
+            <div class="stat-label">Lost</div>
+        </div>
+        <div class="stat-card stat-purple">
+            <div class="stat-icon"><i class="bi bi-percent"></i></div>
+            <div class="stat-value">{{ conversion_rate }}%</div>
+            <div class="stat-label">Conversion Rate</div>
+        </div>
+    </div>
+
+    <!-- Conversion bar -->
+    <div class="card mb-16">
+        <div class="card-body" style="padding:14px 18px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-size:12px;font-weight:700;">Conversion Rate</span>
+                <span style="font-family:'Space Grotesk';font-size:18px;font-weight:800;color:{% if conversion_rate >= 30 %}var(--success){% elif conversion_rate >= 15 %}var(--warning){% else %}var(--danger){% endif %};">{{ conversion_rate }}%</span>
+            </div>
+            <div style="width:100%;height:10px;background:var(--border);border-radius:5px;overflow:hidden;">
+                <div style="width:{{ [conversion_rate, 100]|min }}%;height:100%;background:{% if conversion_rate >= 30 %}linear-gradient(90deg,#00DC82,#10b981){% elif conversion_rate >= 15 %}linear-gradient(90deg,#f59e0b,#fbbf24){% else %}linear-gradient(90deg,#ef4444,#f87171){% endif %};border-radius:5px;transition:width .5s;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acquisition Channels -->
+    {% if source_counts %}
+    <div class="card mb-16">
+        <div class="card-header"><i class="bi bi-broadcast" style="color:var(--primary);"></i> Acquisition Channels</div>
+        <div class="card-body">
+            {% set max_src = source_counts.values()|max if source_counts else 1 %}
+            {% for src, cnt in source_counts.items()|sort(attribute='1', reverse=true) %}
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                <span style="font-size:12px;font-weight:600;min-width:80px;text-transform:capitalize;">{{ src }}</span>
+                <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:{{ (cnt / max_src * 100)|round }}%;height:100%;background:linear-gradient(90deg,#00DC82,#06b6d4);border-radius:4px;"></div>
+                </div>
+                <span style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--primary);min-width:30px;text-align:right;">{{ cnt }}</span>
+                <span style="font-size:10px;color:var(--text-muted);min-width:35px;">{{ ((cnt / total_leads * 100)|round(1)) if total_leads > 0 else 0 }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pipeline summary -->
     <div class="card">
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>{{ t('prospect_name') }}</th>
-                        <th>{{ t('prospect_source') }}</th>
-                        <th>{{ t('prospect_notes') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for prospect in prospects_by_stage.get('lost', []) %}
-                    <tr>
-                        <td style="font-weight:600;">{{ prospect.name }}</td>
-                        <td>{{ prospect.source|default('—') }}</td>
-                        <td style="font-size:12px;color:var(--text-muted);">{{ prospect.notes|default('—')|truncate(60) }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card-header"><i class="bi bi-kanban" style="color:var(--primary);"></i> Pipeline Summary</div>
+        <div class="card-body">
+            {% set pipeline_stages = [('Lead', prospects_by_stage.new|length, '#00DC82'), ('Contacted', prospects_by_stage.contacted|length, '#06b6d4'), ('Trial', prospects_by_stage.trial|length, '#f59e0b'), ('Converted', prospects_by_stage.converted|length, '#10b981')] %}
+            {% for name, cnt, color in pipeline_stages %}
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:{{ color }};flex-shrink:0;"></div>
+                <span style="font-size:13px;font-weight:600;min-width:90px;">{{ name }}</span>
+                <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+                    <div style="width:{{ (cnt / [active_count, 1]|max * 100)|round }}%;height:100%;background:{{ color }};border-radius:3px;"></div>
+                </div>
+                <span style="font-family:'Space Grotesk';font-size:16px;font-weight:700;">{{ cnt }}</span>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
-{% endif %}
+
+<!-- ═══ EX-MEMBERS TAB ═══ -->
+<div id="tab-ex" style="display:none;">
+    {% if ex_students %}
+    <div class="card">
+        <div class="card-header"><i class="bi bi-person-dash" style="color:var(--warning);"></i> Ex-Members ({{ ex_students|length }})</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Notes</th><th>Actions</th></tr></thead>
+                <tbody>
+                {% for p in ex_students %}
+                <tr>
+                    <td style="font-weight:600;">{{ p.first_name }} {{ p.last_name }}</td>
+                    <td style="font-size:12px;">{{ p.phone or '—' }}</td>
+                    <td style="font-size:12px;">{{ p.email or '—' }}</td>
+                    <td style="font-size:11px;color:var(--text-muted);max-width:200px;">{{ (p.notes or '—')[:60] }}</td>
+                    <td>
+                        <div style="display:flex;gap:4px;">
+                            {% if p.member_id %}
+                            <a href="/members/{{ p.member_id }}" class="btn btn-sm btn-outline-primary" style="font-size:10px;padding:3px 8px;"><i class="bi bi-eye"></i></a>
+                            <form method="post" action="/members/{{ p.member_id }}/toggle-status" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm btn-success" style="font-size:10px;padding:3px 8px;"><i class="bi bi-person-check"></i> Reactivate</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body empty-state"><i class="bi bi-person-dash"></i><p>No ex-members</p></div></div>
+    {% endif %}
+</div>
+
+<!-- ═══ ARCHIVED TAB ═══ -->
+<div id="tab-archived" style="display:none;">
+    {% if archived_prospects %}
+    <div class="card">
+        <div class="card-header"><i class="bi bi-archive" style="color:var(--text-muted);"></i> Archived ({{ archived_prospects|length }})</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr><th>Name</th><th>Source</th><th>Stage</th><th>Notes</th><th>Archived</th><th></th></tr></thead>
+                <tbody>
+                {% for p in archived_prospects %}
+                <tr>
+                    <td style="font-weight:600;">{{ p.first_name }} {{ p.last_name }}</td>
+                    <td><span class="prospect-source-badge" style="background:rgba(0,220,130,.08);color:var(--primary);">{{ p.source or '—' }}</span></td>
+                    <td style="font-size:12px;text-transform:capitalize;">{{ p.status }}</td>
+                    <td style="font-size:11px;color:var(--text-muted);max-width:200px;">{{ (p.notes or '—')[:60] }}</td>
+                    <td style="font-size:11px;color:var(--text-muted);">{{ (p.archived_at|string)[:10] if p.archived_at else '—' }}</td>
+                    <td>
+                        <button onclick="unarchiveProspect({{ p.id }})" class="btn btn-sm btn-outline-primary" style="font-size:10px;padding:3px 8px;"><i class="bi bi-arrow-counterclockwise"></i> Restore</button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body empty-state"><i class="bi bi-archive"></i><p>No archived prospects</p></div></div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchProspectTab(tab) {
+    ['pipeline','dashboard','ex','archived'].forEach(t => {
+        document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+    });
+    document.querySelectorAll('.prospect-tab').forEach((el, i) => {
+        const tabs = ['pipeline','dashboard','ex','archived'];
+        el.className = 'prospect-tab' + (tabs[i] === tab ? ' active' : '');
+    });
+}
+
+function moveProspect(prospectId, stage) {
+    fetch('/api/prospects/move', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prospect_id: prospectId, stage: stage})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
+}
+
+function dropProspect(event, stage) {
+    event.preventDefault();
+    const prospectId = event.dataTransfer.getData('text/plain');
+    if (prospectId) moveProspect(parseInt(prospectId), stage);
+}
+
+function archiveProspect(prospectId) {
+    if (!confirm('Archive this prospect?')) return;
+    fetch('/api/prospects/archive', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prospect_id: prospectId, archive: true})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+    });
+}
+
+function unarchiveProspect(prospectId) {
+    fetch('/api/prospects/archive', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prospect_id: prospectId, archive: false})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+    });
+}
+
+// Auto-switch to dashboard if URL has period filter
+if (new URL(window.location).searchParams.has('period')) {
+    switchProspectTab('dashboard');
+}
+</script>
 {% endblock %}

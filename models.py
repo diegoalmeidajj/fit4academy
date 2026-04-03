@@ -204,9 +204,12 @@ def init_db():
             source          TEXT DEFAULT '',
             status          TEXT DEFAULT 'new',
             interested_in   TEXT DEFAULT '',
+            previous_experience TEXT DEFAULT '',
             member_id       INTEGER,
             follow_up_date  DATE,
             notes           TEXT DEFAULT '',
+            archived        BOOLEAN DEFAULT 0,
+            archived_at     TIMESTAMP,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -389,6 +392,9 @@ def init_db():
         "ALTER TABLE members ADD COLUMN webauthn_public_key TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN interested_in TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN member_id INTEGER",
+        "ALTER TABLE prospects ADD COLUMN previous_experience TEXT DEFAULT ''",
+        "ALTER TABLE prospects ADD COLUMN archived BOOLEAN DEFAULT 0",
+        "ALTER TABLE prospects ADD COLUMN archived_at TIMESTAMP",
         """CREATE TABLE IF NOT EXISTS programs (
             id SERIAL PRIMARY KEY,
             academy_id INTEGER DEFAULT 1,
@@ -1590,12 +1596,13 @@ def create_prospect(academy_id=1, **kwargs):
     conn = get_db()
     cur = conn.execute(
         """INSERT INTO prospects (academy_id, first_name, last_name, email, phone,
-           source, status, interested_in, member_id, follow_up_date, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           source, status, interested_in, previous_experience, member_id, follow_up_date, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (academy_id, kwargs.get('first_name', ''), kwargs.get('last_name', ''),
          kwargs.get('email', ''), kwargs.get('phone', ''),
          kwargs.get('source', ''), kwargs.get('status', 'new'),
-         kwargs.get('interested_in', ''), kwargs.get('member_id'),
+         kwargs.get('interested_in', ''), kwargs.get('previous_experience', ''),
+         kwargs.get('member_id'),
          kwargs.get('follow_up_date'), kwargs.get('notes', ''))
     )
     conn.commit()
@@ -1607,7 +1614,8 @@ def create_prospect(academy_id=1, **kwargs):
 def update_prospect(prospect_id, **kwargs):
     conn = get_db()
     allowed = ['first_name', 'last_name', 'email', 'phone', 'source',
-               'status', 'follow_up_date', 'notes']
+               'status', 'follow_up_date', 'notes', 'previous_experience',
+               'interested_in', 'archived', 'archived_at']
     fields = []
     values = []
     for k, v in kwargs.items():
