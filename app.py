@@ -2858,6 +2858,25 @@ def prospect_convert(prospect_id):
     return redirect(url_for('prospects_list'))
 
 
+@app.route('/api/prospects/convert', methods=['POST'])
+@login_required
+def api_prospect_convert():
+    """Convert a prospect to a member via JSON API."""
+    data = request.get_json() or {}
+    prospect_id = data.get('prospect_id')
+    if not prospect_id:
+        return jsonify({'error': 'prospect_id required'}), 400
+    academy_id = _get_academy_id()
+    try:
+        member_id = models.convert_prospect_to_member(int(prospect_id), academy_id)
+        if member_id:
+            return jsonify({'success': True, 'member_id': member_id})
+        else:
+            return jsonify({'error': 'Could not convert prospect'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/prospects/move', methods=['POST'])
 @login_required
 def api_prospect_move():
