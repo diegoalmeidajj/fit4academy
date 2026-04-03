@@ -1743,18 +1743,35 @@ def api_program_unenroll(program_id):
 def api_search_members_program():
     q = request.args.get('q', '').strip()
     academy_id = _get_academy_id()
+    exclude_belt = request.args.get('exclude_belt', '')
     if not q:
         return jsonify([])
     try:
         conn = models.get_db()
-        rows = conn.execute(
-            """SELECT id, first_name, last_name, email, phone FROM members
-               WHERE academy_id = ? AND active = 1 AND (
-                   LOWER(first_name || ' ' || last_name) LIKE ? OR
-                   LOWER(email) LIKE ? OR phone LIKE ?
-               ) LIMIT 10""",
-            (academy_id, f'%{q.lower()}%', f'%{q.lower()}%', f'%{q}%')
-        ).fetchall()
+        if exclude_belt:
+            rows = conn.execute(
+                """SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.belt_rank_id, m.stripes,
+                          COALESCE(b.name, 'White') as belt_name
+                   FROM members m
+                   LEFT JOIN belt_ranks b ON b.id = m.belt_rank_id
+                   WHERE m.academy_id = ? AND m.active = 1 AND m.belt_rank_id != ? AND (
+                       LOWER(m.first_name || ' ' || m.last_name) LIKE ? OR
+                       LOWER(m.email) LIKE ? OR m.phone LIKE ?
+                   ) LIMIT 10""",
+                (academy_id, int(exclude_belt), f'%{q.lower()}%', f'%{q.lower()}%', f'%{q}%')
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.belt_rank_id, m.stripes,
+                          COALESCE(b.name, 'White') as belt_name
+                   FROM members m
+                   LEFT JOIN belt_ranks b ON b.id = m.belt_rank_id
+                   WHERE m.academy_id = ? AND m.active = 1 AND (
+                       LOWER(m.first_name || ' ' || m.last_name) LIKE ? OR
+                       LOWER(m.email) LIKE ? OR m.phone LIKE ?
+                   ) LIMIT 10""",
+                (academy_id, f'%{q.lower()}%', f'%{q.lower()}%', f'%{q}%')
+            ).fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])
     except Exception:
@@ -2299,7 +2316,40 @@ def api_belt_change_member():
     if not member_id or not belt_rank_id:
         return jsonify({'error': 'member_id and belt_rank_id required'}), 400
     try:
+        # Record promotion in history
+        member = models.get_member_by_id(int(member_id))
+        if member:
+            from_belt_id = member.get('belt_rank_id', 1)
+            if from_belt_id != int(belt_rank_id):
+                try:
+                    models.record_promotion(
+                        member_id=int(member_id),
+                        from_belt_id=from_belt_id,
+                        from_stripes=member.get('stripes', 0),
+                        to_belt_id=int(belt_rank_id),
+                        to_stripes=int(stripes),
+                        promotion_date=str(date.today()),
+                        promoted_by=session.get('display_name', ''),
+                        notes='Assigned from belt page',
+                    )
+                except Exception:
+                    pass
         models.update_member(int(member_id), belt_rank_id=int(belt_rank_id), stripes=int(stripes))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/belts/remove-member', methods=['POST'])
+@login_required
+def api_belt_remove_member():
+    """Remove a member from a belt — resets to White belt (id=1), 0 stripes."""
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    if not member_id:
+        return jsonify({'error': 'member_id required'}), 400
+    try:
+        models.update_member(int(member_id), belt_rank_id=1, stripes=0)
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
