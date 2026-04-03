@@ -2848,6 +2848,39 @@ def api_prospect_notes():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/prospects/reactivate', methods=['POST'])
+@login_required
+def api_prospect_reactivate():
+    """Reactivate an ex-member: set member to active and delete the prospect entry."""
+    data = request.get_json() or {}
+    member_id = data.get('member_id')
+    prospect_id = data.get('prospect_id')
+    if not member_id:
+        return jsonify({'error': 'member_id required'}), 400
+    try:
+        models.update_member(int(member_id), membership_status='active')
+        if prospect_id:
+            models.delete_prospect(int(prospect_id))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/prospects/delete', methods=['POST'])
+@login_required
+def api_prospect_delete_json():
+    """Delete a prospect via JSON API."""
+    data = request.get_json() or {}
+    prospect_id = data.get('prospect_id')
+    if not prospect_id:
+        return jsonify({'error': 'prospect_id required'}), 400
+    try:
+        models.delete_prospect(int(prospect_id))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/prospects/<int:prospect_id>/delete', methods=['POST'])
 @login_required
 def prospect_delete(prospect_id):

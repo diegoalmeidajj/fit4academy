@@ -250,12 +250,9 @@
                     <td>
                         <div style="display:flex;gap:4px;">
                             {% if p.member_id %}
-                            <a href="/members/{{ p.member_id }}" class="btn btn-sm btn-outline-primary" style="font-size:10px;padding:3px 8px;"><i class="bi bi-eye"></i></a>
-                            <form method="post" action="/members/{{ p.member_id }}/toggle-status" style="display:inline;">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="btn btn-sm btn-success" style="font-size:10px;padding:3px 8px;"><i class="bi bi-person-check"></i> Reactivate</button>
-                            </form>
+                            <button onclick="reactivateMember({{ p.member_id }}, {{ p.id }})" class="btn btn-sm btn-success" style="font-size:10px;padding:3px 8px;"><i class="bi bi-person-check"></i> Reactivate</button>
                             {% endif %}
+                            <button onclick="deleteExMember({{ p.id }}, '{{ p.first_name }} {{ p.last_name }}')" class="btn btn-sm" style="font-size:10px;padding:3px 8px;background:rgba(239,68,68,.08);color:var(--danger);border:none;"><i class="bi bi-trash3"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -350,6 +347,31 @@ function unarchiveProspect(prospectId) {
         body: JSON.stringify({prospect_id: prospectId, archive: false})
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
+    });
+}
+
+// 1-click reactivate ex-member
+function reactivateMember(memberId, prospectId) {
+    fetch('/api/prospects/reactivate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({member_id: memberId, prospect_id: prospectId})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
+    });
+}
+
+// Delete ex-member prospect
+function deleteExMember(prospectId, name) {
+    if (!confirm('Delete ' + name + ' from ex-members?')) return;
+    fetch('/api/prospects/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prospect_id: prospectId})
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Error: ' + (d.error || 'Unknown'));
     });
 }
 
