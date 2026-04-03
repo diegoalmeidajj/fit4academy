@@ -7,6 +7,13 @@
     overflow: hidden; transition: all .2s;
 }
 .product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.color-dot {
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border);
+    display: inline-block; cursor: default;
+}
+.variant-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; font-size: 11px; }
+.variant-grid > div { padding: 4px 6px; border-radius: 6px; background: rgba(0,220,130,.04); border: 1px solid var(--border); text-align: center; }
+.variant-grid .v-header { font-weight: 700; color: var(--text-muted); font-size: 9px; text-transform: uppercase; background: none; border: none; }
 {% endblock %}
 
 {% block content %}
@@ -51,6 +58,24 @@
             </div>
         </div>
         <div style="padding:14px 18px;">
+            <!-- Colors -->
+            {% if prod.colors %}
+            <div style="margin-bottom:10px;">
+                <div style="font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:4px;">COLORS</div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    {% for c in prod.colors.split(',') %}
+                    {% if c.strip() %}
+                    {% set cname = c.strip().lower() %}
+                    {% set cmap = {'white':'#f1f5f9','black':'#1e293b','blue':'#3b82f6','red':'#ef4444','navy':'#1e3a5f','grey':'#9ca3af','gray':'#9ca3af','pink':'#ec4899','green':'#22c55e','yellow':'#eab308','purple':'#8b5cf6','brown':'#92400e','orange':'#f97316'} %}
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <div class="color-dot" style="background:{{ cmap.get(cname, '#6b7280') }};{% if cname == 'white' %}border-color:#ccc;{% endif %}"></div>
+                        <span style="font-size:10px;color:var(--text-muted);text-transform:capitalize;">{{ c.strip() }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             <!-- Sizes -->
             {% if prod.sizes %}
             <div style="margin-bottom:10px;">
@@ -64,15 +89,35 @@
                 </div>
             </div>
             {% endif %}
-            <!-- Stock -->
+            <!-- Variants (stock per size/color) -->
+            {% if prod.variants %}
+            <div style="margin-bottom:10px;">
+                <div style="font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:4px;">STOCK BY VARIANT</div>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                    {% for v in prod.variants %}
+                    <div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;">
+                        {% if v.color %}
+                        {% set cname = v.color.lower() %}
+                        {% set cmap = {'white':'#f1f5f9','black':'#1e293b','blue':'#3b82f6','red':'#ef4444','navy':'#1e3a5f','grey':'#9ca3af','gray':'#9ca3af','pink':'#ec4899','green':'#22c55e','yellow':'#eab308','purple':'#8b5cf6','brown':'#92400e','orange':'#f97316'} %}
+                        <div class="color-dot" style="width:14px;height:14px;background:{{ cmap.get(cname, '#6b7280') }};{% if cname == 'white' %}border-color:#ccc;{% endif %}"></div>
+                        <span style="font-weight:600;min-width:50px;text-transform:capitalize;">{{ v.color }}</span>
+                        {% endif %}
+                        {% if v.size %}<span style="padding:1px 6px;border-radius:4px;background:rgba(0,220,130,.08);color:var(--primary);font-weight:600;">{{ v.size }}</span>{% endif %}
+                        <span style="margin-left:auto;font-family:'Space Grotesk';font-weight:700;color:{% if v.stock > 3 %}var(--success){% elif v.stock > 0 %}var(--warning){% else %}var(--danger){% endif %};">{{ v.stock }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            <!-- Total Stock -->
             <div style="display:flex;align-items:center;gap:8px;">
-                <div style="font-size:12px;font-weight:600;">Stock:</div>
+                <div style="font-size:12px;font-weight:600;">Total Stock:</div>
                 <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:{% if prod.stock > 5 %}var(--success){% elif prod.stock > 0 %}var(--warning){% else %}var(--danger){% endif %};">{{ prod.stock }}</div>
                 {% if prod.stock == 0 %}<span style="font-size:10px;color:var(--danger);font-weight:700;">OUT OF STOCK</span>{% endif %}
             </div>
         </div>
         <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:6px;">
-            <button class="btn btn-sm btn-outline-primary" style="flex:1;justify-content:center;" onclick="openEditProduct({{ prod.id }}, '{{ prod.name }}', '{{ prod.category }}', '{{ prod.sizes }}', {{ prod.price }}, {{ prod.stock }})"><i class="bi bi-pencil"></i> Edit</button>
+            <button class="btn btn-sm btn-outline-primary" style="flex:1;justify-content:center;" onclick="openEditProduct({{ prod.id }})"><i class="bi bi-pencil"></i> Edit</button>
             <button class="btn btn-sm" style="background:rgba(239,68,68,.08);color:var(--danger);border:none;" onclick="deleteProduct({{ prod.id }})"><i class="bi bi-trash3"></i></button>
         </div>
     </div>
@@ -89,13 +134,14 @@
     <div class="card-body p-0">
         <div class="table-responsive">
         <table class="data-table">
-            <thead><tr><th>Date</th><th>Member</th><th>Product</th><th>Size</th><th>Qty</th><th>Price</th></tr></thead>
+            <thead><tr><th>Date</th><th>Member</th><th>Product</th><th>Color</th><th>Size</th><th>Qty</th><th>Price</th></tr></thead>
             <tbody>
             {% for o in orders %}
             <tr>
                 <td style="font-size:12px;">{{ (o.created_at|string)[:10] }}</td>
                 <td style="font-weight:600;font-size:13px;">{{ o.first_name }} {{ o.last_name }}</td>
                 <td style="font-size:13px;">{{ o.product_name }}</td>
+                <td style="font-size:12px;text-transform:capitalize;">{{ o.color or '—' }}</td>
                 <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:rgba(0,220,130,.08);color:var(--primary);font-weight:600;">{{ o.size or '—' }}</span></td>
                 <td style="font-family:'Space Grotesk';font-weight:700;">{{ o.quantity }}</td>
                 <td style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(o.price) }}</td>
@@ -110,7 +156,7 @@
 
 <!-- Add Product Modal -->
 <div id="addProductModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
-    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;border:1px solid var(--border);">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto;border:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-bag-plus" style="color:var(--primary);"></i> New Product</h3>
             <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('addProductModal').style.display='none'">&times;</button>
@@ -134,22 +180,25 @@
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">Price *</label>
+                <label class="form-label">Base Price *</label>
                 <div style="position:relative;">
                     <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
                     <input type="number" id="prodPrice" class="form-control" step="0.01" min="0" required style="padding-left:28px;" placeholder="149.99">
                 </div>
             </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">Sizes (comma-separated)</label>
-            <input type="text" id="prodSizes" class="form-control" placeholder="A0, A1, A2, A3, A4, A5">
-            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Leave empty if not applicable. Example: XS, S, M, L, XL, XXL</div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Sizes (comma-separated)</label>
+                <input type="text" id="prodSizes" class="form-control" placeholder="A0, A1, A2, A3, A4" oninput="generateVariantGrid('add')">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Colors (comma-separated)</label>
+                <input type="text" id="prodColors" class="form-control" placeholder="White, Blue, Black" oninput="generateVariantGrid('add')">
+            </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">Stock Quantity *</label>
-            <input type="number" id="prodStock" class="form-control" min="0" value="0" placeholder="10">
-        </div>
+        <!-- Variant Stock Grid -->
+        <div id="variantGridAdd" style="margin-bottom:16px;"></div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
             <button class="btn btn-outline-secondary" onclick="document.getElementById('addProductModal').style.display='none'">Cancel</button>
             <button class="btn btn-primary" onclick="addProduct()"><i class="bi bi-check-lg"></i> Add Product</button>
@@ -159,7 +208,7 @@
 
 <!-- Edit Product Modal -->
 <div id="editProductModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
-    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;border:1px solid var(--border);">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto;border:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
             <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-pencil" style="color:var(--primary);"></i> Edit Product</h3>
             <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('editProductModal').style.display='none'">&times;</button>
@@ -184,21 +233,25 @@
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">Price *</label>
+                <label class="form-label">Base Price *</label>
                 <div style="position:relative;">
                     <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
                     <input type="number" id="editProdPrice" class="form-control" step="0.01" min="0" style="padding-left:28px;">
                 </div>
             </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">Sizes (comma-separated)</label>
-            <input type="text" id="editProdSizes" class="form-control">
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Sizes (comma-separated)</label>
+                <input type="text" id="editProdSizes" class="form-control" oninput="generateVariantGrid('edit')">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Colors (comma-separated)</label>
+                <input type="text" id="editProdColors" class="form-control" oninput="generateVariantGrid('edit')">
+            </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">Stock Quantity</label>
-            <input type="number" id="editProdStock" class="form-control" min="0">
-        </div>
+        <!-- Variant Stock Grid -->
+        <div id="variantGridEdit" style="margin-bottom:16px;"></div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
             <button class="btn btn-outline-secondary" onclick="document.getElementById('editProductModal').style.display='none'">Cancel</button>
             <button class="btn btn-primary" onclick="saveProduct()"><i class="bi bi-check-lg"></i> Save</button>
@@ -209,13 +262,108 @@
 
 {% block extra_js %}
 <script>
+// Store product data for editing
+const productData = {
+    {% for prod in products %}
+    {{ prod.id }}: {
+        name: "{{ prod.name }}",
+        category: "{{ prod.category }}",
+        sizes: "{{ prod.sizes }}",
+        colors: "{{ prod.colors or '' }}",
+        price: {{ prod.price }},
+        stock: {{ prod.stock }},
+        variants: {{ prod.variants|tojson }}
+    },
+    {% endfor %}
+};
+
+function generateVariantGrid(mode) {
+    const sizesEl = document.getElementById(mode === 'add' ? 'prodSizes' : 'editProdSizes');
+    const colorsEl = document.getElementById(mode === 'add' ? 'prodColors' : 'editProdColors');
+    const grid = document.getElementById(mode === 'add' ? 'variantGridAdd' : 'variantGridEdit');
+
+    const sizes = sizesEl.value.split(',').map(s => s.trim()).filter(s => s);
+    const colors = colorsEl.value.split(',').map(c => c.trim()).filter(c => c);
+
+    if (!sizes.length && !colors.length) { grid.innerHTML = ''; return; }
+
+    // Load existing variant stock values
+    let existingVariants = {};
+    if (mode === 'edit') {
+        const prodId = document.getElementById('editProdId').value;
+        const pd = productData[prodId];
+        if (pd && pd.variants) {
+            pd.variants.forEach(v => {
+                existingVariants[v.color + '|' + v.size] = v.stock;
+            });
+        }
+    }
+
+    let html = '<div style="font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:6px;">STOCK PER VARIANT</div>';
+    html += '<div style="border:1px solid var(--border);border-radius:10px;padding:8px;max-height:200px;overflow-y:auto;">';
+
+    if (colors.length && sizes.length) {
+        // Matrix: color x size
+        html += '<table style="width:100%;font-size:11px;border-collapse:collapse;">';
+        html += '<tr><th style="padding:4px;color:var(--text-muted);font-size:9px;"></th>';
+        sizes.forEach(s => { html += `<th style="padding:4px;text-align:center;color:var(--primary);font-weight:700;">${s}</th>`; });
+        html += '</tr>';
+        colors.forEach(c => {
+            html += `<tr><td style="padding:4px;font-weight:600;text-transform:capitalize;">${c}</td>`;
+            sizes.forEach(s => {
+                const existing = existingVariants[c + '|' + s] || 0;
+                html += `<td style="padding:2px;"><input type="number" class="form-control variant-stock" data-color="${c}" data-size="${s}" value="${existing}" min="0" style="width:100%;font-size:11px;padding:4px;text-align:center;"></td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</table>';
+    } else if (sizes.length) {
+        sizes.forEach(s => {
+            const existing = existingVariants['|' + s] || 0;
+            html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                <span style="font-weight:600;min-width:50px;">${s}</span>
+                <input type="number" class="form-control variant-stock" data-color="" data-size="${s}" value="${existing}" min="0" style="width:80px;font-size:11px;padding:4px;">
+            </div>`;
+        });
+    } else if (colors.length) {
+        colors.forEach(c => {
+            const existing = existingVariants[c + '|'] || 0;
+            html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                <span style="font-weight:600;min-width:60px;text-transform:capitalize;">${c}</span>
+                <input type="number" class="form-control variant-stock" data-color="${c}" data-size="" value="${existing}" min="0" style="width:80px;font-size:11px;padding:4px;">
+            </div>`;
+        });
+    }
+    html += '</div>';
+    grid.innerHTML = html;
+}
+
+function collectVariants(mode) {
+    const container = document.getElementById(mode === 'add' ? 'variantGridAdd' : 'variantGridEdit');
+    const inputs = container.querySelectorAll('.variant-stock');
+    const variants = [];
+    inputs.forEach(inp => {
+        const stock = parseInt(inp.value || 0);
+        variants.push({
+            size: inp.getAttribute('data-size') || '',
+            color: inp.getAttribute('data-color') || '',
+            stock: stock,
+        });
+    });
+    return variants;
+}
+
 function addProduct() {
+    const variants = collectVariants('add');
+    const totalStock = variants.length ? variants.reduce((sum, v) => sum + v.stock, 0) : parseInt(document.getElementById('prodStock')?.value || 0);
     const data = {
         name: document.getElementById('prodName').value,
         category: document.getElementById('prodCategory').value,
         price: document.getElementById('prodPrice').value,
         sizes: document.getElementById('prodSizes').value,
-        stock: document.getElementById('prodStock').value,
+        colors: document.getElementById('prodColors').value,
+        stock: totalStock,
+        variants: variants,
     };
     if (!data.name) { alert('Name is required'); return; }
     fetch('/api/products/add', {
@@ -228,24 +376,31 @@ function addProduct() {
     });
 }
 
-function openEditProduct(id, name, category, sizes, price, stock) {
+function openEditProduct(id) {
+    const p = productData[id];
+    if (!p) return;
     document.getElementById('editProdId').value = id;
-    document.getElementById('editProdName').value = name;
-    document.getElementById('editProdCategory').value = category;
-    document.getElementById('editProdSizes').value = sizes;
-    document.getElementById('editProdPrice').value = price;
-    document.getElementById('editProdStock').value = stock;
+    document.getElementById('editProdName').value = p.name;
+    document.getElementById('editProdCategory').value = p.category;
+    document.getElementById('editProdSizes').value = p.sizes;
+    document.getElementById('editProdColors').value = p.colors;
+    document.getElementById('editProdPrice').value = p.price;
+    generateVariantGrid('edit');
     document.getElementById('editProductModal').style.display = 'flex';
 }
 
 function saveProduct() {
     const id = document.getElementById('editProdId').value;
+    const variants = collectVariants('edit');
+    const totalStock = variants.length ? variants.reduce((sum, v) => sum + v.stock, 0) : 0;
     const data = {
         name: document.getElementById('editProdName').value,
         category: document.getElementById('editProdCategory').value,
         price: document.getElementById('editProdPrice').value,
         sizes: document.getElementById('editProdSizes').value,
-        stock: document.getElementById('editProdStock').value,
+        colors: document.getElementById('editProdColors').value,
+        stock: totalStock,
+        variants: variants,
     };
     fetch('/api/products/' + id + '/update', {
         method: 'POST',

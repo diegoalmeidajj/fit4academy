@@ -220,10 +220,20 @@ def init_db():
             name            TEXT NOT NULL,
             category        TEXT DEFAULT 'gear',
             sizes           TEXT DEFAULT '',
+            colors          TEXT DEFAULT '',
             price           REAL DEFAULT 0,
             stock           INTEGER DEFAULT 0,
             active          BOOLEAN DEFAULT 1,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS product_variants (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id      INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+            size            TEXT DEFAULT '',
+            color           TEXT DEFAULT '',
+            stock           INTEGER DEFAULT 0,
+            price_override  REAL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS order_items (
@@ -419,6 +429,16 @@ def init_db():
         "ALTER TABLE prospects ADD COLUMN previous_experience TEXT DEFAULT ''",
         "ALTER TABLE prospects ADD COLUMN archived BOOLEAN DEFAULT 0",
         "ALTER TABLE prospects ADD COLUMN archived_at TIMESTAMP",
+        "ALTER TABLE products ADD COLUMN colors TEXT DEFAULT ''",
+        """CREATE TABLE IF NOT EXISTS product_variants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+            size TEXT DEFAULT '',
+            color TEXT DEFAULT '',
+            stock INTEGER DEFAULT 0,
+            price_override REAL DEFAULT 0
+        )""",
+        "ALTER TABLE order_items ADD COLUMN color TEXT DEFAULT ''",
         """CREATE TABLE IF NOT EXISTS programs (
             id SERIAL PRIMARY KEY,
             academy_id INTEGER DEFAULT 1,
@@ -2588,9 +2608,9 @@ def get_all_products(academy_id=1):
 def create_product(academy_id=1, **kwargs):
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO products (academy_id, name, category, sizes, price, stock) VALUES (?,?,?,?,?,?)",
+        "INSERT INTO products (academy_id, name, category, sizes, colors, price, stock) VALUES (?,?,?,?,?,?,?)",
         (academy_id, kwargs.get('name', ''), kwargs.get('category', 'gear'),
-         kwargs.get('sizes', ''), kwargs.get('price', 0), kwargs.get('stock', 0))
+         kwargs.get('sizes', ''), kwargs.get('colors', ''), kwargs.get('price', 0), kwargs.get('stock', 0))
     )
     conn.commit()
     new_id = cur.lastrowid
@@ -2600,7 +2620,7 @@ def create_product(academy_id=1, **kwargs):
 
 def update_product(product_id, **kwargs):
     conn = get_db()
-    allowed = ['name', 'category', 'sizes', 'price', 'stock', 'active']
+    allowed = ['name', 'category', 'sizes', 'colors', 'price', 'stock', 'active']
     fields = []
     values = []
     for k, v in kwargs.items():
@@ -2623,6 +2643,32 @@ def delete_product(product_id):
     conn.commit()
     conn.close()
     return True
+
+
+def get_product_variants(product_id):
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT * FROM product_variants WHERE product_id = ? ORDER BY color, size", (product_id,)).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def set_product_variants(product_id, variants):
+    """Replace all variants for a product. variants = [{size, color, stock, price_override}]"""
+    conn = get_db()
+    conn.execute("DELETE FROM product_variants WHERE product_id = ?", (product_id,))
+    for v in variants:
+        conn.execute(
+            "INSERT INTO product_variants (product_id, size, color, stock, price_override) VALUES (?,?,?,?,?)",
+            (product_id, v.get('size', ''), v.get('color', ''), int(v.get('stock', 0)), float(v.get('price_override', 0)))
+        )
+    # Update total stock on product
+    total = sum(int(v.get('stock', 0)) for v in variants)
+    conn.execute("UPDATE products SET stock = ? WHERE id = ?", (total, product_id))
+    conn.commit()
+    conn.close()
 
 
 def create_order_item(academy_id=1, **kwargs):

@@ -2985,6 +2985,9 @@ def api_prospect_convert():
 def store_page():
     academy_id = _get_academy_id()
     products = models.get_all_products(academy_id)
+    # Load variants for each product
+    for p in products:
+        p['variants'] = models.get_product_variants(p['id'])
     # Get recent orders
     try:
         conn = models.get_db()
@@ -3022,9 +3025,14 @@ def api_products_add():
             name=data.get('name', ''),
             category=data.get('category', 'gear'),
             sizes=data.get('sizes', ''),
+            colors=data.get('colors', ''),
             price=float(data.get('price', 0)),
             stock=int(data.get('stock', 0)),
         )
+        # Create variants if sizes/colors provided
+        variants = data.get('variants', [])
+        if variants:
+            models.set_product_variants(pid, variants)
         return jsonify({'success': True, 'id': pid})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -3037,8 +3045,13 @@ def api_products_update(product_id):
     try:
         models.update_product(product_id,
             name=data.get('name'), category=data.get('category'),
-            sizes=data.get('sizes'), price=float(data.get('price', 0)),
+            sizes=data.get('sizes'), colors=data.get('colors', ''),
+            price=float(data.get('price', 0)),
             stock=int(data.get('stock', 0)))
+        # Update variants
+        variants = data.get('variants', [])
+        if variants:
+            models.set_product_variants(product_id, variants)
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
