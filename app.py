@@ -2002,12 +2002,122 @@ def checkin_history():
 @login_required
 def attendance_report():
     academy_id = _get_academy_id()
-    from datetime import datetime
     month = int(request.args.get('month', datetime.now().month))
     year = int(request.args.get('year', datetime.now().year))
     report = models.get_attendance_report(academy_id, month, year)
+
+    # Find members absent 15+ days
+    today = date.today()
+    absent_members = []
+    for m in report:
+        last = m.get('last_checkin')
+        if last:
+            try:
+                last_date = datetime.strptime(str(last)[:10], '%Y-%m-%d').date()
+                days_absent = (today - last_date).days
+                if days_absent >= 15:
+                    m['days_absent'] = days_absent
+                    absent_members.append(m)
+            except Exception:
+                pass
+        else:
+            # Never checked in — count from join or just mark as absent
+            m['days_absent'] = 999
+            absent_members.append(m)
+    absent_members.sort(key=lambda x: x.get('days_absent', 0), reverse=True)
+
+    # Top attendees this month
+    top_members = sorted([m for m in report if m.get('total_checkins', 0) > 0], key=lambda x: x['total_checkins'], reverse=True)[:5]
+
     months = ['January','February','March','April','May','June','July','August','September','October','November','December']
-    return render_template('attendance.html', report=report, month=month, year=year, months=months)
+    return render_template('attendance.html',
+        report=report, month=month, year=year, months=months,
+        absent_members=absent_members, top_members=top_members,
+        today=str(today),
+    )
+
+
+@app.route('/api/attendance/send-report', methods=['POST'])
+@login_required
+def api_send_attendance_report():
+    """Generate and send monthly attendance report via email or WhatsApp."""
+    data = request.get_json() or {}
+    method = data.get('method', 'email')
+    month = int(data.get('month', datetime.now().month))
+    year = int(data.get('year', datetime.now().year))
+    email = data.get('email', '').strip()
+    phone = data.get('phone', '').strip()
+    academy_id = _get_academy_id()
+
+    months_list = ['January','February','March','April','May','June','July','August','September','October','November','December']
+    month_name = months_list[month - 1]
+
+    # Generate report data
+    report = models.get_attendance_report(academy_id, month, year)
+    total = len(report)
+    active = len([m for m in report if m.get('total_checkins', 0) > 0])
+    total_checkins = sum(m.get('total_checkins', 0) for m in report)
+    pct = round(active / total * 100, 1) if total > 0 else 0
+
+    # Top 5
+    top5 = sorted([m for m in report if m.get('total_checkins', 0) > 0], key=lambda x: x['total_checkins'], reverse=True)[:5]
+
+    # Absent 15+ days
+    today_d = date.today()
+    absent = []
+    for m in report:
+        last = m.get('last_checkin')
+        if last:
+            try:
+                last_date = datetime.strptime(str(last)[:10], '%Y-%m-%d').date()
+                days = (today_d - last_date).days
+                if days >= 15:
+                    absent.append({'name': f"{m['first_name']} {m['last_name']}", 'days': days})
+            except Exception:
+                pass
+        else:
+            absent.append({'name': f"{m['first_name']} {m['last_name']}", 'days': 999})
+
+    # Build text report
+    lines = [
+        f"📊 *Attendance Report — {month_name} {year}*",
+        f"",
+        f"👥 Total Members: {total}",
+        f"✅ Trained: {active} ({pct}%)",
+        f"📋 Total Check-ins: {total_checkins}",
+        f"⚠️ Absent 15+ days: {len(absent)}",
+        f"",
+    ]
+    if top5:
+        lines.append("🏆 *Top Attendees:*")
+        for i, m in enumerate(top5):
+            medal = ['🥇','🥈','🥉','4️⃣','5️⃣'][i]
+            lines.append(f"  {medal} {m['first_name']} {m['last_name']} — {m['total_checkins']} check-ins")
+        lines.append("")
+
+    if absent:
+        lines.append(f"🚨 *Absent 15+ Days ({len(absent)}):*")
+        for a in absent[:10]:
+            days_txt = 'Never' if a['days'] == 999 else f"{a['days']} days"
+            lines.append(f"  ❌ {a['name']} — {days_txt}")
+        if len(absent) > 10:
+            lines.append(f"  ... and {len(absent) - 10} more")
+
+    report_text = '\n'.join(lines)
+
+    if method == 'whatsapp':
+        if not phone:
+            return jsonify({'error': 'Phone number required'}), 400
+        import urllib.parse
+        wa_url = f"https://wa.me/{phone.replace('+','').replace(' ','')}?text={urllib.parse.quote(report_text)}"
+        return jsonify({'success': True, 'whatsapp_url': wa_url, 'message': report_text})
+    elif method == 'email':
+        if not email:
+            return jsonify({'error': 'Email address required'}), 400
+        # For now, return the report text (email integration can be added later)
+        return jsonify({'success': True, 'message': report_text, 'note': 'Email delivery coming soon. Report text generated.'})
+    else:
+        return jsonify({'error': 'Invalid method'}), 400
 
 
 @app.route('/api/calendar/tasks')

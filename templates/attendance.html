@@ -1,34 +1,57 @@
 {% extends "base.html" %}
 {% block title %}Attendance Report{% endblock %}
+
+{% block extra_css %}
+.absent-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 12px;
+    background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.12);
+    transition: all .2s;
+}
+.absent-card:hover { background: rgba(239,68,68,0.1); }
+.top-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 12px;
+    background: rgba(0,220,130,0.06); border: 1px solid rgba(0,220,130,0.12);
+}
+.rank-badge {
+    width: 28px; height: 28px; border-radius: 8px; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    font-family: 'Space Grotesk';
+}
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1><i class="bi bi-graph-up" style="color:var(--primary);"></i> {{ t('attendance_title') if t('attendance_title') != 'attendance_title' else 'Attendance Report' }}</h1>
+<div class="topbar">
+    <h1><i class="bi bi-graph-up" style="color:var(--primary);"></i> Attendance Report</h1>
+    <div class="topbar-actions">
+        <button onclick="document.getElementById('reportModal').style.display='flex'" class="btn btn-primary"><i class="bi bi-envelope"></i> Send Report</button>
+    </div>
 </div>
 
 <!-- Month Selector -->
-<div class="card mb-24" style="overflow:hidden;">
-    <div class="card-body" style="padding:16px;">
-        <form method="get" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <select name="month" class="form-control" style="max-width:160px;">
-                {% for i in range(1,13) %}
-                <option value="{{ i }}" {{ 'selected' if i == month }}>{{ months[i-1] }}</option>
-                {% endfor %}
+<div class="card mb-16" style="overflow:hidden;">
+    <div class="card-body" style="padding:14px 16px;">
+        <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <select name="month" class="form-control" style="max-width:150px;">
+                {% for i in range(1,13) %}<option value="{{ i }}" {{ 'selected' if i == month }}>{{ months[i-1] }}</option>{% endfor %}
             </select>
             <select name="year" class="form-control" style="max-width:100px;">
-                {% for y in range(2024, 2028) %}
-                <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>
-                {% endfor %}
+                {% for y in range(2024, 2028) %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
             </select>
             <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filter</button>
         </form>
     </div>
 </div>
 
-<!-- Summary -->
+<!-- Summary Stats -->
 {% set total_members = report|length %}
 {% set active_members = report|selectattr('total_checkins', 'greaterthan', 0)|list|length %}
 {% set total_checkins = report|sum(attribute='total_checkins') %}
-<div class="grid-4 mb-24">
+{% set inactive_count = total_members - active_members %}
+{% set attendance_pct = ((active_members / total_members * 100)|round(1)) if total_members > 0 else 0 %}
+
+<div class="grid-4 mb-16">
     <div class="stat-card stat-blue">
         <div class="stat-icon"><i class="bi bi-people"></i></div>
         <div class="stat-value">{{ total_members }}</div>
@@ -37,25 +60,116 @@
     <div class="stat-card stat-green">
         <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
         <div class="stat-value">{{ active_members }}</div>
-        <div class="stat-label">Trained This Month</div>
+        <div class="stat-label">Trained ({{ attendance_pct }}%)</div>
     </div>
     <div class="stat-card stat-purple">
         <div class="stat-icon"><i class="bi bi-qr-code-scan"></i></div>
         <div class="stat-value">{{ total_checkins }}</div>
         <div class="stat-label">Total Check-ins</div>
     </div>
-    <div class="stat-card stat-orange">
+    <div class="stat-card stat-red">
         <div class="stat-icon"><i class="bi bi-emoji-frown"></i></div>
-        <div class="stat-value">{{ total_members - active_members }}</div>
-        <div class="stat-label">Inactive (0 check-ins)</div>
+        <div class="stat-value">{{ absent_members|length }}</div>
+        <div class="stat-label">Absent 15+ days</div>
     </div>
 </div>
 
-<!-- Attendance Table -->
+<!-- Attendance % Bar -->
+<div class="card mb-16">
+    <div class="card-body" style="padding:14px 18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:12px;font-weight:700;color:var(--text);">Monthly Attendance Rate</span>
+            <span style="font-family:'Space Grotesk';font-size:18px;font-weight:800;color:{% if attendance_pct >= 70 %}var(--success){% elif attendance_pct >= 40 %}var(--warning){% else %}var(--danger){% endif %};">{{ attendance_pct }}%</span>
+        </div>
+        <div style="width:100%;height:10px;background:var(--border);border-radius:5px;overflow:hidden;">
+            <div style="width:{{ attendance_pct }}%;height:100%;background:{% if attendance_pct >= 70 %}linear-gradient(90deg,#00DC82,#10b981){% elif attendance_pct >= 40 %}linear-gradient(90deg,#f59e0b,#fbbf24){% else %}linear-gradient(90deg,#ef4444,#f87171){% endif %};border-radius:5px;transition:width .5s ease;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-muted);">
+            <span>{{ active_members }} active</span>
+            <span>{{ inactive_count }} inactive</span>
+        </div>
+    </div>
+</div>
+
+<!-- Absent 15+ Days Alert + Top Members -->
+<div class="grid-2" style="margin-bottom:16px;">
+    <!-- Absent Members -->
+    <div class="card" style="border-color:rgba(239,68,68,0.2);">
+        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+            <i class="bi bi-exclamation-triangle" style="color:var(--danger);"></i>
+            <span style="font-weight:700;">Absent 15+ Days</span>
+            <span style="margin-left:auto;font-family:'Space Grotesk';font-size:18px;font-weight:800;color:var(--danger);">{{ absent_members|length }}</span>
+        </div>
+        <div class="card-body" style="padding:12px;max-height:300px;overflow-y:auto;">
+            {% if absent_members %}
+            {% for m in absent_members[:10] %}
+            <div class="absent-card" style="margin-bottom:{% if not loop.last %}8px{% else %}0{% endif %};">
+                <div class="member-photo" style="width:32px;height:32px;font-size:10px;background:linear-gradient(135deg,#ef4444,#dc2626);">
+                    {{ m.first_name[0] }}{{ m.last_name[0] }}
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:700;font-size:13px;">{{ m.first_name }} {{ m.last_name }}</div>
+                    <div style="font-size:10px;color:var(--text-muted);">
+                        {% if m.days_absent == 999 %}Never checked in
+                        {% else %}Last seen {{ m.days_absent }} days ago{% endif %}
+                    </div>
+                </div>
+                <span style="font-family:'Space Grotesk';font-size:14px;font-weight:800;color:var(--danger);white-space:nowrap;">
+                    {% if m.days_absent == 999 %}<i class="bi bi-x-circle"></i>{% else %}{{ m.days_absent }}d{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+            {% if absent_members|length > 10 %}
+            <div style="text-align:center;padding:8px;font-size:11px;color:var(--text-muted);">+{{ absent_members|length - 10 }} more...</div>
+            {% endif %}
+            {% else %}
+            <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">All members are active!</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Top Attendees -->
+    <div class="card" style="border-color:rgba(0,220,130,0.2);">
+        <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+            <i class="bi bi-trophy" style="color:var(--primary);"></i>
+            <span style="font-weight:700;">Top Attendees — {{ months[month-1] }}</span>
+        </div>
+        <div class="card-body" style="padding:12px;">
+            {% if top_members %}
+            {% for m in top_members %}
+            <div class="top-card" style="margin-bottom:{% if not loop.last %}8px{% else %}0{% endif %};">
+                <div class="rank-badge" style="background:{% if loop.index == 1 %}linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;{% elif loop.index == 2 %}rgba(148,163,184,0.2);color:#94a3b8;{% elif loop.index == 3 %}rgba(180,130,80,0.2);color:#b4824f;{% else %}rgba(0,220,130,0.1);color:var(--primary);{% endif %}">
+                    {{ loop.index }}
+                </div>
+                <div class="member-photo" style="width:32px;height:32px;font-size:10px;">
+                    {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.first_name[0] }}{{ m.last_name[0] }}{% endif %}
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:700;font-size:13px;">{{ m.first_name }} {{ m.last_name }}</div>
+                    <div style="font-size:10px;color:var(--text-muted);">{{ m.belt_name or 'White' }}</div>
+                </div>
+                <span style="font-family:'Space Grotesk';font-size:18px;font-weight:800;color:var(--primary);">{{ m.total_checkins }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No check-ins this month</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Search Bar + Full Attendance Table -->
 <div class="card">
+    <div class="card-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-weight:700;"><i class="bi bi-list-check"></i> All Members</span>
+        <div style="position:relative;flex:1;max-width:300px;margin-left:auto;">
+            <input type="text" id="memberSearch" class="form-control" placeholder="Search member..." oninput="filterMembers()" style="font-size:12px;padding:7px 32px 7px 12px;">
+            <i class="bi bi-search" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;"></i>
+        </div>
+    </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-        <table class="table flight-table">
+        <table class="data-table" id="attendanceTable">
             <thead>
                 <tr>
                     <th>Member</th>
@@ -68,20 +182,18 @@
             </thead>
             <tbody>
             {% for m in report %}
-            <tr>
+            <tr data-name="{{ m.first_name|lower }} {{ m.last_name|lower }}">
                 <td>
                     <div style="display:flex;align-items:center;gap:10px;">
-                        <div class="member-photo" style="width:36px;height:36px;font-size:12px;">
+                        <div class="member-photo" style="width:34px;height:34px;font-size:11px;">
                             {% if m.photo %}<img src="{{ m.photo }}">{% else %}{{ m.first_name[0] }}{{ m.last_name[0] }}{% endif %}
                         </div>
-                        <div>
-                            <a href="/members/{{ m.id }}" style="font-weight:600;font-size:13px;color:var(--text);text-decoration:none;">{{ m.first_name }} {{ m.last_name }}</a>
-                        </div>
+                        <a href="/members/{{ m.id }}" style="font-weight:600;font-size:13px;color:var(--text);text-decoration:none;">{{ m.first_name }} {{ m.last_name }}</a>
                     </div>
                 </td>
                 <td>
                     {% if m.belt_name %}
-                    <span class="badge-pill" style="background:{{ m.belt_color or '#64748b' }};color:{% if m.belt_name in ['White','Yellow','Grey'] %}#333{% else %}#fff{% endif %};font-size:11px;">{{ m.belt_name }}</span>
+                    <span class="belt-badge" style="background:{{ m.belt_color or '#64748b' }};color:{% if m.belt_name in ['White','Yellow','Grey'] %}#333{% else %}#fff{% endif %};font-size:10px;">{{ m.belt_name }}</span>
                     {% else %}--{% endif %}
                 </td>
                 <td style="text-align:center;">
@@ -91,8 +203,8 @@
                 </td>
                 <td style="text-align:center;">
                     {% set freq = (m.total_checkins / 4.3)|round(1) %}
-                    <div style="font-size:12px;color:var(--text-muted);">{{ freq }}x/week</div>
-                    <div style="width:80px;height:6px;background:var(--border);border-radius:3px;margin:4px auto 0;overflow:hidden;">
+                    <div style="font-size:11px;color:var(--text-muted);">{{ freq }}x/week</div>
+                    <div style="width:70px;height:5px;background:var(--border);border-radius:3px;margin:3px auto 0;overflow:hidden;">
                         <div style="width:{{ [m.total_checkins / 20 * 100, 100]|min }}%;height:100%;background:{% if m.total_checkins >= 12 %}var(--success){% elif m.total_checkins >= 4 %}var(--primary){% else %}var(--warning){% endif %};border-radius:3px;"></div>
                     </div>
                 </td>
@@ -101,13 +213,13 @@
                 </td>
                 <td>
                     {% if m.total_checkins >= 12 %}
-                    <span class="badge-pill" style="background:rgba(16,185,129,.12);color:#10b981;"><i class="bi bi-fire"></i> Dedicated</span>
+                    <span class="badge-pill" style="background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.2);"><i class="bi bi-fire"></i> Dedicated</span>
                     {% elif m.total_checkins >= 4 %}
-                    <span class="badge-pill" style="background:rgba(0,220,130,.12);color:#00DC82;"><i class="bi bi-check"></i> Regular</span>
+                    <span class="badge-pill" style="background:rgba(0,220,130,.12);color:#00DC82;border:1px solid rgba(0,220,130,.2);"><i class="bi bi-check"></i> Regular</span>
                     {% elif m.total_checkins > 0 %}
-                    <span class="badge-pill" style="background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-exclamation"></i> Irregular</span>
+                    <span class="badge-pill" style="background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.2);"><i class="bi bi-exclamation"></i> Irregular</span>
                     {% else %}
-                    <span class="badge-pill" style="background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-x"></i> Inactive</span>
+                    <span class="badge-pill" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.2);"><i class="bi bi-x"></i> Inactive</span>
                     {% endif %}
                 </td>
             </tr>
@@ -120,4 +232,95 @@
         </div>
     </div>
 </div>
+
+<!-- Send Report Modal -->
+<div id="reportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px);" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width:100%;max-width:480px;margin:20px;">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-weight:700;"><i class="bi bi-envelope" style="color:var(--primary);"></i> Send Monthly Report</span>
+            <button onclick="document.getElementById('reportModal').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="card-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+                Send the <strong>{{ months[month-1] }} {{ year }}</strong> attendance report with:
+                attendance %, top members, absent members, and full breakdown.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Send via</label>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="sendReport('email')" class="btn btn-primary" style="flex:1;"><i class="bi bi-envelope"></i> Email</button>
+                    <button onclick="sendReport('whatsapp')" class="btn btn-success" style="flex:1;"><i class="bi bi-whatsapp"></i> WhatsApp</button>
+                </div>
+            </div>
+            <div class="form-group" id="emailField" style="display:none;">
+                <label class="form-label">Email address</label>
+                <input type="email" id="reportEmail" class="form-control" placeholder="owner@academy.com">
+            </div>
+            <div class="form-group" id="whatsappField" style="display:none;">
+                <label class="form-label">WhatsApp number (with country code)</label>
+                <input type="tel" id="reportPhone" class="form-control" placeholder="+5511999999999">
+            </div>
+            <button id="sendBtn" onclick="doSendReport()" class="btn btn-primary" style="width:100%;display:none;margin-top:8px;"><i class="bi bi-send"></i> Send Report</button>
+            <div id="reportResult" style="margin-top:12px;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterMembers() {
+    const q = document.getElementById('memberSearch').value.toLowerCase();
+    document.querySelectorAll('#attendanceTable tbody tr').forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        row.style.display = name.includes(q) ? '' : 'none';
+    });
+}
+
+let reportMethod = '';
+function sendReport(method) {
+    reportMethod = method;
+    document.getElementById('emailField').style.display = method === 'email' ? 'block' : 'none';
+    document.getElementById('whatsappField').style.display = method === 'whatsapp' ? 'block' : 'none';
+    document.getElementById('sendBtn').style.display = 'block';
+}
+
+function doSendReport() {
+    const btn = document.getElementById('sendBtn');
+    const result = document.getElementById('reportResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+
+    const data = {
+        method: reportMethod,
+        month: {{ month }},
+        year: {{ year }},
+        email: document.getElementById('reportEmail')?.value || '',
+        phone: document.getElementById('reportPhone')?.value || '',
+    };
+
+    fetch('/api/attendance/send-report', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send"></i> Send Report';
+        if (d.success) {
+            if (d.whatsapp_url) {
+                window.open(d.whatsapp_url, '_blank');
+                result.innerHTML = '<div class="alert alert-success" style="margin:0;"><i class="bi bi-check-circle"></i> WhatsApp opened!</div>';
+            } else {
+                result.innerHTML = '<div class="alert alert-success" style="margin:0;"><i class="bi bi-check-circle"></i> Report generated!</div>';
+            }
+        } else {
+            result.innerHTML = '<div class="alert alert-danger" style="margin:0;"><i class="bi bi-x-circle"></i> ' + (d.error || 'Error sending report') + '</div>';
+        }
+    }).catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send"></i> Send Report';
+        result.innerHTML = '<div class="alert alert-danger" style="margin:0;">Network error</div>';
+    });
+}
+</script>
 {% endblock %}
