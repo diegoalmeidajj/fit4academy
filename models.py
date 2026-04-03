@@ -214,6 +214,30 @@ def init_db():
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS products (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id      INTEGER DEFAULT 1 REFERENCES academies(id),
+            name            TEXT NOT NULL,
+            category        TEXT DEFAULT 'gear',
+            sizes           TEXT DEFAULT '',
+            price           REAL DEFAULT 0,
+            stock           INTEGER DEFAULT 0,
+            active          BOOLEAN DEFAULT 1,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS order_items (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id      INTEGER DEFAULT 1,
+            member_id       INTEGER REFERENCES members(id),
+            product_id      INTEGER REFERENCES products(id),
+            size            TEXT DEFAULT '',
+            quantity         INTEGER DEFAULT 1,
+            price           REAL DEFAULT 0,
+            payment_id      INTEGER REFERENCES payments(id),
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS events (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             academy_id      INTEGER DEFAULT 1 REFERENCES academies(id),
@@ -2545,3 +2569,71 @@ def get_members_by_program(academy_id, program_id):
         rows = []
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ═══════════════════════════════════════════════════════════════
+# Products / Store
+# ═══════════════════════════════════════════════════════════════
+
+def get_all_products(academy_id=1):
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT * FROM products WHERE academy_id = ? AND active = 1 ORDER BY name", (academy_id,)).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def create_product(academy_id=1, **kwargs):
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO products (academy_id, name, category, sizes, price, stock) VALUES (?,?,?,?,?,?)",
+        (academy_id, kwargs.get('name', ''), kwargs.get('category', 'gear'),
+         kwargs.get('sizes', ''), kwargs.get('price', 0), kwargs.get('stock', 0))
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return new_id
+
+
+def update_product(product_id, **kwargs):
+    conn = get_db()
+    allowed = ['name', 'category', 'sizes', 'price', 'stock', 'active']
+    fields = []
+    values = []
+    for k, v in kwargs.items():
+        if k in allowed:
+            fields.append(f"{k} = ?")
+            values.append(v)
+    if not fields:
+        conn.close()
+        return False
+    values.append(product_id)
+    conn.execute(f"UPDATE products SET {', '.join(fields)} WHERE id = ?", tuple(values))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def delete_product(product_id):
+    conn = get_db()
+    conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def create_order_item(academy_id=1, **kwargs):
+    conn = get_db()
+    cur = conn.execute(
+        "INSERT INTO order_items (academy_id, member_id, product_id, size, quantity, price, payment_id) VALUES (?,?,?,?,?,?,?)",
+        (academy_id, kwargs.get('member_id'), kwargs.get('product_id'),
+         kwargs.get('size', ''), kwargs.get('quantity', 1),
+         kwargs.get('price', 0), kwargs.get('payment_id'))
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return new_id

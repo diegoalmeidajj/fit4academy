@@ -322,17 +322,18 @@
 
 <!-- ═══ ENROLLMENT MODAL ═══ -->
 <div id="enrollModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px);" onclick="if(event.target===this)this.style.display='none'">
-    <div class="card" style="width:100%;max-width:500px;margin:20px;">
+    <div class="card" style="width:100%;max-width:560px;margin:20px;max-height:90vh;overflow-y:auto;">
         <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
             <span style="font-weight:700;"><i class="bi bi-person-plus-fill" style="color:var(--primary);"></i> New Member Enrollment</span>
             <button onclick="document.getElementById('enrollModal').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;"><i class="bi bi-x-lg"></i></button>
         </div>
         <div class="card-body">
-            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;" id="enrollName"></div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;" id="enrollName"></div>
             <input type="hidden" id="enrollProspectId">
 
+            <!-- Program -->
             <div class="form-group">
-                <label class="form-label">Program</label>
+                <label class="form-label"><i class="bi bi-collection"></i> Program</label>
                 <select id="enrollProgram" class="form-select">
                     <option value="">No program</option>
                     {% for prog in programs %}
@@ -341,38 +342,81 @@
                 </select>
             </div>
 
+            <!-- Multiple Membership Plans -->
             <div class="form-group">
-                <label class="form-label">Membership Plan</label>
-                <select id="enrollPlan" class="form-select" onchange="updatePlanPrice()">
-                    <option value="" data-price="0">No plan</option>
+                <label class="form-label"><i class="bi bi-card-checklist"></i> Membership Plans</label>
+                <div style="border:1px solid var(--border);border-radius:10px;padding:8px;max-height:160px;overflow-y:auto;">
                     {% for plan in membership_plans %}
-                    <option value="{{ plan.id }}" data-price="{{ plan.price }}">{{ plan.name }} — {{ currency_symbol }}{{ "%.2f"|format(plan.price) }}/{{ plan.billing_cycle }}</option>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:6px;cursor:pointer;font-size:13px;" onmouseover="this.style.background='rgba(0,220,130,.04)'" onmouseout="this.style.background=''">
+                        <input type="checkbox" class="enroll-plan-check" value="{{ plan.id }}" data-price="{{ plan.price }}" onchange="recalcTotal()" style="width:16px;height:16px;flex-shrink:0;">
+                        <span style="flex:1;font-weight:600;">{{ plan.name }}</span>
+                        <span style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(plan.price) }}</span>
+                        <span style="font-size:10px;color:var(--text-muted);">/{{ plan.billing_cycle }}</span>
+                    </label>
                     {% endfor %}
-                </select>
+                    {% if not membership_plans %}
+                    <div style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);">No plans yet. Create one in Memberships.</div>
+                    {% endif %}
+                </div>
             </div>
 
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Amount Paid</label>
-                    <div style="position:relative;">
-                        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px;">{{ currency_symbol }}</span>
-                        <input type="number" id="enrollAmount" class="form-control" step="0.01" min="0" value="0" style="padding-left:30px;">
+            <!-- Products / Store -->
+            <div class="form-group">
+                <label class="form-label"><i class="bi bi-bag"></i> Products (optional)</label>
+                <div id="enrollProducts" style="border:1px solid var(--border);border-radius:10px;padding:8px;">
+                    {% for prod in products %}
+                    <div class="enroll-product-row" style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:6px;font-size:13px;{% if not loop.last %}border-bottom:1px solid var(--border);margin-bottom:4px;padding-bottom:8px;{% endif %}">
+                        <input type="checkbox" class="enroll-prod-check" value="{{ prod.id }}" data-price="{{ prod.price }}" data-sizes="{{ prod.sizes }}" onchange="toggleProductRow(this)" style="width:16px;height:16px;flex-shrink:0;">
+                        <div style="flex:1;">
+                            <div style="font-weight:600;">{{ prod.name }}</div>
+                            <div style="font-size:10px;color:var(--text-muted);">Stock: {{ prod.stock }}</div>
+                        </div>
+                        <div class="prod-options" style="display:none;gap:6px;align-items:center;">
+                            <select class="form-select prod-size" style="width:auto;font-size:11px;padding:4px 8px;">
+                                {% for s in (prod.sizes or '').split(',') %}
+                                {% if s.strip() %}<option value="{{ s.strip() }}">{{ s.strip() }}</option>{% endif %}
+                                {% endfor %}
+                            </select>
+                            <input type="number" class="form-control prod-qty" value="1" min="1" style="width:50px;font-size:11px;padding:4px;" onchange="recalcTotal()">
+                            <input type="number" class="form-control prod-price" value="{{ prod.price }}" step="0.01" style="width:70px;font-size:11px;padding:4px;" onchange="recalcTotal()">
+                        </div>
+                        <span style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);min-width:60px;text-align:right;">{{ currency_symbol }}{{ "%.2f"|format(prod.price) }}</span>
+                    </div>
+                    {% endfor %}
+                    {% if not products %}
+                    <div style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);">No products. Add them via API or Settings.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Total + Payment -->
+            <div style="background:rgba(0,220,130,.06);border:1px solid rgba(0,220,130,.15);border-radius:10px;padding:12px;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <span style="font-size:12px;font-weight:600;">Total</span>
+                    <span id="enrollTotal" style="font-family:'Space Grotesk';font-size:22px;font-weight:800;color:var(--primary);">{{ currency_symbol }}0.00</span>
+                </div>
+                <div class="grid-2" style="gap:8px;">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Amount Paid</label>
+                        <div style="position:relative;">
+                            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;">{{ currency_symbol }}</span>
+                            <input type="number" id="enrollAmount" class="form-control" step="0.01" min="0" value="0" style="padding-left:26px;font-size:13px;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Payment Method</label>
+                        <select id="enrollPayMethod" class="form-select" style="font-size:13px;">
+                            <option value="cash">Cash</option>
+                            <option value="credit_card">Credit Card</option>
+                            <option value="debit_card">Debit Card</option>
+                            <option value="pix">PIX</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                        </select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Payment Method</label>
-                    <select id="enrollPayMethod" class="form-select">
-                        <option value="cash">Cash</option>
-                        <option value="credit_card">Credit Card</option>
-                        <option value="debit_card">Debit Card</option>
-                        <option value="pix">PIX</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
             </div>
 
-            <button onclick="submitEnrollment()" id="enrollBtn" style="width:100%;padding:10px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:linear-gradient(135deg,#00DC82,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;">
+            <button onclick="submitEnrollment()" id="enrollBtn" style="width:100%;padding:12px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:700;background:linear-gradient(135deg,#00DC82,#059669);color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;">
                 <i class="bi bi-check-lg"></i> Create Member & Record Payment
             </button>
         </div>
@@ -455,16 +499,41 @@ function openEnrollModal(prospectId, name) {
     document.getElementById('enrollName').textContent = name;
     document.getElementById('enrollAmount').value = '0';
     document.getElementById('enrollProgram').value = '';
-    document.getElementById('enrollPlan').value = '';
+    // Uncheck all plans and products
+    document.querySelectorAll('.enroll-plan-check').forEach(c => c.checked = false);
+    document.querySelectorAll('.enroll-prod-check').forEach(c => { c.checked = false; toggleProductRow(c); });
+    recalcTotal();
     document.getElementById('enrollModal').style.display = 'flex';
 }
 
-// Auto-fill amount from plan price
-function updatePlanPrice() {
-    const sel = document.getElementById('enrollPlan');
-    const opt = sel.options[sel.selectedIndex];
-    const price = opt.getAttribute('data-price') || '0';
-    document.getElementById('enrollAmount').value = price;
+// Toggle product size/qty/price options
+function toggleProductRow(checkbox) {
+    const row = checkbox.closest('.enroll-product-row');
+    const opts = row.querySelector('.prod-options');
+    if (checkbox.checked) {
+        opts.style.display = 'flex';
+    } else {
+        opts.style.display = 'none';
+    }
+    recalcTotal();
+}
+
+// Recalculate total from selected plans + products
+function recalcTotal() {
+    let total = 0;
+    // Plans
+    document.querySelectorAll('.enroll-plan-check:checked').forEach(c => {
+        total += parseFloat(c.getAttribute('data-price') || 0);
+    });
+    // Products
+    document.querySelectorAll('.enroll-prod-check:checked').forEach(c => {
+        const row = c.closest('.enroll-product-row');
+        const qty = parseInt(row.querySelector('.prod-qty')?.value || 1);
+        const price = parseFloat(row.querySelector('.prod-price')?.value || 0);
+        total += qty * price;
+    });
+    document.getElementById('enrollTotal').textContent = '{{ currency_symbol }}' + total.toFixed(2);
+    document.getElementById('enrollAmount').value = total.toFixed(2);
 }
 
 // Submit enrollment
@@ -473,10 +542,29 @@ function submitEnrollment() {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
 
+    // Collect selected plans
+    const planIds = [];
+    document.querySelectorAll('.enroll-plan-check:checked').forEach(c => {
+        planIds.push(parseInt(c.value));
+    });
+
+    // Collect selected products
+    const products = [];
+    document.querySelectorAll('.enroll-prod-check:checked').forEach(c => {
+        const row = c.closest('.enroll-product-row');
+        products.push({
+            product_id: parseInt(c.value),
+            size: row.querySelector('.prod-size')?.value || '',
+            quantity: parseInt(row.querySelector('.prod-qty')?.value || 1),
+            price: parseFloat(row.querySelector('.prod-price')?.value || 0),
+        });
+    });
+
     const data = {
         prospect_id: parseInt(document.getElementById('enrollProspectId').value),
         program_id: document.getElementById('enrollProgram').value || null,
-        plan_id: document.getElementById('enrollPlan').value || null,
+        plan_ids: planIds,
+        products: products,
         amount: document.getElementById('enrollAmount').value || 0,
         payment_method: document.getElementById('enrollPayMethod').value,
     };

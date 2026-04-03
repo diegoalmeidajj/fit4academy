@@ -2814,6 +2814,7 @@ def prospects_list():
         period=period, date_from=date_from, date_to=date_to,
         programs=models.get_programs(academy_id),
         membership_plans=models.get_all_membership_plans(academy_id),
+        products=models.get_all_products(academy_id),
     )
 
 
@@ -2905,7 +2906,7 @@ def prospect_convert(prospect_id):
 @app.route('/api/prospects/convert', methods=['POST'])
 @login_required
 def api_prospect_convert():
-    """Convert a prospect to a member with program, membership plan and payment."""
+    """Convert a prospect to a member with programs, multiple plans, products and payment."""
     data = request.get_json() or {}
     prospect_id = data.get('prospect_id')
     if not prospect_id:
@@ -2924,33 +2925,107 @@ def api_prospect_convert():
             except Exception:
                 pass
 
-        # Create membership
-        plan_id = data.get('plan_id')
-        membership_id = None
-        if plan_id:
+        # Create multiple memberships
+        plan_ids = data.get('plan_ids', [])
+        plan_id = data.get('plan_id')  # backward compat
+        if plan_id and plan_id not in plan_ids:
+            plan_ids.append(plan_id)
+        for pid in plan_ids:
             try:
-                membership_id = models.create_membership(member_id, int(plan_id))
+                models.create_membership(member_id, int(pid))
             except Exception:
                 pass
 
-        # Record payment
+        # Record payment (memberships + products total)
         amount = data.get('amount')
         if amount and float(amount) > 0:
             try:
-                models.create_payment(
+                payment_id = models.create_payment(
                     member_id=member_id,
                     amount=float(amount),
                     academy_id=academy_id,
-                    membership_id=membership_id,
                     method=data.get('payment_method', 'cash'),
                     status='completed',
                     notes=f"Enrollment payment — converted from lead #{prospect_id}",
                     payment_date=str(date.today()),
                 )
             except Exception:
-                pass
+                payment_id = None
+
+            # Record product orders
+            products = data.get('products', [])
+            for item in products:
+                try:
+                    models.create_order_item(
+                        academy_id=academy_id,
+                        member_id=member_id,
+                        product_id=int(item.get('product_id')),
+                        size=item.get('size', ''),
+                        quantity=int(item.get('quantity', 1)),
+                        price=float(item.get('price', 0)),
+                        payment_id=payment_id,
+                    )
+                    # Decrease stock
+                    prod = models.get_all_products(academy_id)
+                    for p in prod:
+                        if p['id'] == int(item.get('product_id')):
+                            new_stock = max(0, p.get('stock', 0) - int(item.get('quantity', 1)))
+                            models.update_product(p['id'], stock=new_stock)
+                            break
+                except Exception:
+                    pass
 
         return jsonify({'success': True, 'member_id': member_id})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/products', methods=['GET'])
+@login_required
+def api_products_list():
+    academy_id = _get_academy_id()
+    return jsonify(models.get_all_products(academy_id))
+
+
+@app.route('/api/products/add', methods=['POST'])
+@login_required
+def api_products_add():
+    data = request.get_json() or {}
+    academy_id = _get_academy_id()
+    try:
+        pid = models.create_product(
+            academy_id=academy_id,
+            name=data.get('name', ''),
+            category=data.get('category', 'gear'),
+            sizes=data.get('sizes', ''),
+            price=float(data.get('price', 0)),
+            stock=int(data.get('stock', 0)),
+        )
+        return jsonify({'success': True, 'id': pid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/products/<int:product_id>/update', methods=['POST'])
+@login_required
+def api_products_update(product_id):
+    data = request.get_json() or {}
+    try:
+        models.update_product(product_id,
+            name=data.get('name'), category=data.get('category'),
+            sizes=data.get('sizes'), price=float(data.get('price', 0)),
+            stock=int(data.get('stock', 0)))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/products/<int:product_id>/delete', methods=['POST'])
+@login_required
+def api_products_delete(product_id):
+    try:
+        models.delete_product(product_id)
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
