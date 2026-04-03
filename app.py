@@ -2564,7 +2564,8 @@ def payments_list():
     academy_id = _get_academy_id()
     status_filter = request.args.get('status', '')
     method_filter = request.args.get('method', '')
-    period = request.args.get('period', 'month')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
 
     try:
         payments = models.get_all_payments(academy_id)
@@ -2572,6 +2573,10 @@ def payments_list():
             payments = [p for p in payments if p.get('status') == status_filter]
         if method_filter:
             payments = [p for p in payments if p.get('method') == method_filter]
+        if date_from:
+            payments = [p for p in payments if str(p.get('payment_date', ''))[:10] >= date_from]
+        if date_to:
+            payments = [p for p in payments if str(p.get('payment_date', ''))[:10] <= date_to]
     except Exception:
         payments = []
 
@@ -2623,6 +2628,8 @@ def payments_list():
         method_revenue=method_revenue,
         status_filter=status_filter,
         method_filter=method_filter,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
