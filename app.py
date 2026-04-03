@@ -2647,16 +2647,32 @@ def prospects_list():
     active_prospects = [p for p in all_prospects if not p.get('archived')]
     archived_prospects = [p for p in all_prospects if p.get('archived')]
 
-    # Group active by stage for pipeline view
+    # Separate ex-students from real leads — ex-students NEVER go to pipeline
+    ex_students = [p for p in active_prospects if p.get('source') == 'ex_student' or p.get('member_id')]
+    real_leads = [p for p in active_prospects if p.get('source') != 'ex_student' and not p.get('member_id')]
+
+    # Also include inactive members that don't have a prospect entry yet
+    try:
+        all_members = models.get_all_members(academy_id)
+        ex_member_ids = {p.get('member_id') for p in ex_students if p.get('member_id')}
+        for m in (all_members or []):
+            if m.get('membership_status') == 'inactive' and m.get('id') not in ex_member_ids:
+                ex_students.append({
+                    'id': None, 'first_name': m.get('first_name', ''),
+                    'last_name': m.get('last_name', ''), 'email': m.get('email', ''),
+                    'phone': m.get('phone', ''), 'source': 'ex_student',
+                    'member_id': m.get('id'), 'notes': f"Inactive since join: {m.get('join_date','')}",
+                })
+    except Exception:
+        pass
+
+    # Group real leads by stage for pipeline view
     prospects_by_stage = {
         'new': [], 'contacted': [], 'trial': [], 'converted': [],
     }
-    ex_students = []
-    for p in active_prospects:
+    for p in real_leads:
         stage = p.get('status', 'new')
-        if p.get('source') == 'ex_student' or (stage == 'lost' and p.get('member_id')):
-            ex_students.append(p)
-        elif stage in prospects_by_stage:
+        if stage in prospects_by_stage:
             prospects_by_stage[stage].append(p)
         else:
             prospects_by_stage['new'].append(p)
@@ -2859,7 +2875,7 @@ def api_prospect_reactivate():
         return jsonify({'error': 'member_id required'}), 400
     try:
         models.update_member(int(member_id), membership_status='active')
-        if prospect_id:
+        if prospect_id and int(prospect_id) > 0:
             models.delete_prospect(int(prospect_id))
         return jsonify({'success': True})
     except Exception as e:
