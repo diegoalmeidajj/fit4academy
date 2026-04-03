@@ -2,7 +2,7 @@
 {% block title %}{{ t('nav_dashboard') }}{% endblock %}
 
 {% block extra_css %}
-.welcome-card { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%); border-radius: 16px; padding: 28px; color: #fff; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; position: relative; overflow: hidden; }
+.welcome-card { background: linear-gradient(135deg, #00DC82 0%, #00B368 50%, #059669 100%); border-radius: 16px; padding: 28px; color: #fff; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; position: relative; overflow: hidden; }
 .welcome-card::before { content:''; position:absolute; right:-40px; top:-40px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.06); }
 .welcome-card::after { content:''; position:absolute; right:60px; bottom:-60px; width:160px; height:160px; border-radius:50%; background:rgba(255,255,255,.04); }
 .welcome-logo { width: 64px; height: 64px; border-radius: 16px; background: rgba(255,255,255,.15); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
@@ -143,12 +143,12 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
             {% for task in today_tasks %}
-            <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-left:4px solid {{ task.color or '#6366f1' }};border-radius:10px;">
-                <button onclick="completeTask({{ task.id }})" style="background:none;border:2px solid {{ task.color or '#6366f1' }};border-radius:50%;width:24px;height:24px;cursor:pointer;flex-shrink:0;transition:all .2s;" onmouseover="this.style.background='{{ task.color or '#6366f1' }}'" onmouseout="this.style.background='none'" title="Mark complete"></button>
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-left:4px solid {{ task.color or '#00DC82' }};border-radius:10px;">
+                <button onclick="completeTask({{ task.id }})" style="background:none;border:2px solid {{ task.color or '#00DC82' }};border-radius:50%;width:24px;height:24px;cursor:pointer;flex-shrink:0;transition:all .2s;" onmouseover="this.style.background='{{ task.color or '#00DC82' }}'" onmouseout="this.style.background='none'" title="Mark complete"></button>
                 <div style="flex:1;">
                     <strong style="font-size:14px;">{{ task.title }}</strong>
                     {% if task.task_time %}
-                    <span style="background:rgba(99,102,241,.1);color:var(--primary);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:8px;"><i class="bi bi-clock"></i> {{ task.task_time }}</span>
+                    <span style="background:rgba(0,220,130,.1);color:var(--primary);padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:8px;"><i class="bi bi-clock"></i> {{ task.task_time }}</span>
                     {% else %}
                     <span style="background:rgba(245,158,11,.1);color:#f59e0b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-left:8px;">All Day</span>
                     {% endif %}
@@ -340,11 +340,11 @@
             <div style="margin-bottom:16px;">
                 <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">Color</label>
                 <div style="display:flex;gap:8px;margin-top:6px;" id="colorPicker">
-                    <button type="button" onclick="pickColor('#6366f1')" style="width:28px;height:28px;border-radius:50%;background:#6366f1;border:3px solid #6366f1;cursor:pointer;" data-color="#6366f1"></button>
+                    <button type="button" onclick="pickColor('#00DC82')" style="width:28px;height:28px;border-radius:50%;background:#00DC82;border:3px solid #00DC82;cursor:pointer;" data-color="#00DC82"></button>
                     <button type="button" onclick="pickColor('#10b981')" style="width:28px;height:28px;border-radius:50%;background:#10b981;border:3px solid transparent;cursor:pointer;" data-color="#10b981"></button>
                     <button type="button" onclick="pickColor('#f59e0b')" style="width:28px;height:28px;border-radius:50%;background:#f59e0b;border:3px solid transparent;cursor:pointer;" data-color="#f59e0b"></button>
                     <button type="button" onclick="pickColor('#ef4444')" style="width:28px;height:28px;border-radius:50%;background:#ef4444;border:3px solid transparent;cursor:pointer;" data-color="#ef4444"></button>
-                    <button type="button" onclick="pickColor('#8b5cf6')" style="width:28px;height:28px;border-radius:50%;background:#8b5cf6;border:3px solid transparent;cursor:pointer;" data-color="#8b5cf6"></button>
+                    <button type="button" onclick="pickColor('#00B368')" style="width:28px;height:28px;border-radius:50%;background:#00B368;border:3px solid transparent;cursor:pointer;" data-color="#00B368"></button>
                 </div>
             </div>
             <button onclick="saveTask()" class="btn btn-primary" style="width:100%;border-radius:10px;padding:12px;"><i class="bi bi-check-lg"></i> Save Task</button>
@@ -380,7 +380,7 @@ updateRevenueUI();
 // === MINI CALENDAR WITH TASKS ===
 let calMonth = new Date().getMonth(), calYear = new Date().getFullYear();
 let calTasks = {};
-let selectedColor = '#6366f1';
+let selectedColor = '#00DC82';
 const classSchedule = {
     {% for d in range(7) %}{{ d }}: {{ 'true' if d in (schedule_days or []) else 'false' }},{% endfor %}
 };
@@ -420,8 +420,8 @@ function renderCal() {
         const taskColor = hasTasks ? calTasks[ds][0].color : '';
         let s = 'padding:4px 2px;border-radius:6px;font-size:10px;position:relative;color:var(--text);cursor:pointer;transition:background .15s;';
         if(isToday) s += 'background:var(--primary);color:#fff;font-weight:700;';
-        else if(hasTasks) s += 'background:rgba(99,102,241,.12);font-weight:700;';
-        else if(hasClass) s += 'background:rgba(99,102,241,.05);';
+        else if(hasTasks) s += 'background:rgba(0,220,130,.12);font-weight:700;';
+        else if(hasClass) s += 'background:rgba(0,220,130,.05);';
         h += `<div style="${s}" onclick="openTaskModal('${ds}')">` + d;
         if(hasTasks) h += `<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:5px;height:5px;background:${taskColor||'#f59e0b'};border-radius:50%;"></div>`;
         else if(hasClass && !isToday) h += '<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:3px;height:3px;background:var(--primary);border-radius:50%;opacity:.4;"></div>';
@@ -436,7 +436,7 @@ function openTaskModal(dateStr) {
     document.getElementById('taskTitleInput').value = '';
     document.getElementById('taskTime').value = '';
     document.getElementById('taskDesc').value = '';
-    selectedColor = '#6366f1';
+    selectedColor = '#00DC82';
     document.querySelectorAll('#colorPicker button').forEach(b => b.style.borderColor = b.dataset.color === selectedColor ? selectedColor : 'transparent');
     document.getElementById('taskModalTitle').textContent = 'New Task — ' + dateStr;
     document.getElementById('taskModal').style.display = 'flex';

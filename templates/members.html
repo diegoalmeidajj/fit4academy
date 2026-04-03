@@ -11,15 +11,15 @@
 .status-dot.expired { background: var(--danger); }
 
 /* Selection checkbox */
-.member-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border); cursor: pointer; accent-color: #6366f1; }
-.member-check:checked { border-color: #6366f1; }
+.member-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--border); cursor: pointer; accent-color: #00DC82; }
+.member-check:checked { border-color: #00DC82; }
 
 /* Bulk action bar */
 .bulk-bar {
     display: none; position: sticky; top: 0; z-index: 50;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+    background: linear-gradient(135deg, #00DC82, #00B368); color: #fff;
     border-radius: 12px; padding: 12px 20px; margin-bottom: 16px;
-    align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(99,102,241,.35);
+    align-items: center; gap: 16px; box-shadow: 0 4px 20px rgba(0,220,130,.35);
     animation: slideDown .2s ease;
 }
 .bulk-bar.show { display: flex; }
@@ -241,7 +241,7 @@
                 <p style="font-size:12px;color:var(--success);font-weight:600;margin:8px 0 0;display:none;" id="csvFileName"></p>
                 <input type="file" name="csv_file" id="csvFile" accept=".csv" required style="display:none;" onchange="showFileName(this)">
             </div>
-            <div style="background:rgba(99,102,241,.06);border-radius:10px;padding:14px;margin-bottom:16px;">
+            <div style="background:rgba(0,220,130,.06);border-radius:10px;padding:14px;margin-bottom:16px;">
                 <p style="font-size:12px;font-weight:700;margin:0 0 8px;color:var(--primary);">{{ t('import_csv_columns') }}</p>
                 <div style="display:flex;flex-wrap:wrap;gap:4px;">
                     {% for col in ['first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'gender', 'belt', 'stripes', 'status', 'join_date', 'emergency_contact', 'emergency_phone', 'medical_notes', 'source', 'notes'] %}
@@ -361,7 +361,7 @@ function bulkExport() {
         });
     }
 
-    sparkline('sparkGrowth', growthData, '#6366f1');
+    sparkline('sparkGrowth', growthData, '#00DC82');
     sparkline('sparkMembers', newMembersData, '#10b981');
     sparkline('sparkLeads', leadsData, '#f59e0b');
     sparkline('sparkLost', lostData, '#ef4444');

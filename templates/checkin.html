@@ -6,8 +6,8 @@
 .kiosk-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 16px 24px; margin: -12px -12px 20px;
-    background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.06));
-    border-radius: 18px; border: 1px solid rgba(99,102,241,.12);
+    background: linear-gradient(135deg, rgba(0,220,130,.08), rgba(139,92,246,.06));
+    border-radius: 18px; border: 1px solid rgba(0,220,130,.12);
 }
 .kiosk-header-left { display: flex; align-items: center; gap: 14px; }
 .kiosk-header-left img { width: 44px; height: 44px; border-radius: 12px; object-fit: contain; }
@@ -25,9 +25,9 @@
 .kiosk-tabs {
     display: flex; justify-content: center; gap: 6px;
     margin-bottom: 28px; padding: 5px;
-    background: rgba(99,102,241,.06); border-radius: 16px;
+    background: rgba(0,220,130,.06); border-radius: 16px;
     width: fit-content; margin-left: auto; margin-right: auto;
-    border: 1px solid rgba(99,102,241,.1);
+    border: 1px solid rgba(0,220,130,.1);
 }
 .kiosk-tab {
     padding: 12px 32px; border-radius: 12px; cursor: pointer;
@@ -36,10 +36,10 @@
     display: flex; align-items: center; gap: 8px;
     background: transparent; border: none; user-select: none;
 }
-.kiosk-tab:hover { color: var(--text); background: rgba(99,102,241,.06); }
+.kiosk-tab:hover { color: var(--text); background: rgba(0,220,130,.06); }
 .kiosk-tab.active {
-    background: rgba(99,102,241,.15); color: var(--primary);
-    box-shadow: 0 2px 12px rgba(99,102,241,.15);
+    background: rgba(0,220,130,.15); color: var(--primary);
+    box-shadow: 0 2px 12px rgba(0,220,130,.15);
     backdrop-filter: blur(8px);
 }
 .kiosk-tab i { font-size: 18px; }
@@ -58,7 +58,7 @@
 }
 .pin-display::before {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(99,102,241,.04), rgba(139,92,246,.04));
+    background: linear-gradient(135deg, rgba(0,220,130,.04), rgba(139,92,246,.04));
     pointer-events: none;
 }
 .pin-label { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
@@ -72,7 +72,7 @@
 }
 .pin-dot.filled {
     background: var(--primary); border-color: var(--primary);
-    box-shadow: 0 0 12px rgba(99,102,241,.4);
+    box-shadow: 0 0 12px rgba(0,220,130,.4);
     animation: dotPop .2s ease;
 }
 @keyframes dotPop { 0% { transform: scale(.6); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
@@ -94,14 +94,14 @@
     background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
     pointer-events: none;
 }
-.pin-btn:hover { background: rgba(99,102,241,.08); border-color: var(--primary); transform: scale(1.03); }
-.pin-btn:active { transform: scale(.96); background: rgba(99,102,241,.15); }
+.pin-btn:hover { background: rgba(0,220,130,.08); border-color: var(--primary); transform: scale(1.03); }
+.pin-btn:active { transform: scale(.96); background: rgba(0,220,130,.15); }
 .pin-btn.pin-action {
     font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif;
     letter-spacing: .5px;
 }
 .pin-btn.pin-clear { color: var(--danger); }
-.pin-btn.pin-enter { background: rgba(99,102,241,.1); color: var(--primary); border-color: rgba(99,102,241,.2); }
+.pin-btn.pin-enter { background: rgba(0,220,130,.1); color: var(--primary); border-color: rgba(0,220,130,.2); }
 
 /* ===== QR SCAN ===== */
 .qr-container { max-width: 480px; margin: 0 auto; text-align: center; }
@@ -114,7 +114,7 @@
 }
 .qr-area::before {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(99,102,241,.03), rgba(139,92,246,.03));
+    background: linear-gradient(135deg, rgba(0,220,130,.03), rgba(139,92,246,.03));
     pointer-events: none;
 }
 .qr-area i { font-size: 56px; opacity: .25; }
@@ -131,7 +131,7 @@
     border: 2px solid var(--border); width: 100%; background: var(--card-bg);
     color: var(--text); transition: border-color .2s;
 }
-.tap-search input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99,102,241,.1); outline: none; }
+.tap-search input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0,220,130,.1); outline: none; }
 .tap-search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--text-muted); }
 
 .member-grid {
@@ -157,7 +157,7 @@
 .member-tap-card .tap-photo {
     width: 68px; height: 68px; border-radius: 50%;
     margin: 0 auto 10px; overflow: hidden;
-    background: linear-gradient(135deg, #6366f1, #a855f7);
+    background: linear-gradient(135deg, #00DC82, #059669);
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-weight: 700; font-size: 20px; font-family: 'Space Grotesk';
     border: 3px solid var(--border);
@@ -349,7 +349,7 @@
 <!-- ===== BIOMETRIC PANEL ===== -->
 <div class="kiosk-panel active" id="panelBiometric">
     <div style="max-width:400px;margin:0 auto;text-align:center;padding:40px 20px;">
-        <div style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.15));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid rgba(99,102,241,.2);">
+        <div style="width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(0,220,130,.15),rgba(139,92,246,.15));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;border:2px solid rgba(0,220,130,.2);">
             <i class="bi bi-fingerprint" style="font-size:48px;color:var(--primary);"></i>
         </div>
         <h3 style="font-family:'Space Grotesk';font-size:20px;font-weight:700;margin-bottom:8px;">FaceID / TouchID</h3>
@@ -358,7 +358,7 @@
             <i class="bi bi-fingerprint"></i> Authenticate
         </button>
         <div id="biometricStatus" style="margin-top:16px;font-size:13px;"></div>
-        <div style="margin-top:24px;padding:12px;background:rgba(99,102,241,.06);border-radius:10px;border:1px solid rgba(99,102,241,.12);">
+        <div style="margin-top:24px;padding:12px;background:rgba(0,220,130,.06);border-radius:10px;border:1px solid rgba(0,220,130,.12);">
             <p style="font-size:11px;color:var(--text-muted);margin:0;">
                 <i class="bi bi-info-circle"></i> Members must register their biometric first in their profile page.
             </p>

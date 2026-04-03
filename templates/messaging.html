@@ -14,7 +14,7 @@
     background: var(--card-bg); text-align: center; width: 100%;
 }
 .channel-option input:checked + label {
-    border-color: var(--primary); background: rgba(99,102,241,.1); color: var(--primary);
+    border-color: var(--primary); background: rgba(0,220,130,.1); color: var(--primary);
 }
 .channel-option label:hover { border-color: var(--primary); }
 
@@ -24,14 +24,14 @@
     color: var(--text-muted); border: none; cursor: pointer; transition: all .2s; flex: 1; text-align: center;
 }
 .recipient-tab.active { background: var(--primary); color: #fff; }
-.recipient-tab:hover:not(.active) { background: rgba(99,102,241,.08); }
+.recipient-tab:hover:not(.active) { background: rgba(0,220,130,.08); }
 
 .filter-panel { display: none; padding: 0; }
 .filter-panel.active { display: block; }
 
 .preview-badge {
     display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px;
-    border-radius: 10px; background: rgba(99,102,241,.1); font-size: 14px; font-weight: 600;
+    border-radius: 10px; background: rgba(0,220,130,.1); font-size: 14px; font-weight: 600;
     color: var(--primary); margin-top: 12px;
 }
 .preview-badge .count { font-size: 22px; font-weight: 800; font-family: 'Space Grotesk'; }
@@ -42,19 +42,19 @@
     cursor: pointer; transition: all .2s; white-space: nowrap;
 }
 .tpl-btn:hover { border-color: var(--primary); color: var(--primary); }
-.tpl-btn.active { border-color: var(--primary); background: rgba(99,102,241,.1); color: var(--primary); }
+.tpl-btn.active { border-color: var(--primary); background: rgba(0,220,130,.1); color: var(--primary); }
 
 .member-picker { max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
 .member-pick-item {
     display: flex; align-items: center; gap: 10px; padding: 8px 10px;
     border-radius: 8px; cursor: pointer; transition: background .15s; font-size: 13px;
 }
-.member-pick-item:hover { background: rgba(99,102,241,.06); }
+.member-pick-item:hover { background: rgba(0,220,130,.06); }
 .member-pick-item input { accent-color: var(--primary); width: 16px; height: 16px; }
 .member-pick-item .initials {
     width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center;
     justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
-    background: linear-gradient(135deg, #6366f1, #a855f7);
+    background: linear-gradient(135deg, #00DC82, #059669);
 }
 .member-pick-name { font-weight: 600; }
 .member-pick-contact { font-size: 11px; color: var(--text-muted); }
@@ -72,10 +72,10 @@
 .send-btn {
     padding: 14px 32px; font-size: 15px; font-weight: 700; border-radius: 12px;
     border: none; cursor: pointer; transition: all .2s;
-    background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff;
+    background: linear-gradient(135deg, #00DC82, #059669); color: #fff;
     display: inline-flex; align-items: center; gap: 8px;
 }
-.send-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(99,102,241,.3); }
+.send-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,220,130,.3); }
 .send-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 
 @media (max-width: 768px) {
@@ -96,7 +96,7 @@
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_total_sent') }}</div>
         <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;">{{ stats.get('total_sent', 0) }}</div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;">
-            <i class="bi bi-envelope" style="color:#6366f1;"></i> {{ stats.get('total_email', 0) }} email
+            <i class="bi bi-envelope" style="color:#00DC82;"></i> {{ stats.get('total_email', 0) }} email
             &nbsp;·&nbsp;
             <i class="bi bi-chat-text" style="color:#10b981;"></i> {{ stats.get('total_sms', 0) }} sms
         </div>
@@ -110,8 +110,8 @@
     </div>
     <div class="card" style="padding:16px;">
         <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('msg_stat_opened') }}</div>
-        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#6366f1;">{{ stats.get('opened', 0) }}</div>
-        <div style="font-size:11px;color:#6366f1;font-weight:600;">
+        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;color:#00DC82;">{{ stats.get('opened', 0) }}</div>
+        <div style="font-size:11px;color:#00DC82;font-weight:600;">
             {% if stats.get('delivered', 0) > 0 %}{{ ((stats.get('opened', 0)) / stats.get('delivered', 1) * 100)|int }}%{% else %}0%{% endif %} {{ t('msg_stat_open_rate') }}
         </div>
     </div>
@@ -136,7 +136,7 @@
         <div style="flex:1;min-width:200px;">
             {% set items = [
                 ('Delivered', stats.get('delivered', 0), '#10b981'),
-                ('Opened', stats.get('opened', 0), '#6366f1'),
+                ('Opened', stats.get('opened', 0), '#00DC82'),
                 ('Clicked', stats.get('clicked', 0), '#f59e0b'),
                 ('Deferred', stats.get('deferred', 0), '#94a3b8'),
                 ('Bounced', stats.get('bounced', 0), '#ef4444'),
@@ -367,7 +367,7 @@
                     <td>
                         <div style="font-weight:700;font-size:14px;">{{ msg.get('delivered', 0) }} / {{ msg.recipient_count }}</div>
                         <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
-                            {% if msg.get('opened', 0) %}<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(99,102,241,.1);color:#6366f1;font-weight:600;"><i class="bi bi-eye"></i> {{ msg.get('opened', 0) }}</span>{% endif %}
+                            {% if msg.get('opened', 0) %}<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(0,220,130,.1);color:#00DC82;font-weight:600;"><i class="bi bi-eye"></i> {{ msg.get('opened', 0) }}</span>{% endif %}
                             {% if msg.get('clicked', 0) %}<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,.1);color:#f59e0b;font-weight:600;"><i class="bi bi-cursor"></i> {{ msg.get('clicked', 0) }}</span>{% endif %}
                             {% if msg.get('bounced', 0) %}<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(239,68,68,.1);color:#ef4444;font-weight:600;"><i class="bi bi-x-circle"></i> {{ msg.get('bounced', 0) }}</span>{% endif %}
                         </div>
@@ -413,7 +413,7 @@
                 <div style="font-size:10px;color:var(--text-muted);font-weight:600;">{{ t('msg_stat_delivered') }}</div>
             </div>
             <div style="text-align:center;flex:1;">
-                <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#6366f1;" id="detailOpened">0</div>
+                <div style="font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#00DC82;" id="detailOpened">0</div>
                 <div style="font-size:10px;color:var(--text-muted);font-weight:600;">{{ t('msg_stat_opened') }}</div>
             </div>
             <div style="text-align:center;flex:1;">
@@ -460,7 +460,7 @@
             datasets: [{
                 data: hasData ? data : [1],
                 backgroundColor: hasData
-                    ? ['#10b981','#6366f1','#f59e0b','#94a3b8','#ef4444','#f97316','#dc2626']
+                    ? ['#10b981','#00DC82','#f59e0b','#94a3b8','#ef4444','#f97316','#dc2626']
                     : [isDark ? '#334155' : '#e2e8f0'],
                 borderWidth: 2,
                 borderColor: isDark ? '#1e293b' : '#fff',

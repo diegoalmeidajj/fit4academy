@@ -5,7 +5,7 @@
 .chart-container { position: relative; height: 250px; background: var(--card-bg); border-radius: 14px; overflow: hidden; }
 .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 20px 20px 0; }
 .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.bar-fill { width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #6366f1, #818cf8); transition: height .6s ease; min-height: 2px; }
+.bar-fill { width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #00DC82, #00B368); transition: height .6s ease; min-height: 2px; }
 .bar-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
 .bar-value { font-size: 10px; font-weight: 700; color: var(--primary); }
 
@@ -79,7 +79,7 @@
         <div class="card-header"><i class="bi bi-pie-chart"></i> {{ t('finance_by_method') }}</div>
         <div class="card-body" style="text-align:center;">
             {% if revenue_by_method %}
-            {% set method_colors = {'cash':'#10b981','card':'#6366f1','check':'#f59e0b','ach':'#06b6d4','stripe':'#8b5cf6','square':'#0ea5e9'} %}
+            {% set method_colors = {'cash':'#10b981','card':'#00DC82','check':'#f59e0b','ach':'#06b6d4','stripe':'#00B368','square':'#0ea5e9'} %}
             {% set total = revenue_by_method.values()|sum %}
             <div class="donut-chart" style="background: conic-gradient({% for method, amount in revenue_by_method.items() %}{{ method_colors.get(method, '#6b7280') }} {{ loop.previtem_pct|default(0) }}% {{ (amount / total * 100)|round(1) }}%{% if not loop.last %}, {% endif %}{% endfor %});">
                 <div class="donut-center">
@@ -112,7 +112,7 @@
         <div class="comparison-row">
             <div class="comparison-label">{{ month }}</div>
             <div class="comparison-bar-track">
-                <div class="comparison-bar-fill" style="width:{{ (amount / comp_max * 100)|int }}%;background:linear-gradient(90deg,#6366f1,#818cf8);">{{ currency_symbol }}{{ amount|int }}</div>
+                <div class="comparison-bar-fill" style="width:{{ (amount / comp_max * 100)|int }}%;background:linear-gradient(90deg,#00DC82,#00B368);">{{ currency_symbol }}{{ amount|int }}</div>
             </div>
         </div>
         {% endfor %}

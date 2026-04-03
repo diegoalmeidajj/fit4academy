@@ -10,7 +10,7 @@
 
 <!-- Add Program (hidden by default) -->
 <div id="addProgramCard" class="card mb-24" style="overflow:hidden;display:none;">
-    <div style="height:4px;background:linear-gradient(90deg,#6366f1,#a855f7,#10b981);"></div>
+    <div style="height:4px;background:linear-gradient(90deg,#00DC82,#059669,#10b981);"></div>
     <div class="card-body">
         <h4 style="font-family:'Space Grotesk';margin-bottom:16px;"><i class="bi bi-plus-circle" style="color:var(--primary);"></i> New Program</h4>
         <form method="post" action="/programs/add" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
@@ -20,7 +20,7 @@
             </div>
             <div style="width:60px;">
                 <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Color</label>
-                <input type="color" name="color" value="#6366f1" style="width:100%;height:38px;border:none;border-radius:8px;cursor:pointer;">
+                <input type="color" name="color" value="#00DC82" style="width:100%;height:38px;border:none;border-radius:8px;cursor:pointer;">
             </div>
             <div style="flex:1;min-width:180px;">
                 <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Description</label>
@@ -35,12 +35,12 @@
 <div class="grid-2">
 {% for p in programs %}
 <div class="card" style="overflow:hidden;">
-    <div style="height:5px;background:{{ p.color or '#6366f1' }};"></div>
+    <div style="height:5px;background:{{ p.color or '#00DC82' }};"></div>
     <div class="card-body" style="padding:18px;">
         <!-- Header -->
         <div id="view-{{ p.id }}">
             <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:46px;height:46px;border-radius:12px;background:{{ p.color or '#6366f1' }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0;">{{ p.name[:1] }}</div>
+                <div style="width:46px;height:46px;border-radius:12px;background:{{ p.color or '#00DC82' }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0;">{{ p.name[:1] }}</div>
                 <div style="flex:1;">
                     <strong style="font-size:16px;">{{ p.name }}</strong>
                     {% if p.description %}<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">{{ p.description }}</div>{% endif %}
@@ -57,7 +57,7 @@
             <form method="post" action="/programs/{{ p.id }}/edit">
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     <div style="display:flex;gap:10px;align-items:center;">
-                        <input type="color" name="color" value="{{ p.color or '#6366f1' }}" style="width:42px;height:42px;border:none;border-radius:10px;cursor:pointer;flex-shrink:0;">
+                        <input type="color" name="color" value="{{ p.color or '#00DC82' }}" style="width:42px;height:42px;border:none;border-radius:10px;cursor:pointer;flex-shrink:0;">
                         <input type="text" name="name" value="{{ p.name }}" class="form-control" style="font-size:15px;font-weight:600;" required>
                     </div>
                     <input type="text" name="description" value="{{ p.description or '' }}" class="form-control" placeholder="Description (optional)">
@@ -72,8 +72,8 @@
         <!-- Member Count + Toggle -->
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
             <button onclick="toggleMembers({{ p.id }})" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;padding:0;color:var(--text);">
-                <div style="width:32px;height:32px;border-radius:8px;background:{{ p.color or '#6366f1' }}20;display:flex;align-items:center;justify-content:center;">
-                    <i class="bi bi-people" style="color:{{ p.color or '#6366f1' }};font-size:14px;"></i>
+                <div style="width:32px;height:32px;border-radius:8px;background:{{ p.color or '#00DC82' }}20;display:flex;align-items:center;justify-content:center;">
+                    <i class="bi bi-people" style="color:{{ p.color or '#00DC82' }};font-size:14px;"></i>
                 </div>
                 <span style="font-size:14px;font-weight:700;font-family:'Space Grotesk';">{{ p.member_count }}</span>
                 <span style="font-size:12px;color:var(--text-muted);">member{{ 's' if p.member_count != 1 }}</span>
@@ -189,7 +189,7 @@ function searchMember(query, programId) {
                     return;
                 }
                 resultsEl.innerHTML = members.map(m =>
-                    `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;transition:background .15s;font-size:12px;" onmouseover="this.style.background='rgba(99,102,241,.06)'" onmouseout="this.style.background=''" onclick="enrollMember(${programId}, ${m.id}, '${m.first_name} ${m.last_name}')">
+                    `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;transition:background .15s;font-size:12px;" onmouseover="this.style.background='rgba(0,220,130,.06)'" onmouseout="this.style.background=''" onclick="enrollMember(${programId}, ${m.id}, '${m.first_name} ${m.last_name}')">
                         <div class="member-photo" style="width:26px;height:26px;font-size:9px;">${m.first_name[0]}${m.last_name[0]}</div>
                         <div style="flex:1;font-weight:600;">${m.first_name} ${m.last_name}</div>
                         <span style="font-size:10px;color:var(--text-muted);">${m.email || m.phone || ''}</span>

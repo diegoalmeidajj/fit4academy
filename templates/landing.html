@@ -10,30 +10,30 @@
         *{margin:0;padding:0;box-sizing:border-box;font-family:'DM Sans',sans-serif;}
         h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;}
         body{background:#0f172a;color:#f1f5f9;-webkit-font-smoothing:antialiased;}
-        a{color:#a5b4fc;text-decoration:none;}
+        a{color:#6ee7b7;text-decoration:none;}
 
         /* Nav */
         .nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 40px;display:flex;justify-content:space-between;align-items:center;background:rgba(15,23,42,.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.05);}
         .nav-brand{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk';font-weight:700;font-size:20px;color:#fff;}
-        .nav-brand .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;}
-        .nav-brand span{color:#a5b4fc;}
+        .nav-brand .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#00DC82,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;}
+        .nav-brand span{color:#6ee7b7;}
         .nav-links{display:flex;gap:24px;align-items:center;}
         .nav-links a{color:rgba(255,255,255,.6);font-size:14px;font-weight:500;transition:color .2s;}
         .nav-links a:hover{color:#fff;}
-        .nav-cta{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff !important;padding:10px 22px;border-radius:10px;font-weight:700;font-size:13px;transition:all .2s;}
-        .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,.4);}
+        .nav-cta{background:linear-gradient(135deg,#00DC82,#00B368);color:#fff !important;padding:10px 22px;border-radius:10px;font-weight:700;font-size:13px;transition:all .2s;}
+        .nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,220,130,.4);}
 
         /* Hero */
         .hero{min-height:100vh;display:flex;align-items:center;padding:120px 40px 80px;position:relative;overflow:hidden;}
         .hero::before{content:'';position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1555597673-b21d5c935865?w=1600&h=900&fit=crop') center/cover;opacity:.12;}
         .hero-content{position:relative;max-width:700px;z-index:1;}
         .hero h1{font-size:56px;font-weight:700;line-height:1.1;letter-spacing:-2px;margin-bottom:20px;}
-        .hero h1 span{background:linear-gradient(135deg,#a5b4fc,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+        .hero h1 span{background:linear-gradient(135deg,#6ee7b7,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
         .hero p{font-size:18px;color:rgba(255,255,255,.6);line-height:1.6;margin-bottom:32px;max-width:550px;}
         .hero-btns{display:flex;gap:12px;flex-wrap:wrap;}
         .btn-hero{padding:16px 32px;border-radius:14px;font-weight:700;font-size:16px;font-family:'Space Grotesk';display:inline-flex;align-items:center;gap:8px;transition:all .2s;border:none;cursor:pointer;}
-        .btn-hero-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 20px rgba(99,102,241,.3);}
-        .btn-hero-primary:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(99,102,241,.45);}
+        .btn-hero-primary{background:linear-gradient(135deg,#00DC82,#00B368);color:#fff;box-shadow:0 4px 20px rgba(0,220,130,.3);}
+        .btn-hero-primary:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,220,130,.45);}
         .btn-hero-outline{background:transparent;border:2px solid rgba(255,255,255,.15);color:#fff;}
         .btn-hero-outline:hover{border-color:rgba(255,255,255,.4);}
 
@@ -44,8 +44,8 @@
         .section-header p{font-size:16px;color:rgba(255,255,255,.5);max-width:500px;margin:0 auto;}
         .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto;}
         .feature-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:28px;transition:all .3s;}
-        .feature-card:hover{background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.15);transform:translateY(-4px);}
-        .feature-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(99,102,241,.2),rgba(139,92,246,.2));display:flex;align-items:center;justify-content:center;font-size:22px;color:#a5b4fc;margin-bottom:16px;}
+        .feature-card:hover{background:rgba(0,220,130,.06);border-color:rgba(0,220,130,.15);transform:translateY(-4px);}
+        .feature-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,rgba(0,220,130,.2),rgba(139,92,246,.2));display:flex;align-items:center;justify-content:center;font-size:22px;color:#6ee7b7;margin-bottom:16px;}
         .feature-card h3{font-size:16px;font-weight:700;margin-bottom:8px;}
         .feature-card p{font-size:14px;color:rgba(255,255,255,.5);line-height:1.6;}
 
@@ -61,7 +61,7 @@
         .testimonial-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:24px;}
         .testimonial-text{font-size:14px;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:16px;font-style:italic;}
         .testimonial-author{display:flex;align-items:center;gap:12px;}
-        .testimonial-avatar{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
+        .testimonial-avatar{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#00DC82,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;}
         .testimonial-name{font-weight:700;font-size:13px;}
         .testimonial-role{font-size:11px;color:rgba(255,255,255,.4);}
 
@@ -69,12 +69,12 @@
         .lead-section{text-align:center;}
         .lead-form{max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:12px;}
         .lead-form input,.lead-form select,.lead-form textarea{padding:14px 16px;border-radius:12px;border:1.5px solid rgba(255,255,255,.08);background:rgba(255,255,255,.05);color:#fff;font-size:14px;font-family:'DM Sans';outline:none;}
-        .lead-form input:focus,.lead-form select:focus,.lead-form textarea:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12);}
+        .lead-form input:focus,.lead-form select:focus,.lead-form textarea:focus{border-color:#00DC82;box-shadow:0 0 0 3px rgba(0,220,130,.12);}
         .lead-form input::placeholder,.lead-form textarea::placeholder{color:rgba(255,255,255,.3);}
         .lead-form select option{background:#1e293b;color:#fff;}
         .lead-form textarea{min-height:80px;resize:vertical;}
-        .lead-form button{padding:16px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:700;font-size:15px;font-family:'Space Grotesk';border:none;cursor:pointer;transition:all .2s;}
-        .lead-form button:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(99,102,241,.35);}
+        .lead-form button{padding:16px;border-radius:12px;background:linear-gradient(135deg,#00DC82,#00B368);color:#fff;font-weight:700;font-size:15px;font-family:'Space Grotesk';border:none;cursor:pointer;transition:all .2s;}
+        .lead-form button:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,220,130,.35);}
 
         /* Footer */
         .landing-footer{padding:40px;text-align:center;border-top:1px solid rgba(255,255,255,.05);color:rgba(255,255,255,.3);font-size:12px;}
@@ -284,7 +284,7 @@
     <!-- Footer -->
     <footer class="landing-footer">
         <div style="margin-bottom:12px;">
-            <span style="font-family:'Space Grotesk';font-weight:700;color:rgba(255,255,255,.5);">Fit4<span style="color:#a5b4fc;">Academy</span></span>
+            <span style="font-family:'Space Grotesk';font-weight:700;color:rgba(255,255,255,.5);">Fit4<span style="color:#6ee7b7;">Academy</span></span>
         </div>
         <div>&copy; 2026 Fit4Academy. All rights reserved.</div>
     </footer>

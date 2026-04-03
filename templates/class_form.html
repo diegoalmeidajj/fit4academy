@@ -10,7 +10,7 @@
 </div>
 
 <div class="card" style="overflow:hidden;border-radius:14px;">
-    <div id="classColorBar" style="height:4px;border-radius:14px 14px 0 0;background:#6366f1;transition:background .3s;"></div>
+    <div id="classColorBar" style="height:4px;border-radius:14px 14px 0 0;background:#00DC82;transition:background .3s;"></div>
     <div class="card-body">
         <form method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -134,7 +134,7 @@ function updateClassColor() {
     const type = document.querySelector('[name=type]').value.toLowerCase();
     const colors = {gi:'#1d4ed8', nogi:'#eab308', ginogi:'#f97316', kids:'#10b981', open:'#7c3aed'};
     const bar = document.getElementById('classColorBar');
-    if (bar) bar.style.background = colors[type] || '#6366f1';
+    if (bar) bar.style.background = colors[type] || '#00DC82';
 }
 document.addEventListener('DOMContentLoaded', updateClassColor);
 
