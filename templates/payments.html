@@ -1,132 +1,154 @@
 {% extends "base.html" %}
-{% block title %}{{ t('nav_payments') }}{% endblock %}
+{% block title %}Payments{% endblock %}
 
 {% block content %}
 <div class="topbar">
-    <h1><i class="bi bi-credit-card" style="color:var(--primary);"></i> {{ t('payments_title') }}</h1>
+    <h1><i class="bi bi-credit-card" style="color:var(--primary);"></i> Payments</h1>
     <div class="topbar-actions">
-        <a href="/payments/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> {{ t('payments_record') }}</a>
+        <a href="/payments/add" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Record Payment</a>
     </div>
 </div>
 
-<!-- Summary cards -->
-<div class="grid-3 mb-24">
+<!-- Stats -->
+<div class="grid-4 mb-16">
     <div class="stat-card stat-green">
         <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ summary.total_collected|default(0)|int }}</div>
-        <div class="stat-label">{{ t('payments_collected') }}</div>
+        <div class="stat-value">{{ currency_symbol }}{{ "%.0f"|format(summary.month_collected) }}</div>
+        <div class="stat-label">This Month ({{ summary.month_count }})</div>
+    </div>
+    <div class="stat-card stat-blue">
+        <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+        <div class="stat-value">{{ currency_symbol }}{{ "%.0f"|format(summary.total_collected) }}</div>
+        <div class="stat-label">Total Collected</div>
     </div>
     <div class="stat-card stat-orange">
         <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ summary.pending|default(0)|int }}</div>
-        <div class="stat-label">{{ t('payments_pending') }}</div>
+        <div class="stat-value">{{ currency_symbol }}{{ "%.0f"|format(summary.pending) }}</div>
+        <div class="stat-label">Pending</div>
     </div>
     <div class="stat-card stat-red">
         <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ summary.overdue|default(0)|int }}</div>
-        <div class="stat-label">{{ t('payments_overdue') }}</div>
+        <div class="stat-value">{{ summary.overdue }}</div>
+        <div class="stat-label">Overdue</div>
+    </div>
+</div>
+
+<!-- Revenue breakdown -->
+<div class="grid-2 mb-16">
+    <!-- By Source -->
+    <div class="card">
+        <div class="card-header"><i class="bi bi-pie-chart" style="color:var(--primary);"></i> Revenue by Source (This Month)</div>
+        <div class="card-body">
+            {% if source_revenue %}
+            {% set max_src = source_revenue.values()|max if source_revenue else 1 %}
+            {% for src, amt in source_revenue.items()|sort(attribute='1', reverse=true) %}
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <span style="font-size:12px;font-weight:600;min-width:90px;">{{ src }}</span>
+                <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:{{ (amt / max_src * 100)|round }}%;height:100%;background:{% if src == 'Enrollment' %}#00DC82{% elif src == 'Membership' %}#06b6d4{% else %}#8b5cf6{% endif %};border-radius:4px;"></div>
+                </div>
+                <span style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);min-width:70px;text-align:right;">{{ currency_symbol }}{{ "%.2f"|format(amt) }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No payments this month</div>
+            {% endif %}
+        </div>
+    </div>
+    <!-- By Method -->
+    <div class="card">
+        <div class="card-header"><i class="bi bi-wallet2" style="color:var(--primary);"></i> Revenue by Method (This Month)</div>
+        <div class="card-body">
+            {% if method_revenue %}
+            {% set max_met = method_revenue.values()|max if method_revenue else 1 %}
+            {% for met, amt in method_revenue.items()|sort(attribute='1', reverse=true) %}
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <span style="font-size:12px;font-weight:600;min-width:90px;text-transform:capitalize;">{{ met|replace('_',' ') }}</span>
+                <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:{{ (amt / max_met * 100)|round }}%;height:100%;background:linear-gradient(90deg,#00DC82,#06b6d4);border-radius:4px;"></div>
+                </div>
+                <span style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);min-width:70px;text-align:right;">{{ currency_symbol }}{{ "%.2f"|format(amt) }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No payments this month</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Integrations -->
+<div class="card mb-16">
+    <div class="card-body" style="padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:600;color:var(--text-muted);"><i class="bi bi-plug"></i> Integrations:</span>
+        <span style="padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(0,220,130,.08);color:var(--primary);border:1px solid rgba(0,220,130,.15);">QuickBooks <span style="font-size:9px;color:var(--text-muted);">(coming soon)</span></span>
+        <span style="padding:4px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(6,182,212,.08);color:#06b6d4;border:1px solid rgba(6,182,212,.15);">TurboTax <span style="font-size:9px;color:var(--text-muted);">(coming soon)</span></span>
     </div>
 </div>
 
 <!-- Filters -->
-<div class="filter-bar">
-    <div>
-        <label>{{ t('payments_filter_status') }}</label>
-        <select class="form-select" id="filterStatus" onchange="applyFilters()">
-            <option value="">{{ t('all') }}</option>
-            <option value="paid">{{ t('status_paid') }}</option>
-            <option value="pending">{{ t('status_pending') }}</option>
-            <option value="overdue">{{ t('status_overdue') }}</option>
-            <option value="failed">{{ t('status_failed') }}</option>
-        </select>
-    </div>
-    <div>
-        <label>{{ t('payments_filter_method') }}</label>
-        <select class="form-select" id="filterMethod" onchange="applyFilters()">
-            <option value="">{{ t('all') }}</option>
-            <option value="cash">{{ t('method_cash') }}</option>
-            <option value="card">{{ t('method_card') }}</option>
-            <option value="check">{{ t('method_check') }}</option>
-            <option value="ach">{{ t('method_ach') }}</option>
-            <option value="stripe">Stripe</option>
-            <option value="square">Square</option>
-        </select>
-    </div>
-    <div>
-        <label>{{ t('payments_date_from') }}</label>
-        <input type="date" class="form-control" id="dateFrom">
-    </div>
-    <div>
-        <label>{{ t('payments_date_to') }}</label>
-        <input type="date" class="form-control" id="dateTo">
-    </div>
-    <div>
-        <label>&nbsp;</label>
-        <button class="btn btn-primary" onclick="applyFilters()"><i class="bi bi-funnel"></i> {{ t('filter') }}</button>
+<div class="card mb-16">
+    <div class="card-body" style="padding:10px 16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <a href="/payments" class="btn btn-sm {{ 'btn-primary' if not status_filter else 'btn-outline-secondary' }}">All</a>
+        <a href="/payments?status=completed" class="btn btn-sm {{ 'btn-primary' if status_filter=='completed' else 'btn-outline-secondary' }}">Completed</a>
+        <a href="/payments?status=pending" class="btn btn-sm {{ 'btn-primary' if status_filter=='pending' else 'btn-outline-secondary' }}">Pending</a>
+        <a href="/payments?status=failed" class="btn btn-sm {{ 'btn-primary' if status_filter=='failed' else 'btn-outline-secondary' }}">Failed</a>
+        <span style="border-left:1px solid var(--border);height:20px;margin:0 4px;"></span>
+        <a href="/payments?method=cash" class="btn btn-sm {{ 'btn-primary' if method_filter=='cash' else 'btn-outline-secondary' }}">Cash</a>
+        <a href="/payments?method=credit_card" class="btn btn-sm {{ 'btn-primary' if method_filter=='credit_card' else 'btn-outline-secondary' }}">Card</a>
+        <a href="/payments?method=pix" class="btn btn-sm {{ 'btn-primary' if method_filter=='pix' else 'btn-outline-secondary' }}">PIX</a>
     </div>
 </div>
 
-<!-- Payments table -->
+<!-- Payments Table -->
 <div class="card">
-    <div class="table-responsive">
-        <table class="data-table" id="paymentsTable">
+    <div class="card-header"><i class="bi bi-list-check" style="color:var(--primary);"></i> Payment Records</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="data-table">
             <thead>
                 <tr>
-                    <th>{{ t('payment_date') }}</th>
-                    <th>{{ t('payment_member') }}</th>
-                    <th>{{ t('payment_amount') }}</th>
-                    <th>{{ t('payment_method') }}</th>
-                    <th>{{ t('payment_status') }}</th>
-                    <th></th>
+                    <th>Date</th>
+                    <th>Member</th>
+                    <th>Source</th>
+                    <th>Method</th>
+                    <th style="text-align:right;">Amount</th>
+                    <th>Status</th>
+                    <th>Notes</th>
                 </tr>
             </thead>
             <tbody>
-                {% for pay in payments|default([]) %}
-                <tr data-status="{{ pay.status|lower }}" data-method="{{ pay.method|lower }}">
-                    <td>{{ pay.date }}</td>
-                    <td>
-                        <a href="/members/{{ pay.member_id }}" style="font-weight:600;font-size:13px;">{{ pay.member_name }}</a>
-                    </td>
-                    <td style="font-family:'Space Grotesk';font-weight:700;">{{ currency_symbol }}{{ pay.amount }}</td>
-                    <td>
-                        <span style="font-size:12px;">
-                            <i class="bi bi-{% if pay.method == 'cash' %}cash{% elif pay.method == 'card' %}credit-card{% elif pay.method == 'check' %}file-earmark{% else %}bank{% endif %}"></i>
-                            {{ pay.method|capitalize }}
-                        </span>
-                    </td>
-                    <td><span class="badge-pill badge-{{ pay.status|lower }}">{{ t('status_' + pay.status|lower) }}</span></td>
-                    <td><a href="/payments/{{ pay.id }}/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
-                </tr>
-                {% endfor %}
+            {% for p in payments %}
+            <tr>
+                <td style="font-size:12px;font-weight:600;">{{ (p.payment_date|string)[:10] }}</td>
+                <td>
+                    <a href="/members/{{ p.member_id }}" style="font-weight:600;font-size:13px;color:var(--text);text-decoration:none;">{{ p.first_name }} {{ p.last_name }}</a>
+                </td>
+                <td>
+                    <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;background:rgba({{ '0,220,130' if p.source=='Enrollment' else '6,182,212' if p.source=='Membership' else '139,92,246' }},.1);color:{{ p.source_color }};">
+                        <i class="bi {{ p.source_icon }}"></i> {{ p.source }}
+                    </span>
+                </td>
+                <td style="font-size:12px;text-transform:capitalize;">{{ (p.method or 'cash')|replace('_',' ') }}</td>
+                <td style="text-align:right;font-family:'Space Grotesk';font-size:16px;font-weight:700;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(p.amount) }}</td>
+                <td>
+                    {% if p.status == 'completed' %}
+                    <span class="badge-pill badge-paid">Paid</span>
+                    {% elif p.status == 'pending' %}
+                    <span class="badge-pill badge-pending">Pending</span>
+                    {% else %}
+                    <span class="badge-pill badge-failed">{{ p.status }}</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:11px;color:var(--text-muted);max-width:200px;">{{ (p.notes or '')[:50] }}{% if p.notes and p.notes|length > 50 %}...{% endif %}</td>
+            </tr>
+            {% endfor %}
+            {% if not payments %}
+            <tr><td colspan="7" class="empty-state" style="padding:40px;"><i class="bi bi-credit-card"></i><p>No payments found</p></td></tr>
+            {% endif %}
             </tbody>
         </table>
+        </div>
     </div>
-    {% if not payments %}
-    <div class="card-body empty-state"><i class="bi bi-credit-card"></i><p>{{ t('payments_empty') }}</p></div>
-    {% endif %}
 </div>
-
-{% if total_pages|default(0) > 1 %}
-<div class="pagination">
-    {% if page > 1 %}<a href="?page={{ page - 1 }}">&laquo;</a>{% endif %}
-    {% for p in range(1, total_pages + 1) %}
-    <a href="?page={{ p }}" class="{{ 'active' if p == page }}">{{ p }}</a>
-    {% endfor %}
-    {% if page < total_pages %}<a href="?page={{ page + 1 }}">&raquo;</a>{% endif %}
-</div>
-{% endif %}
-{% endblock %}
-
-{% block extra_js %}
-<script>
-function applyFilters() {
-    const status = document.getElementById('filterStatus').value;
-    const method = document.getElementById('filterMethod').value;
-    document.querySelectorAll('#paymentsTable tbody tr').forEach(row => {
-        const matchStatus = !status || row.dataset.status === status;
-        const matchMethod = !method || row.dataset.method === method;
-        row.style.display = (matchStatus && matchMethod) ? '' : 'none';
-    });
-}
-</script>
 {% endblock %}

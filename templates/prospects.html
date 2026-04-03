@@ -419,27 +419,36 @@
 
             <!-- Total + Payment -->
             <div style="background:rgba(0,220,130,.06);border:1px solid rgba(0,220,130,.15);border-radius:10px;padding:12px;margin-bottom:12px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                     <span style="font-size:12px;font-weight:600;">Total</span>
                     <span id="enrollTotal" style="font-family:'Space Grotesk';font-size:22px;font-weight:800;color:var(--primary);">{{ currency_symbol }}0.00</span>
                 </div>
-                <div class="grid-2" style="gap:8px;">
-                    <div>
-                        <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Amount Paid</label>
-                        <div style="position:relative;">
-                            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;">{{ currency_symbol }}</span>
-                            <input type="number" id="enrollAmount" class="form-control" step="0.01" min="0" value="0" style="padding-left:26px;font-size:13px;">
+                <!-- Collect now toggle -->
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;background:rgba(0,220,130,.04);border-radius:8px;">
+                    <input type="checkbox" id="enrollCollectNow" checked onchange="toggleCollectPayment()" style="width:18px;height:18px;">
+                    <label for="enrollCollectNow" style="font-size:12px;font-weight:700;cursor:pointer;color:var(--text);">Collect Payment Now</label>
+                    <span style="margin-left:auto;font-size:10px;color:var(--text-muted);" id="enrollPayStatus">Payment will be recorded as PAID</span>
+                </div>
+                <div id="enrollPayFields">
+                    <div class="grid-2" style="gap:8px;">
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Amount</label>
+                            <div style="position:relative;">
+                                <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;">{{ currency_symbol }}</span>
+                                <input type="number" id="enrollAmount" class="form-control" step="0.01" min="0" value="0" style="padding-left:26px;font-size:13px;">
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Payment Method</label>
-                        <select id="enrollPayMethod" class="form-select" style="font-size:13px;">
-                            <option value="cash">Cash</option>
-                            <option value="credit_card">Credit Card</option>
-                            <option value="debit_card">Debit Card</option>
-                            <option value="pix">PIX</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                        </select>
+                        <div>
+                            <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Payment Method</label>
+                            <select id="enrollPayMethod" class="form-select" style="font-size:13px;">
+                                <option value="cash">Cash</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="debit_card">Debit Card</option>
+                                <option value="pix">PIX</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="check">Check</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -590,6 +599,13 @@ function recalcTotal() {
     document.getElementById('enrollAmount').value = total.toFixed(2);
 }
 
+// Toggle collect payment
+function toggleCollectPayment() {
+    const checked = document.getElementById('enrollCollectNow').checked;
+    document.getElementById('enrollPayFields').style.display = checked ? '' : 'none';
+    document.getElementById('enrollPayStatus').textContent = checked ? 'Payment will be recorded as PAID' : 'Payment will be recorded as PENDING';
+}
+
 // Submit enrollment
 function submitEnrollment() {
     const btn = document.getElementById('enrollBtn');
@@ -617,6 +633,7 @@ function submitEnrollment() {
         });
     });
 
+    const collectNow = document.getElementById('enrollCollectNow').checked;
     const data = {
         prospect_id: parseInt(document.getElementById('enrollProspectId').value),
         program_id: document.getElementById('enrollProgram').value || null,
@@ -624,6 +641,7 @@ function submitEnrollment() {
         products: products,
         amount: document.getElementById('enrollAmount').value || 0,
         payment_method: document.getElementById('enrollPayMethod').value,
+        payment_status: collectNow ? 'completed' : 'pending',
     };
 
     fetch('/api/prospects/convert', {

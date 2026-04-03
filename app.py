@@ -2564,6 +2564,7 @@ def payments_list():
     academy_id = _get_academy_id()
     status_filter = request.args.get('status', '')
     method_filter = request.args.get('method', '')
+    period = request.args.get('period', 'month')
 
     try:
         payments = models.get_all_payments(academy_id)
@@ -2574,15 +2575,52 @@ def payments_list():
     except Exception:
         payments = []
 
+    # Categorize payment sources
+    for p in payments:
+        notes = p.get('notes', '') or ''
+        if 'Enrollment' in notes or 'converted from lead' in notes:
+            p['source'] = 'Enrollment'
+            p['source_icon'] = 'bi-person-plus'
+            p['source_color'] = '#00DC82'
+        elif 'membership' in notes.lower() or p.get('membership_id'):
+            p['source'] = 'Membership'
+            p['source_icon'] = 'bi-card-checklist'
+            p['source_color'] = '#06b6d4'
+        else:
+            p['source'] = 'Manual'
+            p['source_icon'] = 'bi-cash'
+            p['source_color'] = '#8b5cf6'
+
+    # Monthly summary
+    today = date.today()
+    current_month = today.strftime('%Y-%m')
+    month_payments = [p for p in payments if str(p.get('payment_date', ''))[:7] == current_month and p.get('status') == 'completed']
+
     summary = {
         'total_collected': sum(p.get('amount', 0) for p in payments if p.get('status') == 'completed'),
+        'month_collected': sum(p.get('amount', 0) for p in month_payments),
+        'month_count': len(month_payments),
         'pending': sum(p.get('amount', 0) for p in payments if p.get('status') == 'pending'),
         'overdue': len([p for p in payments if p.get('status') == 'failed']),
     }
 
+    # Revenue by source this month
+    source_revenue = {}
+    for p in month_payments:
+        src = p.get('source', 'Manual')
+        source_revenue[src] = source_revenue.get(src, 0) + p.get('amount', 0)
+
+    # Revenue by method this month
+    method_revenue = {}
+    for p in month_payments:
+        m = p.get('method', 'cash')
+        method_revenue[m] = method_revenue.get(m, 0) + p.get('amount', 0)
+
     return render_template('payments.html',
         payments=payments,
         summary=summary,
+        source_revenue=source_revenue,
+        method_revenue=method_revenue,
         status_filter=status_filter,
         method_filter=method_filter,
     )
@@ -2945,7 +2983,7 @@ def api_prospect_convert():
                     amount=float(amount),
                     academy_id=academy_id,
                     method=data.get('payment_method', 'cash'),
-                    status='completed',
+                    status=data.get('payment_status', 'completed'),
                     notes=f"Enrollment payment — converted from lead #{prospect_id}",
                     payment_date=str(date.today()),
                 )
