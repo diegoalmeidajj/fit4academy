@@ -2029,11 +2029,27 @@ def attendance_report():
     # Top attendees this month
     top_members = sorted([m for m in report if m.get('total_checkins', 0) > 0], key=lambda x: x['total_checkins'], reverse=True)[:5]
 
+    # Check-in history for the selected month
+    month_str = f"{year}-{str(month).zfill(2)}"
+    try:
+        all_checkins = models.get_all_checkins(academy_id, limit=1000)
+        history = [c for c in all_checkins if str(c.get('check_in_time', ''))[:7] == month_str]
+    except Exception:
+        history = []
+
+    # Format history entries
+    for h in history:
+        cit = str(h.get('check_in_time', ''))
+        h['date'] = cit[:10] if len(cit) >= 10 else ''
+        h['time'] = cit[11:16] if len(cit) >= 16 else ''
+        h['member_name'] = f"{h.get('first_name','')} {h.get('last_name','')}"
+        h['member_initials'] = f"{h.get('first_name','?')[0]}{h.get('last_name','?')[0]}"
+
     months = ['January','February','March','April','May','June','July','August','September','October','November','December']
     return render_template('attendance.html',
         report=report, month=month, year=year, months=months,
         absent_members=absent_members, top_members=top_members,
-        today=str(today),
+        today=str(today), history=history,
     )
 
 
