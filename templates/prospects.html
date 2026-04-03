@@ -365,7 +365,7 @@
                 <label class="form-label"><i class="bi bi-bag"></i> Products (optional)</label>
                 <div id="enrollProducts" style="border:1px solid var(--border);border-radius:10px;padding:8px;">
                     {% for prod in products %}
-                    <div class="enroll-product-row" style="padding:8px 4px;border-radius:6px;font-size:13px;{% if not loop.last %}border-bottom:1px solid var(--border);margin-bottom:4px;padding-bottom:10px;{% endif %}">
+                    <div class="enroll-product-row" data-product-id="{{ prod.id }}" data-product-price="{{ prod.price }}" data-product-sizes="{{ prod.sizes or '' }}" data-product-colors="{{ prod.colors or '' }}" style="padding:8px 4px;border-radius:6px;font-size:13px;{% if not loop.last %}border-bottom:1px solid var(--border);margin-bottom:4px;padding-bottom:10px;{% endif %}">
                         <div style="display:flex;align-items:center;gap:8px;">
                             <input type="checkbox" class="enroll-prod-check" value="{{ prod.id }}" data-price="{{ prod.price }}" onchange="toggleProductRow(this)" style="width:16px;height:16px;flex-shrink:0;">
                             <div style="flex:1;">
@@ -374,37 +374,40 @@
                             </div>
                             <span style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(prod.price) }}</span>
                         </div>
-                        <div class="prod-options" style="display:none;margin-top:8px;padding:8px;background:rgba(0,220,130,.03);border-radius:8px;">
-                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                                {% if prod.colors %}
-                                <div>
-                                    <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">COLOR</div>
-                                    <select class="form-select prod-color" style="width:auto;font-size:11px;padding:4px 8px;">
-                                        {% for c in (prod.colors or '').split(',') %}
-                                        {% if c.strip() %}<option value="{{ c.strip() }}">{{ c.strip() }}</option>{% endif %}
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                {% endif %}
-                                {% if prod.sizes %}
-                                <div>
-                                    <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">SIZE</div>
-                                    <select class="form-select prod-size" style="width:auto;font-size:11px;padding:4px 8px;">
-                                        {% for s in (prod.sizes or '').split(',') %}
-                                        {% if s.strip() %}<option value="{{ s.strip() }}">{{ s.strip() }}</option>{% endif %}
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                {% endif %}
-                                <div>
-                                    <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">QTY</div>
-                                    <input type="number" class="form-control prod-qty" value="1" min="1" style="width:50px;font-size:11px;padding:4px;" onchange="recalcTotal()">
-                                </div>
-                                <div>
-                                    <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">PRICE</div>
-                                    <input type="number" class="form-control prod-price" value="{{ prod.price }}" step="0.01" style="width:70px;font-size:11px;padding:4px;" onchange="recalcTotal()">
+                        <div class="prod-options" style="display:none;margin-top:8px;">
+                            <div class="prod-variants-list">
+                                <div class="prod-variant-line" style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;padding:6px 8px;background:rgba(0,220,130,.03);border-radius:8px;margin-bottom:4px;">
+                                    {% if prod.colors %}
+                                    <div>
+                                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">COLOR</div>
+                                        <select class="form-select prod-color" style="width:auto;font-size:11px;padding:4px 8px;">
+                                            {% for c in (prod.colors or '').split(',') %}
+                                            {% if c.strip() %}<option value="{{ c.strip() }}">{{ c.strip() }}</option>{% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    {% endif %}
+                                    {% if prod.sizes %}
+                                    <div>
+                                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">SIZE</div>
+                                        <select class="form-select prod-size" style="width:auto;font-size:11px;padding:4px 8px;">
+                                            {% for s in (prod.sizes or '').split(',') %}
+                                            {% if s.strip() %}<option value="{{ s.strip() }}">{{ s.strip() }}</option>{% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">QTY</div>
+                                        <input type="number" class="form-control prod-qty" value="1" min="1" style="width:50px;font-size:11px;padding:4px;" onchange="recalcTotal()">
+                                    </div>
+                                    <div>
+                                        <div style="font-size:9px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">PRICE</div>
+                                        <input type="number" class="form-control prod-price" value="{{ prod.price }}" step="0.01" style="width:70px;font-size:11px;padding:4px;" onchange="recalcTotal()">
+                                    </div>
                                 </div>
                             </div>
+                            <button type="button" onclick="addVariantLine(this)" style="font-size:10px;padding:4px 10px;border-radius:6px;border:1px dashed rgba(0,220,130,.4);background:none;color:var(--primary);cursor:pointer;font-weight:600;margin-top:2px;"><i class="bi bi-plus-lg"></i> Add another size/color</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -536,10 +539,34 @@ function toggleProductRow(checkbox) {
     const row = checkbox.closest('.enroll-product-row');
     const opts = row.querySelector('.prod-options');
     if (checkbox.checked) {
-        opts.style.display = 'flex';
+        opts.style.display = 'block';
     } else {
         opts.style.display = 'none';
+        // Remove extra variant lines, keep only first
+        const list = row.querySelector('.prod-variants-list');
+        const lines = list.querySelectorAll('.prod-variant-line');
+        lines.forEach((line, i) => { if (i > 0) line.remove(); });
     }
+    recalcTotal();
+}
+
+// Add another variant line (same product, different size/color)
+function addVariantLine(btn) {
+    const row = btn.closest('.enroll-product-row');
+    const list = row.querySelector('.prod-variants-list');
+    const firstLine = list.querySelector('.prod-variant-line');
+    const clone = firstLine.cloneNode(true);
+    // Reset qty to 1
+    const qtyInput = clone.querySelector('.prod-qty');
+    if (qtyInput) qtyInput.value = 1;
+    // Add remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+    removeBtn.style.cssText = 'background:rgba(239,68,68,.08);color:var(--danger);border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;';
+    removeBtn.onclick = function() { clone.remove(); recalcTotal(); };
+    clone.appendChild(removeBtn);
+    list.appendChild(clone);
     recalcTotal();
 }
 
@@ -550,12 +577,14 @@ function recalcTotal() {
     document.querySelectorAll('.enroll-plan-check:checked').forEach(c => {
         total += parseFloat(c.getAttribute('data-price') || 0);
     });
-    // Products
+    // Products — sum ALL variant lines
     document.querySelectorAll('.enroll-prod-check:checked').forEach(c => {
         const row = c.closest('.enroll-product-row');
-        const qty = parseInt(row.querySelector('.prod-qty')?.value || 1);
-        const price = parseFloat(row.querySelector('.prod-price')?.value || 0);
-        total += qty * price;
+        row.querySelectorAll('.prod-variant-line').forEach(line => {
+            const qty = parseInt(line.querySelector('.prod-qty')?.value || 1);
+            const price = parseFloat(line.querySelector('.prod-price')?.value || 0);
+            total += qty * price;
+        });
     });
     document.getElementById('enrollTotal').textContent = '{{ currency_symbol }}' + total.toFixed(2);
     document.getElementById('enrollAmount').value = total.toFixed(2);
@@ -573,16 +602,18 @@ function submitEnrollment() {
         planIds.push(parseInt(c.value));
     });
 
-    // Collect selected products
+    // Collect selected products — each variant line is a separate item
     const products = [];
     document.querySelectorAll('.enroll-prod-check:checked').forEach(c => {
         const row = c.closest('.enroll-product-row');
-        products.push({
-            product_id: parseInt(c.value),
-            size: row.querySelector('.prod-size')?.value || '',
-            color: row.querySelector('.prod-color')?.value || '',
-            quantity: parseInt(row.querySelector('.prod-qty')?.value || 1),
-            price: parseFloat(row.querySelector('.prod-price')?.value || 0),
+        row.querySelectorAll('.prod-variant-line').forEach(line => {
+            products.push({
+                product_id: parseInt(c.value),
+                size: line.querySelector('.prod-size')?.value || '',
+                color: line.querySelector('.prod-color')?.value || '',
+                quantity: parseInt(line.querySelector('.prod-qty')?.value || 1),
+                price: parseFloat(line.querySelector('.prod-price')?.value || 0),
+            });
         });
     });
 
