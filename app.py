@@ -2886,7 +2886,7 @@ def api_prospect_archive():
         return jsonify({'error': 'prospect_id required'}), 400
     try:
         models.update_prospect(int(prospect_id),
-            archived=1 if archive else 0,
+            archived=True if archive else False,
             archived_at=str(datetime.now()) if archive else None)
         return jsonify({'success': True})
     except Exception as e:
