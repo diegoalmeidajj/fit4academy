@@ -2737,6 +2737,16 @@ def api_mark_paid(payment_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/payments/<int:payment_id>/mark-unpaid', methods=['POST'])
+@login_required
+def api_mark_unpaid(payment_id):
+    try:
+        models.update_payment(payment_id, status='pending')
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/payments/<int:payment_id>/send-receipt', methods=['POST'])
 @login_required
 def api_send_receipt(payment_id):

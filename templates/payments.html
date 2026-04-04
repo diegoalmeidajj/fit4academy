@@ -89,7 +89,6 @@
         <span style="border-left:1px solid var(--border);height:20px;margin:0 4px;"></span>
         <a href="/payments?method=cash" class="btn btn-sm {{ 'btn-primary' if method_filter=='cash' else 'btn-outline-secondary' }}">Cash</a>
         <a href="/payments?method=credit_card" class="btn btn-sm {{ 'btn-primary' if method_filter=='credit_card' else 'btn-outline-secondary' }}">Card</a>
-        <a href="/payments?method=pix" class="btn btn-sm {{ 'btn-primary' if method_filter=='pix' else 'btn-outline-secondary' }}">PIX</a>
         <span style="border-left:1px solid var(--border);height:20px;margin:0 4px;"></span>
         <form method="get" style="display:flex;gap:6px;align-items:center;">
             {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}

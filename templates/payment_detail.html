@@ -127,7 +127,6 @@
                 </div>
                 <div style="display:flex;gap:8px;margin-top:8px;">
                     <button onclick="chargeNow('cash')" class="btn btn-outline-secondary" style="flex:1;justify-content:center;"><i class="bi bi-cash"></i> Cash</button>
-                    <button onclick="chargeNow('pix')" class="btn btn-outline-secondary" style="flex:1;justify-content:center;"><i class="bi bi-qr-code"></i> PIX</button>
                     <button onclick="sendPaymentLink()" class="btn btn-outline-secondary" style="flex:1;justify-content:center;"><i class="bi bi-send"></i> Send Link</button>
                 </div>
                 <div id="chargeResult" style="margin-top:10px;"></div>
@@ -143,6 +142,8 @@
                 <a href="/receipt/{{ payment.id }}" target="_blank" class="btn btn-outline-primary" style="justify-content:center;"><i class="bi bi-printer"></i> Print Receipt</a>
                 {% if payment.status == 'pending' %}
                 <button onclick="markPaid({{ payment.id }})" class="btn btn-success" style="justify-content:center;"><i class="bi bi-check-circle"></i> Mark as Paid</button>
+                {% elif payment.status == 'completed' %}
+                <button onclick="markUnpaid({{ payment.id }})" class="btn btn-outline-danger" style="justify-content:center;"><i class="bi bi-x-circle"></i> Mark as Unpaid</button>
                 {% endif %}
                 <a href="/members/{{ payment.member_id }}" class="btn btn-outline-secondary" style="justify-content:center;"><i class="bi bi-person"></i> View Member Profile</a>
             </div>
@@ -193,7 +194,7 @@ function chargeNow(method) {
             }
         });
     } else {
-        // Manual payment (cash/pix) — just mark as paid
+        // Manual payment (cash) — just mark as paid
         markPaid({{ payment.id }});
     }
 }
@@ -232,6 +233,16 @@ function sendPaymentLink() {
 
 function markPaid(paymentId) {
     fetch('/api/payments/' + paymentId + '/mark-paid', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+    });
+}
+
+function markUnpaid(paymentId) {
+    if (!confirm('Mark this payment as unpaid?')) return;
+    fetch('/api/payments/' + paymentId + '/mark-unpaid', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'}
     }).then(r => r.json()).then(d => {
