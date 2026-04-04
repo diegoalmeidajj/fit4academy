@@ -171,6 +171,39 @@ def _save_upload(file_obj, subfolder=''):
         return f"/static/uploads/{unique_name}"
 
 
+def _enrich_programs(programs):
+    """Auto-detect sport_type and has_belts for programs missing these fields."""
+    bjj_keywords = ['gi', 'bjj', 'jiu', 'jitsu', 'grappling', 'submission']
+    judo_keywords = ['judo']
+    for p in programs:
+        if not p.get('sport_type'):
+            name_lower = (p.get('name', '') or '').lower()
+            if any(k in name_lower for k in bjj_keywords):
+                p['sport_type'] = 'bjj'
+                p['has_belts'] = True
+            elif any(k in name_lower for k in judo_keywords):
+                p['sport_type'] = 'judo'
+                p['has_belts'] = True
+            elif 'mma' in name_lower:
+                p['sport_type'] = 'mma'
+                p['has_belts'] = False
+            elif 'muay' in name_lower or 'thai' in name_lower:
+                p['sport_type'] = 'muay_thai'
+                p['has_belts'] = False
+            elif 'box' in name_lower:
+                p['sport_type'] = 'boxing'
+                p['has_belts'] = False
+            elif 'wrestl' in name_lower:
+                p['sport_type'] = 'wrestling'
+                p['has_belts'] = False
+            else:
+                p['sport_type'] = 'other'
+                p['has_belts'] = False
+        if p.get('has_belts') is None:
+            p['has_belts'] = p.get('sport_type') in ('bjj', 'judo')
+    return programs
+
+
 def _enrich_member(m):
     """Add computed fields to a member dict for template display."""
     if not m:
@@ -690,7 +723,7 @@ def member_add():
     except Exception:
         plans_display = []
 
-    programs = models.get_programs(academy_id)
+    programs = _enrich_programs(models.get_programs(academy_id))
     return render_template('member_form.html',
         member=None,
         belt_ranks=belt_ranks,
@@ -896,7 +929,7 @@ def member_edit(member_id):
     except Exception:
         plans_display = []
 
-    programs = models.get_programs(academy_id)
+    programs = _enrich_programs(models.get_programs(academy_id))
     member_progs = models.get_member_programs(member_id)
     member_prog_ids = [p['id'] for p in member_progs]
 
@@ -1577,7 +1610,7 @@ def classes_list():
     except Exception:
         classes = []
 
-    programs = models.get_programs(academy_id)
+    programs = _enrich_programs(models.get_programs(academy_id))
     from datetime import datetime as dt
     return render_template('classes.html',
         schedule=schedule,
@@ -1648,7 +1681,7 @@ def class_add():
     except Exception:
         instructors = []
 
-    programs = models.get_programs(academy_id)
+    programs = _enrich_programs(models.get_programs(academy_id))
     return render_template('class_form.html', cls=None, instructors=instructors, programs=programs)
 
 
@@ -1752,7 +1785,7 @@ def class_delete(class_id):
 @login_required
 def programs_list():
     academy_id = _get_academy_id()
-    programs = models.get_programs(academy_id)
+    programs = _enrich_programs(models.get_programs(academy_id))
     # Get member count and list per program
     for p in programs:
         members = models.get_members_by_program(academy_id, p['id'])
@@ -3358,7 +3391,7 @@ def prospects_list():
         leads_lost=leads_lost, conversion_rate=conversion_rate,
         source_counts=source_counts, total_leads=total_leads,
         period=period, date_from=date_from, date_to=date_to,
-        programs=models.get_programs(academy_id),
+        programs=_enrich_programs(models.get_programs(academy_id)),
         membership_plans=models.get_all_membership_plans(academy_id),
         products=models.get_all_products(academy_id),
     )
@@ -4650,7 +4683,7 @@ def messaging_page():
     except Exception:
         stats = {}
 
-    programs = models.get_programs(academy_id)
+    programs = _enrich_programs(models.get_programs(academy_id))
     return render_template('messaging.html',
                            members=members,
                            plans=plans,
