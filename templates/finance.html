@@ -249,40 +249,135 @@
 
 <!-- ═══ P&L TAB ═══ -->
 <div id="tab-pnl" style="display:none;">
-    <div class="card">
-        <div class="card-header"><i class="bi bi-file-earmark-bar-graph" style="color:var(--primary);"></i> Profit & Loss — {{ months[month-1] }} {{ year }}</div>
-        <div class="card-body">
-            <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--success);margin-bottom:12px;">REVENUE</div>
-            {% for src, amt in revenue_by_source.items()|sort(attribute='1', reverse=true) %}
-            <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);">
-                <span style="padding-left:16px;">{{ src }}</span>
-                <span style="font-family:'Space Grotesk';font-weight:600;">{{ currency_symbol }}{{ "%.2f"|format(amt) }}</span>
+    <!-- P&L Header -->
+    <div class="card mb-16" style="border:none;background:linear-gradient(135deg,rgba(0,220,130,.08),rgba(6,182,212,.06));border:1px solid rgba(0,220,130,.15);">
+        <div class="card-body" style="text-align:center;padding:24px;">
+            <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:1px;">Profit & Loss Statement</div>
+            <div style="font-family:'Space Grotesk';font-size:16px;font-weight:700;color:var(--text);margin-top:4px;">{{ months[month-1] }} {{ year }}</div>
+            <div style="font-family:'Space Grotesk';font-size:48px;font-weight:800;margin-top:8px;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+                {% if net_profit >= 0 %}+{% endif %}{{ currency_symbol }}{{ "%.2f"|format(net_profit) }}
             </div>
-            {% endfor %}
-            <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;color:var(--success);border-bottom:2px solid var(--border);">
-                <span>Total Revenue</span>
-                <span style="font-family:'Space Grotesk';">{{ currency_symbol }}{{ "%.2f"|format(total_revenue) }}</span>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+                {% if margin >= 20 %}<i class="bi bi-arrow-up-circle-fill" style="color:var(--success);"></i> Healthy margin at {{ margin }}%
+                {% elif margin >= 0 %}<i class="bi bi-dash-circle" style="color:var(--warning);"></i> Low margin at {{ margin }}% — consider reducing costs
+                {% else %}<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i> Operating at a loss — revenue needs to exceed costs
+                {% endif %}
             </div>
+        </div>
+    </div>
 
-            <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--danger);margin:20px 0 12px;">EXPENSES</div>
-            {% for cat, amt in expense_by_category.items()|sort(attribute='1', reverse=true) %}
-            <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);">
-                <span style="padding-left:16px;">{{ cat }}</span>
-                <span style="font-family:'Space Grotesk';font-weight:600;color:var(--danger);">-{{ currency_symbol }}{{ "%.2f"|format(amt) }}</span>
-            </div>
-            {% endfor %}
-            <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);">
-                <span style="padding-left:16px;">Payroll</span>
-                <span style="font-family:'Space Grotesk';font-weight:600;color:var(--danger);">-{{ currency_symbol }}{{ "%.2f"|format(total_payroll) }}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;color:var(--danger);border-bottom:2px solid var(--border);">
-                <span>Total Costs</span>
-                <span style="font-family:'Space Grotesk';">-{{ currency_symbol }}{{ "%.2f"|format(total_costs) }}</span>
-            </div>
+    <div class="grid-2" style="gap:16px;">
+        <!-- Revenue Card -->
+        <div class="card" style="border-top:3px solid var(--success);">
+            <div class="card-body">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                    <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,220,130,.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-arrow-up-circle-fill" style="color:var(--success);font-size:18px;"></i></div>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Total Revenue</div>
+                        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:800;color:var(--success);">{{ currency_symbol }}{{ "%.2f"|format(total_revenue) }}</div>
+                    </div>
+                </div>
+                {% for src, amt in revenue_by_source.items()|sort(attribute='1', reverse=true) %}
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+                    <div style="width:6px;height:6px;border-radius:50%;background:var(--success);flex-shrink:0;"></div>
+                    <span style="font-size:13px;flex:1;">{{ src }}</span>
+                    <div style="text-align:right;">
+                        <div style="font-family:'Space Grotesk';font-weight:700;font-size:14px;">{{ currency_symbol }}{{ "%.2f"|format(amt) }}</div>
+                        <div style="font-size:10px;color:var(--text-muted);">{{ "%.1f"|format(amt / total_revenue * 100) if total_revenue > 0 else 0 }}%</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not revenue_by_source %}
+                <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">No revenue this month</div>
+                {% endif %}
 
-            <div style="display:flex;justify-content:space-between;padding:16px 0;font-size:20px;font-weight:800;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};">
-                <span style="font-family:'Space Grotesk';">NET PROFIT</span>
-                <span style="font-family:'Space Grotesk';">{{ currency_symbol }}{{ "%.2f"|format(net_profit) }}</span>
+                {% if pending_payments > 0 %}
+                <div style="margin-top:12px;padding:10px;border-radius:8px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);display:flex;align-items:center;gap:8px;">
+                    <i class="bi bi-hourglass-split" style="color:var(--warning);"></i>
+                    <span style="font-size:12px;color:var(--warning);font-weight:600;">{{ currency_symbol }}{{ "%.2f"|format(pending_payments) }} pending collection</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Costs Card -->
+        <div class="card" style="border-top:3px solid var(--danger);">
+            <div class="card-body">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                    <div style="width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,.1);display:flex;align-items:center;justify-content:center;"><i class="bi bi-arrow-down-circle-fill" style="color:var(--danger);font-size:18px;"></i></div>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Total Costs</div>
+                        <div style="font-family:'Space Grotesk';font-size:26px;font-weight:800;color:var(--danger);">-{{ currency_symbol }}{{ "%.2f"|format(total_costs) }}</div>
+                    </div>
+                </div>
+
+                <!-- Operating Expenses -->
+                {% if expense_by_category %}
+                <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Operating Expenses</div>
+                {% for cat, amt in expense_by_category.items()|sort(attribute='1', reverse=true) %}
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+                    <div style="width:6px;height:6px;border-radius:50%;background:#f97316;flex-shrink:0;"></div>
+                    <span style="font-size:13px;flex:1;">{{ cat }}</span>
+                    <div style="text-align:right;">
+                        <div style="font-family:'Space Grotesk';font-weight:700;font-size:14px;color:var(--danger);">-{{ currency_symbol }}{{ "%.2f"|format(amt) }}</div>
+                        <div style="font-size:10px;color:var(--text-muted);">{{ "%.1f"|format(amt / total_costs * 100) if total_costs > 0 else 0 }}%</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                <!-- Payroll -->
+                {% if total_payroll > 0 %}
+                <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 8px;">Payroll & Labor</div>
+                {% for p in payroll %}
+                <div style="display:flex;align-items:center;gap:10px;padding:6px 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+                    <div style="width:6px;height:6px;border-radius:50%;background:#8b5cf6;flex-shrink:0;"></div>
+                    <span style="font-size:12px;flex:1;">{{ p.employee_name }} <span style="color:var(--text-muted);font-size:10px;">({{ p.role }})</span></span>
+                    <span style="font-family:'Space Grotesk';font-weight:700;font-size:13px;color:#8b5cf6;">-{{ currency_symbol }}{{ "%.2f"|format(p.net_pay) }}</span>
+                </div>
+                {% endfor %}
+                <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px;border-top:1px dashed var(--border);font-size:12px;font-weight:700;">
+                    <span>Payroll Subtotal</span>
+                    <span style="font-family:'Space Grotesk';color:#8b5cf6;">-{{ currency_symbol }}{{ "%.2f"|format(total_payroll) }}</span>
+                </div>
+                {% endif %}
+
+                {% if not expense_by_category and total_payroll == 0 %}
+                <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">No costs this month</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Line -->
+    <div class="card mt-16" style="border:2px solid {% if net_profit >= 0 %}rgba(0,220,130,.3){% else %}rgba(239,68,68,.3){% endif %};background:{% if net_profit >= 0 %}rgba(0,220,130,.04){% else %}rgba(239,68,68,.04){% endif %};">
+        <div class="card-body" style="padding:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:44px;height:44px;border-radius:12px;background:{% if net_profit >= 0 %}rgba(0,220,130,.15){% else %}rgba(239,68,68,.15){% endif %};display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-{% if net_profit >= 0 %}trophy-fill{% else %}exclamation-triangle-fill{% endif %}" style="font-size:20px;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Net {{ 'Profit' if net_profit >= 0 else 'Loss' }}</div>
+                        <div style="font-size:12px;color:var(--text-muted);">
+                            {% if net_profit >= 0 %}
+                                {% if margin >= 30 %}Excellent! Your academy is highly profitable.
+                                {% elif margin >= 20 %}Good performance. Consider investing in growth.
+                                {% elif margin >= 10 %}Moderate profit. Look for ways to optimize costs.
+                                {% else %}Thin margins. Review expenses for savings.
+                                {% endif %}
+                            {% else %}
+                                Revenue is below costs. Focus on increasing enrollment and reducing expenses.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-family:'Space Grotesk';font-size:32px;font-weight:800;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+                        {% if net_profit >= 0 %}+{% endif %}{{ currency_symbol }}{{ "%.2f"|format(net_profit) }}
+                    </div>
+                    <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:{% if margin >= 20 %}var(--success){% elif margin >= 0 %}var(--warning){% else %}var(--danger){% endif %};">{{ margin }}% margin</div>
+                </div>
             </div>
         </div>
     </div>
