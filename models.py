@@ -2268,22 +2268,35 @@ def create_audit_entry(user_id, user_name, action, entity_type, entity_id=None, 
 # ═══════════════════════════════════════════════════════════════
 
 def get_dashboard_stats(academy_id=1):
+    # Fix NULLs first in separate connection
+    try:
+        c = get_db()
+        c.execute("UPDATE members SET membership_status = 'active' WHERE membership_status IS NULL OR membership_status = ''")
+        c.execute("UPDATE members SET academy_id = 1 WHERE academy_id IS NULL")
+        c.commit()
+        c.close()
+    except Exception as e:
+        print(f"[Stats] Fix NULLs error: {e}")
+
     conn = get_db()
     stats = {}
 
-    # Fix NULL membership_status — set to 'active' for all NULL members
+    # Active members — simple count, no filters that could fail
     try:
-        conn.execute("UPDATE members SET membership_status = 'active' WHERE membership_status IS NULL OR membership_status = ''")
-        conn.commit()
-    except Exception:
-        pass
-
-    # Active members — count all non-inactive members
-    row = conn.execute(
-        "SELECT COUNT(*) as cnt FROM members WHERE (academy_id = ? OR academy_id IS NULL) AND membership_status != 'inactive'",
-        (academy_id,)
-    ).fetchone()
-    stats['active_members'] = row['cnt'] if isinstance(row, dict) else row[0]
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND membership_status = 'active'",
+            (academy_id,)
+        ).fetchone()
+        stats['active_members'] = row['cnt'] if isinstance(row, dict) else row[0]
+        print(f"[Stats] Active members for academy {academy_id}: {stats['active_members']}")
+    except Exception as e:
+        print(f"[Stats] Active members error: {e}")
+        # Fallback — count ALL members
+        try:
+            row = conn.execute("SELECT COUNT(*) as cnt FROM members WHERE academy_id = ?", (academy_id,)).fetchone()
+            stats['active_members'] = row['cnt'] if isinstance(row, dict) else row[0]
+        except Exception:
+            stats['active_members'] = 0
 
     # Total members
     row = conn.execute(

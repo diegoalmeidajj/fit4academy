@@ -375,7 +375,9 @@ def dashboard():
 
     try:
         stats = models.get_dashboard_stats(academy_id)
-    except Exception:
+        print(f"[Dashboard] academy_id={academy_id}, stats={stats}")
+    except Exception as e:
+        print(f"[Dashboard] ERROR getting stats: {e}")
         stats = {'active_members': 0, 'total_members': 0, 'today_checkins': 0,
                  'monthly_revenue': 0, 'expiring_soon': 0, 'active_prospects': 0}
 
