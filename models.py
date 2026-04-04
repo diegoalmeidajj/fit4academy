@@ -228,6 +228,42 @@ def init_db():
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS expenses (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id      INTEGER DEFAULT 1 REFERENCES academies(id),
+            category        TEXT NOT NULL DEFAULT 'other',
+            description     TEXT DEFAULT '',
+            vendor          TEXT DEFAULT '',
+            amount          REAL NOT NULL DEFAULT 0,
+            expense_date    DATE DEFAULT CURRENT_DATE,
+            recurring        BOOLEAN DEFAULT 0,
+            recurring_cycle TEXT DEFAULT 'monthly',
+            payment_method  TEXT DEFAULT 'bank_transfer',
+            status          TEXT DEFAULT 'paid',
+            receipt_url     TEXT DEFAULT '',
+            notes           TEXT DEFAULT '',
+            created_by      INTEGER,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS payroll (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id      INTEGER DEFAULT 1 REFERENCES academies(id),
+            employee_name   TEXT NOT NULL,
+            role            TEXT DEFAULT 'instructor',
+            salary          REAL DEFAULT 0,
+            pay_type        TEXT DEFAULT 'monthly',
+            pay_date        DATE DEFAULT CURRENT_DATE,
+            hours_worked    REAL DEFAULT 0,
+            hourly_rate     REAL DEFAULT 0,
+            bonus           REAL DEFAULT 0,
+            deductions      REAL DEFAULT 0,
+            net_pay         REAL DEFAULT 0,
+            status          TEXT DEFAULT 'paid',
+            notes           TEXT DEFAULT '',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS product_variants (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id      INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -2689,3 +2725,131 @@ def create_order_item(academy_id=1, **kwargs):
     new_id = cur.lastrowid
     conn.close()
     return new_id
+
+
+# ═══════════════════════════════════════════════════════════════
+# EXPENSES
+# ═══════════════════════════════════════════════════════════════
+
+def get_all_expenses(academy_id=1, month=None, year=None):
+    conn = get_db()
+    try:
+        if month and year:
+            month_str = f"{year}-{str(month).zfill(2)}"
+            rows = conn.execute(
+                "SELECT * FROM expenses WHERE academy_id = ? AND CAST(expense_date AS TEXT) LIKE ? ORDER BY expense_date DESC",
+                (academy_id, month_str + '%')
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM expenses WHERE academy_id = ? ORDER BY expense_date DESC",
+                (academy_id,)
+            ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def create_expense(academy_id=1, **kwargs):
+    conn = get_db()
+    cur = conn.execute(
+        """INSERT INTO expenses (academy_id, category, description, vendor, amount,
+           expense_date, recurring, recurring_cycle, payment_method, status, notes, created_by)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (academy_id, kwargs.get('category', 'other'), kwargs.get('description', ''),
+         kwargs.get('vendor', ''), float(kwargs.get('amount', 0)),
+         kwargs.get('expense_date', str(date.today())),
+         kwargs.get('recurring', False), kwargs.get('recurring_cycle', 'monthly'),
+         kwargs.get('payment_method', 'bank_transfer'), kwargs.get('status', 'paid'),
+         kwargs.get('notes', ''), kwargs.get('created_by'))
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return new_id
+
+
+def update_expense(expense_id, **kwargs):
+    conn = get_db()
+    allowed = ['category', 'description', 'vendor', 'amount', 'expense_date',
+               'recurring', 'recurring_cycle', 'payment_method', 'status', 'notes']
+    fields = []
+    values = []
+    for k, v in kwargs.items():
+        if k in allowed:
+            fields.append(f"{k} = ?")
+            values.append(v)
+    if not fields:
+        conn.close()
+        return False
+    values.append(expense_id)
+    conn.execute(f"UPDATE expenses SET {', '.join(fields)} WHERE id = ?", tuple(values))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def delete_expense(expense_id):
+    conn = get_db()
+    conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# PAYROLL
+# ═══════════════════════════════════════════════════════════════
+
+def get_all_payroll(academy_id=1, month=None, year=None):
+    conn = get_db()
+    try:
+        if month and year:
+            month_str = f"{year}-{str(month).zfill(2)}"
+            rows = conn.execute(
+                "SELECT * FROM payroll WHERE academy_id = ? AND CAST(pay_date AS TEXT) LIKE ? ORDER BY pay_date DESC",
+                (academy_id, month_str + '%')
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM payroll WHERE academy_id = ? ORDER BY pay_date DESC", (academy_id,)
+            ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def create_payroll(academy_id=1, **kwargs):
+    salary = float(kwargs.get('salary', 0))
+    bonus = float(kwargs.get('bonus', 0))
+    deductions = float(kwargs.get('deductions', 0))
+    hours = float(kwargs.get('hours_worked', 0))
+    rate = float(kwargs.get('hourly_rate', 0))
+    if kwargs.get('pay_type') == 'hourly' and hours and rate:
+        net = (hours * rate) + bonus - deductions
+    else:
+        net = salary + bonus - deductions
+    conn = get_db()
+    cur = conn.execute(
+        """INSERT INTO payroll (academy_id, employee_name, role, salary, pay_type,
+           pay_date, hours_worked, hourly_rate, bonus, deductions, net_pay, status, notes)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (academy_id, kwargs.get('employee_name', ''), kwargs.get('role', 'instructor'),
+         salary, kwargs.get('pay_type', 'monthly'),
+         kwargs.get('pay_date', str(date.today())), hours, rate,
+         bonus, deductions, net, kwargs.get('status', 'paid'), kwargs.get('notes', ''))
+    )
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return new_id
+
+
+def delete_payroll(payroll_id):
+    conn = get_db()
+    conn.execute("DELETE FROM payroll WHERE id = ?", (payroll_id,))
+    conn.commit()
+    conn.close()
+    return True

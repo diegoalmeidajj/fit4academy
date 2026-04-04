@@ -1,158 +1,434 @@
 {% extends "base.html" %}
-{% block title %}{{ t('nav_finance') }}{% endblock %}
+{% block title %}Finance{% endblock %}
 
 {% block extra_css %}
-.chart-container { position: relative; height: 250px; background: var(--card-bg); border-radius: 14px; overflow: hidden; }
-.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 20px 20px 0; }
-.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.bar-fill { width: 100%; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, #00DC82, #00B368); transition: height .6s ease; min-height: 2px; }
-.bar-label { font-size: 10px; color: var(--text-muted); font-weight: 600; }
-.bar-value { font-size: 10px; font-weight: 700; color: var(--primary); }
-
-.donut-chart { width: 180px; height: 180px; border-radius: 50%; position: relative; margin: 0 auto; }
-.donut-center { position: absolute; inset: 30%; background: var(--card-bg); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.donut-center .total { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; }
-.donut-center .label { font-size: 10px; color: var(--text-muted); }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; }
-.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
-
-.comparison-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.comparison-row:last-child { border-bottom: none; }
-.comparison-label { width: 120px; font-size: 13px; font-weight: 600; }
-.comparison-bar-track { flex: 1; height: 20px; background: var(--border); border-radius: 6px; overflow: hidden; }
-.comparison-bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; font-weight: 700; color: #fff; }
+.fin-tab { padding:8px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--card-bg);color:var(--text);transition:all .2s;font-family:'Space Grotesk'; }
+.fin-tab:hover { border-color:var(--primary); }
+.fin-tab.active { background:var(--primary);color:#fff;border-color:var(--primary); }
+.fin-tab .tab-count { background:rgba(255,255,255,.2);padding:1px 7px;border-radius:6px;font-size:11px;margin-left:4px; }
+.trend-bar { display:flex;align-items:flex-end;gap:8px;height:120px;padding:10px 0; }
+.trend-col { flex:1;display:flex;flex-direction:column;align-items:center;gap:2px; }
+.trend-col .bar { width:100%;border-radius:4px 4px 0 0;min-height:2px;transition:height .5s; }
+.trend-col .label { font-size:9px;color:var(--text-muted);font-weight:600; }
 {% endblock %}
 
 {% block content %}
 <div class="topbar">
-    <h1><i class="bi bi-graph-up-arrow" style="color:var(--primary);"></i> {{ t('finance_title') }}</h1>
-</div>
-
-<!-- Top summary -->
-<div class="grid-4 mb-24">
-    <div class="stat-card stat-green">
-        <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ finance.total_revenue|default(0)|int }}</div>
-        <div class="stat-label">{{ t('finance_total_revenue') }}</div>
-    </div>
-    <div class="stat-card stat-blue">
-        <div class="stat-icon"><i class="bi bi-people"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ finance.avg_per_member|default(0)|int }}</div>
-        <div class="stat-label">{{ t('finance_avg_member') }}</div>
-    </div>
-    <div class="stat-card stat-purple">
-        <div class="stat-icon"><i class="bi bi-calendar-month"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ finance.this_month|default(0)|int }}</div>
-        <div class="stat-label">{{ t('finance_this_month') }}</div>
-    </div>
-    <div class="stat-card stat-orange">
-        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-value">{{ currency_symbol }}{{ finance.outstanding|default(0)|int }}</div>
-        <div class="stat-label">{{ t('finance_outstanding') }}</div>
+    <h1><i class="bi bi-graph-up-arrow" style="color:var(--primary);"></i> Finance</h1>
+    <div class="topbar-actions">
+        <button class="btn btn-outline-primary" onclick="document.getElementById('expenseModal').style.display='flex'"><i class="bi bi-dash-circle"></i> Add Expense</button>
+        <button class="btn btn-outline-primary" onclick="document.getElementById('payrollModal').style.display='flex'"><i class="bi bi-people"></i> Add Payroll</button>
     </div>
 </div>
 
-<div class="grid-2 mb-24">
-    <!-- Monthly Revenue Chart -->
+<!-- Month Selector -->
+<div class="card mb-16">
+    <div class="card-body" style="padding:12px 16px;">
+        <form method="get" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <select name="month" class="form-control" style="max-width:150px;">
+                {% for i in range(1,13) %}<option value="{{ i }}" {{ 'selected' if i == month }}>{{ months[i-1] }}</option>{% endfor %}
+            </select>
+            <select name="year" class="form-control" style="max-width:100px;">
+                {% for y in range(2024, 2028) %}<option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filter</button>
+        </form>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:6px;margin-bottom:16px;">
+    <div class="fin-tab active" onclick="switchFinTab('overview')"><i class="bi bi-speedometer2"></i> Overview</div>
+    <div class="fin-tab" onclick="switchFinTab('expenses')"><i class="bi bi-receipt-cutoff"></i> Expenses <span class="tab-count">{{ expenses|length }}</span></div>
+    <div class="fin-tab" onclick="switchFinTab('payroll')"><i class="bi bi-people"></i> Payroll <span class="tab-count">{{ payroll|length }}</span></div>
+    <div class="fin-tab" onclick="switchFinTab('pnl')"><i class="bi bi-file-earmark-bar-graph"></i> P&L Report</div>
+</div>
+
+<!-- ═══ OVERVIEW TAB ═══ -->
+<div id="tab-overview">
+    <!-- Main Stats -->
+    <div class="grid-4 mb-16">
+        <div class="stat-card stat-green">
+            <div class="stat-icon"><i class="bi bi-arrow-up-circle"></i></div>
+            <div class="stat-value">{{ currency_symbol }}{{ "%.0f"|format(total_revenue) }}</div>
+            <div class="stat-label">Revenue</div>
+        </div>
+        <div class="stat-card stat-red">
+            <div class="stat-icon"><i class="bi bi-arrow-down-circle"></i></div>
+            <div class="stat-value">{{ currency_symbol }}{{ "%.0f"|format(total_costs) }}</div>
+            <div class="stat-label">Total Costs</div>
+        </div>
+        <div class="stat-card {{ 'stat-green' if net_profit >= 0 else 'stat-red' }}">
+            <div class="stat-icon"><i class="bi bi-{{ 'trophy' if net_profit >= 0 else 'exclamation-triangle' }}"></i></div>
+            <div class="stat-value">{{ currency_symbol }}{{ "%.0f"|format(net_profit) }}</div>
+            <div class="stat-label">Net Profit ({{ margin }}%)</div>
+        </div>
+        <div class="stat-card stat-orange">
+            <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+            <div class="stat-value">{{ currency_symbol }}{{ "%.0f"|format(pending_payments) }}</div>
+            <div class="stat-label">Pending</div>
+        </div>
+    </div>
+
+    <!-- Profit Bar -->
+    <div class="card mb-16">
+        <div class="card-body" style="padding:14px 18px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                <span style="font-size:12px;font-weight:700;">Profit Margin</span>
+                <span style="font-family:'Space Grotesk';font-size:18px;font-weight:800;color:{% if margin >= 20 %}var(--success){% elif margin >= 0 %}var(--warning){% else %}var(--danger){% endif %};">{{ margin }}%</span>
+            </div>
+            <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--border);">
+                {% if total_revenue > 0 %}
+                <div style="width:{{ (total_revenue / (total_revenue + total_costs) * 100) if (total_revenue + total_costs) > 0 else 50 }}%;background:linear-gradient(90deg,#00DC82,#10b981);border-radius:6px 0 0 6px;" title="Revenue"></div>
+                <div style="flex:1;background:linear-gradient(90deg,#ef4444,#f87171);" title="Costs"></div>
+                {% endif %}
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-muted);">
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#00DC82;margin-right:4px;"></span>Revenue: {{ currency_symbol }}{{ "%.0f"|format(total_revenue) }}</span>
+                <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#ef4444;margin-right:4px;"></span>Costs: {{ currency_symbol }}{{ "%.0f"|format(total_costs) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6-Month Trend + Breakdowns -->
+    <div class="grid-2 mb-16">
+        <!-- Trend -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-bar-chart" style="color:var(--primary);"></i> 6-Month Trend</div>
+            <div class="card-body">
+                <div class="trend-bar">
+                    {% set max_val = [1] %}
+                    {% for t in monthly_trend %}{% if t.revenue > max_val[0] %}{% if max_val.append(t.revenue) %}{% endif %}{% endif %}{% endfor %}
+                    {% for t in monthly_trend %}
+                    <div class="trend-col">
+                        <div class="bar" style="height:{{ (t.revenue / max_val[-1] * 100)|round if max_val[-1] > 0 else 0 }}%;background:linear-gradient(180deg,#00DC82,#059669);"></div>
+                        <div class="bar" style="height:{{ (t.expenses / max_val[-1] * 100)|round if max_val[-1] > 0 else 0 }}%;background:linear-gradient(180deg,#ef4444,#dc2626);margin-top:2px;"></div>
+                        <div class="label">{{ t.month }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div style="display:flex;gap:16px;justify-content:center;font-size:10px;color:var(--text-muted);margin-top:8px;">
+                    <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#00DC82;margin-right:3px;"></span>Revenue</span>
+                    <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#ef4444;margin-right:3px;"></span>Costs</span>
+                </div>
+            </div>
+        </div>
+        <!-- Revenue Breakdown -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-pie-chart" style="color:var(--primary);"></i> Revenue Breakdown</div>
+            <div class="card-body">
+                {% if revenue_by_source %}
+                {% set max_src = revenue_by_source.values()|max if revenue_by_source else 1 %}
+                {% for src, amt in revenue_by_source.items()|sort(attribute='1', reverse=true) %}
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:12px;font-weight:600;min-width:80px;">{{ src }}</span>
+                    <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                        <div style="width:{{ (amt / max_src * 100)|round }}%;height:100%;background:linear-gradient(90deg,#00DC82,#06b6d4);border-radius:4px;"></div>
+                    </div>
+                    <span style="font-family:'Space Grotesk';font-weight:700;color:var(--primary);min-width:60px;text-align:right;">{{ currency_symbol }}{{ "%.0f"|format(amt) }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No revenue this month</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Breakdown + Cost Split -->
+    <div class="grid-2 mb-16">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-receipt-cutoff" style="color:var(--danger);"></i> Expense Breakdown</div>
+            <div class="card-body">
+                {% if expense_by_category %}
+                {% set max_exp = expense_by_category.values()|max if expense_by_category else 1 %}
+                {% for cat, amt in expense_by_category.items()|sort(attribute='1', reverse=true) %}
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <span style="font-size:12px;font-weight:600;min-width:80px;">{{ cat }}</span>
+                    <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                        <div style="width:{{ (amt / max_exp * 100)|round }}%;height:100%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:4px;"></div>
+                    </div>
+                    <span style="font-family:'Space Grotesk';font-weight:700;color:var(--danger);min-width:60px;text-align:right;">{{ currency_symbol }}{{ "%.0f"|format(amt) }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No expenses this month</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><i class="bi bi-diagram-3" style="color:var(--primary);"></i> Cost Split</div>
+            <div class="card-body">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                    <div style="width:10px;height:10px;border-radius:50%;background:#f97316;"></div>
+                    <span style="font-size:13px;font-weight:600;flex:1;">Expenses</span>
+                    <span style="font-family:'Space Grotesk';font-weight:700;">{{ currency_symbol }}{{ "%.0f"|format(total_expenses) }}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                    <div style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;"></div>
+                    <span style="font-size:13px;font-weight:600;flex:1;">Payroll</span>
+                    <span style="font-family:'Space Grotesk';font-weight:700;">{{ currency_symbol }}{{ "%.0f"|format(total_payroll) }}</span>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;align-items:center;gap:10px;">
+                    <div style="width:10px;height:10px;border-radius:50%;background:var(--danger);"></div>
+                    <span style="font-size:13px;font-weight:700;flex:1;">Total Costs</span>
+                    <span style="font-family:'Space Grotesk';font-weight:800;font-size:18px;color:var(--danger);">{{ currency_symbol }}{{ "%.0f"|format(total_costs) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ EXPENSES TAB ═══ -->
+<div id="tab-expenses" style="display:none;">
     <div class="card">
-        <div class="card-header"><i class="bi bi-bar-chart"></i> {{ t('finance_monthly_chart') }}</div>
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <span><i class="bi bi-receipt-cutoff" style="color:var(--danger);"></i> Expenses — {{ months[month-1] }} {{ year }}</span>
+            <button class="btn btn-sm btn-primary" onclick="document.getElementById('expenseModal').style.display='flex'"><i class="bi bi-plus"></i> Add</button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Vendor</th><th>Method</th><th style="text-align:right;">Amount</th><th></th></tr></thead>
+                <tbody>
+                {% for e in expenses %}
+                <tr>
+                    <td style="font-size:12px;font-weight:600;">{{ (e.expense_date|string)[:10] }}</td>
+                    <td><span style="padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;background:rgba(239,68,68,.08);color:var(--danger);text-transform:capitalize;">{{ e.category|replace('_',' ') }}</span></td>
+                    <td style="font-size:13px;">{{ e.description or '—' }}</td>
+                    <td style="font-size:12px;color:var(--text-muted);">{{ e.vendor or '—' }}</td>
+                    <td style="font-size:12px;text-transform:capitalize;">{{ (e.payment_method or '')|replace('_',' ') }}</td>
+                    <td style="text-align:right;font-family:'Space Grotesk';font-weight:700;color:var(--danger);">{{ currency_symbol }}{{ "%.2f"|format(e.amount) }}</td>
+                    <td><button onclick="deleteExpense({{ e.id }})" class="btn btn-sm" style="background:rgba(239,68,68,.08);color:var(--danger);border:none;font-size:10px;padding:3px 8px;"><i class="bi bi-trash3"></i></button></td>
+                </tr>
+                {% endfor %}
+                {% if not expenses %}
+                <tr><td colspan="7" class="empty-state" style="padding:30px;"><i class="bi bi-receipt-cutoff"></i><p>No expenses this month</p></td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ PAYROLL TAB ═══ -->
+<div id="tab-payroll" style="display:none;">
+    <div class="card">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <span><i class="bi bi-people" style="color:#8b5cf6;"></i> Payroll — {{ months[month-1] }} {{ year }}</span>
+            <button class="btn btn-sm btn-primary" onclick="document.getElementById('payrollModal').style.display='flex'"><i class="bi bi-plus"></i> Add</button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+            <table class="data-table">
+                <thead><tr><th>Date</th><th>Employee</th><th>Role</th><th>Type</th><th style="text-align:right;">Salary</th><th style="text-align:right;">Bonus</th><th style="text-align:right;">Deductions</th><th style="text-align:right;">Net Pay</th><th></th></tr></thead>
+                <tbody>
+                {% for p in payroll %}
+                <tr>
+                    <td style="font-size:12px;font-weight:600;">{{ (p.pay_date|string)[:10] }}</td>
+                    <td style="font-weight:700;">{{ p.employee_name }}</td>
+                    <td style="font-size:12px;text-transform:capitalize;">{{ p.role }}</td>
+                    <td style="font-size:12px;text-transform:capitalize;">{{ p.pay_type }}</td>
+                    <td style="text-align:right;font-family:'Space Grotesk';">{{ currency_symbol }}{{ "%.2f"|format(p.salary) }}</td>
+                    <td style="text-align:right;font-size:12px;color:var(--success);">{% if p.bonus %}+{{ currency_symbol }}{{ "%.2f"|format(p.bonus) }}{% else %}—{% endif %}</td>
+                    <td style="text-align:right;font-size:12px;color:var(--danger);">{% if p.deductions %}-{{ currency_symbol }}{{ "%.2f"|format(p.deductions) }}{% else %}—{% endif %}</td>
+                    <td style="text-align:right;font-family:'Space Grotesk';font-weight:700;color:#8b5cf6;">{{ currency_symbol }}{{ "%.2f"|format(p.net_pay) }}</td>
+                    <td><button onclick="deletePayroll({{ p.id }})" class="btn btn-sm" style="background:rgba(239,68,68,.08);color:var(--danger);border:none;font-size:10px;padding:3px 8px;"><i class="bi bi-trash3"></i></button></td>
+                </tr>
+                {% endfor %}
+                {% if not payroll %}
+                <tr><td colspan="9" class="empty-state" style="padding:30px;"><i class="bi bi-people"></i><p>No payroll this month</p></td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ P&L TAB ═══ -->
+<div id="tab-pnl" style="display:none;">
+    <div class="card">
+        <div class="card-header"><i class="bi bi-file-earmark-bar-graph" style="color:var(--primary);"></i> Profit & Loss — {{ months[month-1] }} {{ year }}</div>
         <div class="card-body">
-            <div class="bar-chart" id="revenueChart">
-                {% set max_rev = monthly_revenue.values()|max if monthly_revenue else 1 %}
-                {% for month, amount in (monthly_revenue or {}).items() %}
-                <div class="bar-col">
-                    <div class="bar-value">{{ currency_symbol }}{{ amount|int }}</div>
-                    <div class="bar-fill" style="height:{{ (amount / max_rev * 160)|int }}px;"></div>
-                    <div class="bar-label">{{ month }}</div>
-                </div>
-                {% endfor %}
+            <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--success);margin-bottom:12px;">REVENUE</div>
+            {% for src, amt in revenue_by_source.items()|sort(attribute='1', reverse=true) %}
+            <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);">
+                <span style="padding-left:16px;">{{ src }}</span>
+                <span style="font-family:'Space Grotesk';font-weight:600;">{{ currency_symbol }}{{ "%.2f"|format(amt) }}</span>
             </div>
-            {% if not monthly_revenue %}
-            <div class="empty-state" style="padding:30px;"><i class="bi bi-bar-chart"></i><p>{{ t('finance_no_data') }}</p></div>
-            {% endif %}
-        </div>
-    </div>
+            {% endfor %}
+            <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;color:var(--success);border-bottom:2px solid var(--border);">
+                <span>Total Revenue</span>
+                <span style="font-family:'Space Grotesk';">{{ currency_symbol }}{{ "%.2f"|format(total_revenue) }}</span>
+            </div>
 
-    <!-- Revenue by Method -->
-    <div class="card">
-        <div class="card-header"><i class="bi bi-pie-chart"></i> {{ t('finance_by_method') }}</div>
-        <div class="card-body" style="text-align:center;">
-            {% if revenue_by_method %}
-            {% set method_colors = {'cash':'#10b981','card':'#00DC82','check':'#f59e0b','ach':'#06b6d4','stripe':'#00B368','square':'#0ea5e9'} %}
-            {% set total = revenue_by_method.values()|sum %}
-            <div class="donut-chart" style="background: conic-gradient({% for method, amount in revenue_by_method.items() %}{{ method_colors.get(method, '#6b7280') }} {{ loop.previtem_pct|default(0) }}% {{ (amount / total * 100)|round(1) }}%{% if not loop.last %}, {% endif %}{% endfor %});">
-                <div class="donut-center">
-                    <div class="total">{{ currency_symbol }}{{ total|int }}</div>
-                    <div class="label">{{ t('finance_total') }}</div>
-                </div>
+            <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--danger);margin:20px 0 12px;">EXPENSES</div>
+            {% for cat, amt in expense_by_category.items()|sort(attribute='1', reverse=true) %}
+            <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);">
+                <span style="padding-left:16px;">{{ cat }}</span>
+                <span style="font-family:'Space Grotesk';font-weight:600;color:var(--danger);">-{{ currency_symbol }}{{ "%.2f"|format(amt) }}</span>
             </div>
-            <div class="legend">
-                {% for method, amount in revenue_by_method.items() %}
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:{{ method_colors.get(method, '#6b7280') }};"></div>
-                    {{ method|capitalize }} ({{ currency_symbol }}{{ amount|int }})
-                </div>
-                {% endfor %}
+            {% endfor %}
+            <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);">
+                <span style="padding-left:16px;">Payroll</span>
+                <span style="font-family:'Space Grotesk';font-weight:600;color:var(--danger);">-{{ currency_symbol }}{{ "%.2f"|format(total_payroll) }}</span>
             </div>
-            {% else %}
-            <div class="empty-state" style="padding:30px;"><i class="bi bi-pie-chart"></i><p>{{ t('finance_no_data') }}</p></div>
-            {% endif %}
+            <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:700;color:var(--danger);border-bottom:2px solid var(--border);">
+                <span>Total Costs</span>
+                <span style="font-family:'Space Grotesk';">-{{ currency_symbol }}{{ "%.2f"|format(total_costs) }}</span>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;padding:16px 0;font-size:20px;font-weight:800;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+                <span style="font-family:'Space Grotesk';">NET PROFIT</span>
+                <span style="font-family:'Space Grotesk';">{{ currency_symbol }}{{ "%.2f"|format(net_profit) }}</span>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Month-over-month comparison -->
-<div class="card mb-24">
-    <div class="card-header"><i class="bi bi-arrow-left-right"></i> {{ t('finance_comparison') }}</div>
-    <div class="card-body">
-        {% if month_comparison %}
-        {% set comp_max = month_comparison.values()|max if month_comparison else 1 %}
-        {% for month, amount in month_comparison.items() %}
-        <div class="comparison-row">
-            <div class="comparison-label">{{ month }}</div>
-            <div class="comparison-bar-track">
-                <div class="comparison-bar-fill" style="width:{{ (amount / comp_max * 100)|int }}%;background:linear-gradient(90deg,#00DC82,#00B368);">{{ currency_symbol }}{{ amount|int }}</div>
+<!-- ═══ ADD EXPENSE MODAL ═══ -->
+<div id="expenseModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-dash-circle" style="color:var(--danger);"></i> Add Expense</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('expenseModal').style.display='none'">&times;</button>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Category *</label>
+                <select id="expCategory" class="form-select">
+                    <option value="rent">Rent</option>
+                    <option value="utilities">Utilities</option>
+                    <option value="insurance">Insurance</option>
+                    <option value="equipment">Equipment</option>
+                    <option value="marketing">Marketing / Ads</option>
+                    <option value="supplies">Supplies</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="software">Software / Tech</option>
+                    <option value="taxes">Taxes</option>
+                    <option value="legal">Legal / Accounting</option>
+                    <option value="travel">Travel</option>
+                    <option value="food">Food / Beverages</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount *</label>
+                <div style="position:relative;"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
+                <input type="number" id="expAmount" class="form-control" step="0.01" min="0" style="padding-left:28px;"></div>
             </div>
         </div>
-        {% endfor %}
-        {% else %}
-        <div class="empty-state" style="padding:20px;"><i class="bi bi-arrow-left-right"></i><p>{{ t('finance_no_data') }}</p></div>
-        {% endif %}
+        <div class="form-group"><label class="form-label">Description</label><input type="text" id="expDesc" class="form-control" placeholder="What was this for?"></div>
+        <div class="grid-2">
+            <div class="form-group"><label class="form-label">Vendor / Payee</label><input type="text" id="expVendor" class="form-control" placeholder="Company name"></div>
+            <div class="form-group"><label class="form-label">Date</label><input type="date" id="expDate" class="form-control"></div>
+        </div>
+        <div class="grid-2">
+            <div class="form-group"><label class="form-label">Payment Method</label>
+                <select id="expMethod" class="form-select"><option value="bank_transfer">Bank Transfer</option><option value="credit_card">Credit Card</option><option value="cash">Cash</option><option value="check">Check</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">Status</label>
+                <select id="expStatus" class="form-select"><option value="paid">Paid</option><option value="pending">Pending</option></select>
+            </div>
+        </div>
+        <div class="form-group"><label class="form-label">Notes</label><input type="text" id="expNotes" class="form-control"></div>
+        <button onclick="addExpense()" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;"><i class="bi bi-check-lg"></i> Add Expense</button>
     </div>
 </div>
 
-<!-- Outstanding Payments -->
-<div class="card">
-    <div class="card-header flex-between">
-        <span><i class="bi bi-exclamation-circle"></i> {{ t('finance_outstanding_list') }}</span>
+<!-- ═══ ADD PAYROLL MODAL ═══ -->
+<div id="payrollModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:500px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-people" style="color:#8b5cf6;"></i> Add Payroll</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('payrollModal').style.display='none'">&times;</button>
+        </div>
+        <div class="grid-2">
+            <div class="form-group"><label class="form-label">Employee Name *</label><input type="text" id="prName" class="form-control" placeholder="John Doe"></div>
+            <div class="form-group"><label class="form-label">Role</label>
+                <select id="prRole" class="form-select"><option value="instructor">Instructor</option><option value="manager">Manager</option><option value="front_desk">Front Desk</option><option value="cleaning">Cleaning</option><option value="other">Other</option></select>
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group"><label class="form-label">Salary *</label>
+                <div style="position:relative;"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
+                <input type="number" id="prSalary" class="form-control" step="0.01" style="padding-left:28px;"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Bonus</label>
+                <div style="position:relative;"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
+                <input type="number" id="prBonus" class="form-control" step="0.01" value="0" style="padding-left:28px;"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Deductions</label>
+                <div style="position:relative;"><span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);">{{ currency_symbol }}</span>
+                <input type="number" id="prDeductions" class="form-control" step="0.01" value="0" style="padding-left:28px;"></div>
+            </div>
+        </div>
+        <div class="grid-2">
+            <div class="form-group"><label class="form-label">Pay Type</label>
+                <select id="prType" class="form-select"><option value="monthly">Monthly</option><option value="biweekly">Bi-weekly</option><option value="hourly">Hourly</option><option value="commission">Commission</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">Pay Date</label><input type="date" id="prDate" class="form-control"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Notes</label><input type="text" id="prNotes" class="form-control"></div>
+        <button onclick="addPayroll()" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;"><i class="bi bi-check-lg"></i> Add Payroll</button>
     </div>
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>{{ t('payment_member') }}</th>
-                    <th>{{ t('payment_amount') }}</th>
-                    <th>{{ t('payment_due_date') }}</th>
-                    <th>{{ t('payment_status') }}</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pay in outstanding_payments|default([]) %}
-                <tr>
-                    <td><a href="/members/{{ pay.member_id }}" style="font-weight:600;">{{ pay.member_name }}</a></td>
-                    <td style="font-family:'Space Grotesk';font-weight:700;">{{ currency_symbol }}{{ pay.amount }}</td>
-                    <td>{{ pay.due_date }}</td>
-                    <td><span class="badge-pill badge-{{ pay.status|lower }}">{{ t('status_' + pay.status|lower) }}</span></td>
-                    <td><a href="/payments/{{ pay.id }}/edit" class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i></a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% if not outstanding_payments %}
-    <div class="card-body empty-state" style="padding:20px;"><i class="bi bi-check-circle"></i><p>{{ t('finance_no_outstanding') }}</p></div>
-    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchFinTab(tab) {
+    ['overview','expenses','payroll','pnl'].forEach(t => {
+        document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+    });
+    document.querySelectorAll('.fin-tab').forEach((el, i) => {
+        const tabs = ['overview','expenses','payroll','pnl'];
+        el.className = 'fin-tab' + (tabs[i] === tab ? ' active' : '');
+    });
+}
+
+function addExpense() {
+    const data = {
+        category: document.getElementById('expCategory').value,
+        amount: document.getElementById('expAmount').value,
+        description: document.getElementById('expDesc').value,
+        vendor: document.getElementById('expVendor').value,
+        expense_date: document.getElementById('expDate').value || undefined,
+        payment_method: document.getElementById('expMethod').value,
+        status: document.getElementById('expStatus').value,
+        notes: document.getElementById('expNotes').value,
+    };
+    if (!data.amount) { alert('Amount is required'); return; }
+    fetch('/api/expenses/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.error); });
+}
+
+function deleteExpense(id) {
+    fetch('/api/expenses/'+id+'/delete', { method:'POST', headers:{'Content-Type':'application/json'} })
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); });
+}
+
+function addPayroll() {
+    const data = {
+        employee_name: document.getElementById('prName').value,
+        role: document.getElementById('prRole').value,
+        salary: document.getElementById('prSalary').value,
+        bonus: document.getElementById('prBonus').value,
+        deductions: document.getElementById('prDeductions').value,
+        pay_type: document.getElementById('prType').value,
+        pay_date: document.getElementById('prDate').value || undefined,
+        notes: document.getElementById('prNotes').value,
+    };
+    if (!data.employee_name || !data.salary) { alert('Name and salary required'); return; }
+    fetch('/api/payroll/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.error); });
+}
+
+function deletePayroll(id) {
+    fetch('/api/payroll/'+id+'/delete', { method:'POST', headers:{'Content-Type':'application/json'} })
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); });
+}
+</script>
 {% endblock %}

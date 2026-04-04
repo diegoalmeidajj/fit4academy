@@ -2827,50 +2827,161 @@ def payment_alerts():
 @login_required
 def finance_page():
     academy_id = _get_academy_id()
+    today = date.today()
+    month = int(request.args.get('month', today.month))
+    year = int(request.args.get('year', today.year))
+    month_str = f"{year}-{str(month).zfill(2)}"
+    months_list = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-    finance = {
-        'total_revenue': 0,
-        'avg_per_member': 0,
-        'this_month': 0,
-        'outstanding': 0,
-    }
-
-    monthly_revenue = {}
-    revenue_by_method = {}
-
+    # Revenue (from payments)
     try:
-        stats = models.get_dashboard_stats(academy_id)
-        finance['this_month'] = stats.get('monthly_revenue', 0)
-        active_count = stats.get('active_members', 1) or 1
+        all_payments = models.get_all_payments(academy_id)
+        month_payments = [p for p in all_payments if str(p.get('payment_date', ''))[:7] == month_str and p.get('status') == 'completed']
+        total_revenue = sum(p.get('amount', 0) for p in month_payments)
+        revenue_by_source = {}
+        revenue_by_method = {}
+        for p in month_payments:
+            notes = p.get('notes', '') or ''
+            if 'Enrollment' in notes or 'converted' in notes:
+                src = 'Enrollment'
+            elif 'Store' in notes:
+                src = 'Store'
+            elif p.get('membership_id'):
+                src = 'Membership'
+            else:
+                src = 'Other'
+            revenue_by_source[src] = revenue_by_source.get(src, 0) + p.get('amount', 0)
+            m = (p.get('method', 'cash') or 'cash').replace('_', ' ').title()
+            revenue_by_method[m] = revenue_by_method.get(m, 0) + p.get('amount', 0)
+        pending_payments = sum(p.get('amount', 0) for p in all_payments if str(p.get('payment_date', ''))[:7] == month_str and p.get('status') == 'pending')
+    except Exception:
+        all_payments, month_payments = [], []
+        total_revenue, pending_payments = 0, 0
+        revenue_by_source, revenue_by_method = {}, {}
 
-        # Monthly data
-        monthly_raw = models.get_monthly_revenue(academy_id, months=12)
-        total = 0
-        for row in (monthly_raw or []):
-            month_key = row.get('month', '')
-            amount = row.get('total', 0) or 0
-            monthly_revenue[month_key] = amount
-            total += amount
-        finance['total_revenue'] = total
-        finance['avg_per_member'] = round(total / active_count, 2) if active_count else 0
+    # Expenses
+    try:
+        expenses = models.get_all_expenses(academy_id, month, year)
+        total_expenses = sum(e.get('amount', 0) for e in expenses)
+        expense_by_category = {}
+        for e in expenses:
+            cat = (e.get('category', 'other') or 'other').replace('_', ' ').title()
+            expense_by_category[cat] = expense_by_category.get(cat, 0) + e.get('amount', 0)
+    except Exception:
+        expenses = []
+        total_expenses = 0
+        expense_by_category = {}
 
-        # Revenue by method
-        method_raw = models.get_revenue_by_method(academy_id)
-        for row in (method_raw or []):
-            revenue_by_method[row.get('method', 'other')] = row.get('total', 0)
+    # Payroll
+    try:
+        payroll = models.get_all_payroll(academy_id, month, year)
+        total_payroll = sum(p.get('net_pay', 0) for p in payroll)
+    except Exception:
+        payroll = []
+        total_payroll = 0
 
-        # Outstanding
-        alerts = models.get_payment_alerts(academy_id)
-        finance['outstanding'] = sum(a.get('amount', 0) for a in (alerts or []))
+    # Profit
+    total_costs = total_expenses + total_payroll
+    net_profit = total_revenue - total_costs
+    margin = round(net_profit / total_revenue * 100, 1) if total_revenue > 0 else 0
 
-    except Exception as e:
-        print(f"[Finance] Error: {e}")
+    # Monthly trend (last 6 months)
+    monthly_trend = []
+    for i in range(5, -1, -1):
+        m = today.month - i
+        y = today.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        ms = f"{y}-{str(m).zfill(2)}"
+        rev = sum(p.get('amount', 0) for p in (all_payments or []) if str(p.get('payment_date', ''))[:7] == ms and p.get('status') == 'completed')
+        try:
+            exp = sum(e.get('amount', 0) for e in models.get_all_expenses(academy_id, m, y))
+            pay = sum(p.get('net_pay', 0) for p in models.get_all_payroll(academy_id, m, y))
+        except Exception:
+            exp, pay = 0, 0
+        monthly_trend.append({'month': months_list[m-1][:3], 'revenue': rev, 'expenses': exp + pay, 'profit': rev - exp - pay})
 
     return render_template('finance.html',
-        finance=finance,
-        monthly_revenue=monthly_revenue,
-        revenue_by_method=revenue_by_method,
+        month=month, year=year, months=months_list,
+        total_revenue=total_revenue, total_expenses=total_expenses,
+        total_payroll=total_payroll, total_costs=total_costs,
+        net_profit=net_profit, margin=margin, pending_payments=pending_payments,
+        revenue_by_source=revenue_by_source, revenue_by_method=revenue_by_method,
+        expense_by_category=expense_by_category,
+        expenses=expenses, payroll=payroll, month_payments=month_payments,
+        monthly_trend=monthly_trend,
     )
+
+
+@app.route('/api/expenses/add', methods=['POST'])
+@login_required
+def api_expense_add():
+    data = request.get_json() or {}
+    academy_id = _get_academy_id()
+    try:
+        eid = models.create_expense(
+            academy_id=academy_id,
+            category=data.get('category', 'other'),
+            description=data.get('description', ''),
+            vendor=data.get('vendor', ''),
+            amount=float(data.get('amount', 0)),
+            expense_date=data.get('expense_date', str(date.today())),
+            recurring=data.get('recurring', False),
+            recurring_cycle=data.get('recurring_cycle', 'monthly'),
+            payment_method=data.get('payment_method', 'bank_transfer'),
+            status=data.get('status', 'paid'),
+            notes=data.get('notes', ''),
+            created_by=session.get('user_id'),
+        )
+        return jsonify({'success': True, 'id': eid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/expenses/<int:expense_id>/delete', methods=['POST'])
+@login_required
+def api_expense_delete(expense_id):
+    try:
+        models.delete_expense(expense_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/payroll/add', methods=['POST'])
+@login_required
+def api_payroll_add():
+    data = request.get_json() or {}
+    academy_id = _get_academy_id()
+    try:
+        pid = models.create_payroll(
+            academy_id=academy_id,
+            employee_name=data.get('employee_name', ''),
+            role=data.get('role', 'instructor'),
+            salary=float(data.get('salary', 0)),
+            pay_type=data.get('pay_type', 'monthly'),
+            pay_date=data.get('pay_date', str(date.today())),
+            hours_worked=float(data.get('hours_worked', 0)),
+            hourly_rate=float(data.get('hourly_rate', 0)),
+            bonus=float(data.get('bonus', 0)),
+            deductions=float(data.get('deductions', 0)),
+            status=data.get('status', 'paid'),
+            notes=data.get('notes', ''),
+        )
+        return jsonify({'success': True, 'id': pid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/payroll/<int:payroll_id>/delete', methods=['POST'])
+@login_required
+def api_payroll_delete(payroll_id):
+    try:
+        models.delete_payroll(payroll_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ═══════════════════════════════════════════════════════════════
