@@ -110,6 +110,10 @@
             <div class="stat-icon"><i class="bi bi-{% if net_profit >= 0 %}trophy{% else %}exclamation-triangle{% endif %}"></i></div>
             <div class="stat-value sensitive-value">{{ currency_symbol }}{{ "%.0f"|format(net_profit) }}</div>
             <div class="stat-label">Net Profit</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;" class="sensitive-value">
+                <i class="bi bi-{% if margin >= 0 %}arrow-up-right{% else %}arrow-down-right{% endif %}"></i>
+                {{ margin }}% margin · {{ stats.active_members|default(0) }} members
+            </div>
     </div>
     </div>
     <!-- Mini Calendar -->
