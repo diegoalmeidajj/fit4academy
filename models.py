@@ -2271,9 +2271,16 @@ def get_dashboard_stats(academy_id=1):
     conn = get_db()
     stats = {}
 
-    # Active members — count all members that are not inactive
+    # Fix NULL membership_status — set to 'active' for all NULL members
+    try:
+        conn.execute("UPDATE members SET membership_status = 'active' WHERE membership_status IS NULL OR membership_status = ''")
+        conn.commit()
+    except Exception:
+        pass
+
+    # Active members — count all non-inactive members
     row = conn.execute(
-        "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND (membership_status IS NULL OR membership_status != 'inactive')",
+        "SELECT COUNT(*) as cnt FROM members WHERE (academy_id = ? OR academy_id IS NULL) AND membership_status != 'inactive'",
         (academy_id,)
     ).fetchone()
     stats['active_members'] = row['cnt'] if isinstance(row, dict) else row[0]
