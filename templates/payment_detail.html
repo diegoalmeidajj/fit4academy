@@ -108,6 +108,33 @@
         </div>
         {% endif %}
 
+        <!-- Charge Card -->
+        <div class="card mb-16">
+            <div class="card-header"><i class="bi bi-credit-card-2-front" style="color:var(--primary);"></i> Charge Now</div>
+            <div class="card-body">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                    <div style="font-size:13px;color:var(--text-muted);">Charge <strong style="color:var(--text);">{{ payment.first_name }} {{ payment.last_name }}</strong> for</div>
+                    <div style="font-family:'Space Grotesk';font-size:22px;font-weight:800;color:var(--primary);">{{ currency_symbol }}{{ "%.2f"|format(payment.amount) }}</div>
+                </div>
+                {% if payment.status == 'completed' %}
+                <div style="padding:10px 14px;border-radius:8px;background:rgba(0,220,130,.06);border:1px solid rgba(0,220,130,.15);font-size:12px;color:var(--primary);display:flex;align-items:center;gap:6px;">
+                    <i class="bi bi-check-circle-fill"></i> Already paid — charged on {{ (payment.payment_date|string)[:10] }}
+                </div>
+                {% else %}
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button onclick="chargeNow('stripe')" class="btn btn-primary" style="flex:1;justify-content:center;"><i class="bi bi-credit-card"></i> Charge Card on File</button>
+                    <button onclick="chargeNow('bank')" class="btn btn-outline-primary" style="flex:1;justify-content:center;"><i class="bi bi-bank"></i> Charge Bank (ACH)</button>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button onclick="chargeNow('cash')" class="btn btn-outline-secondary" style="flex:1;justify-content:center;"><i class="bi bi-cash"></i> Cash</button>
+                    <button onclick="chargeNow('pix')" class="btn btn-outline-secondary" style="flex:1;justify-content:center;"><i class="bi bi-qr-code"></i> PIX</button>
+                    <button onclick="sendPaymentLink()" class="btn btn-outline-secondary" style="flex:1;justify-content:center;"><i class="bi bi-send"></i> Send Link</button>
+                </div>
+                <div id="chargeResult" style="margin-top:10px;"></div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Quick Actions -->
         <div class="card">
             <div class="card-header"><i class="bi bi-lightning" style="color:var(--primary);"></i> Actions</div>
@@ -139,6 +166,67 @@ function sendReceipt(paymentId) {
         }
         msg.style.display = 'block';
         setTimeout(() => msg.style.display = 'none', 5000);
+    });
+}
+
+function chargeNow(method) {
+    const result = document.getElementById('chargeResult');
+    result.innerHTML = '<div style="font-size:12px;color:var(--text-muted);"><i class="bi bi-hourglass-split"></i> Processing...</div>';
+
+    if (method === 'stripe' || method === 'bank') {
+        // Charge via Stripe API
+        fetch('/api/billing/charge', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                member_id: {{ payment.member_id }},
+                amount: {{ payment.amount }},
+                description: 'Payment #{{ payment.id }} — {{ payment.notes or "Charge" }}',
+                method: method === 'bank' ? 'ach_bank' : 'card',
+            })
+        }).then(r => r.json()).then(d => {
+            if (d.success) {
+                // Mark as paid
+                markPaid({{ payment.id }});
+            } else {
+                result.innerHTML = '<div class="alert alert-danger" style="margin:0;font-size:12px;"><i class="bi bi-x-circle"></i> ' + (d.error || 'Charge failed') + '</div>';
+            }
+        });
+    } else {
+        // Manual payment (cash/pix) — just mark as paid
+        markPaid({{ payment.id }});
+    }
+}
+
+function sendPaymentLink() {
+    const result = document.getElementById('chargeResult');
+    result.innerHTML = '<div style="font-size:12px;color:var(--text-muted);"><i class="bi bi-hourglass-split"></i> Creating link...</div>';
+    fetch('/api/payment-link/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            member_id: {{ payment.member_id }},
+            amount: {{ payment.amount }},
+            description: '{{ payment.notes or "Payment" }}',
+            send_sms: true,
+        })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            result.innerHTML = `
+                <div style="padding:10px;background:rgba(0,220,130,.06);border:1px solid rgba(0,220,130,.15);border-radius:8px;">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Payment link:</div>
+                    <div style="display:flex;gap:4px;">
+                        <input type="text" value="${d.link}" id="chargeLinkUrl" class="form-control" style="font-size:11px;" readonly>
+                        <button onclick="navigator.clipboard.writeText(document.getElementById('chargeLinkUrl').value);this.innerHTML='<i class=\\'bi bi-check\\'></i>'" class="btn btn-sm btn-primary"><i class="bi bi-clipboard"></i></button>
+                    </div>
+                    <div style="display:flex;gap:4px;margin-top:6px;">
+                        <a href="https://wa.me/{{ payment.phone|replace('+','')|replace(' ','') if payment.phone else '' }}?text=Pay securely: ${d.link}" target="_blank" class="btn btn-sm btn-success" style="flex:1;justify-content:center;font-size:10px;"><i class="bi bi-whatsapp"></i> WhatsApp</a>
+                        <a href="sms:{{ payment.phone or '' }}?body=Pay securely: ${d.link}" class="btn btn-sm btn-outline-primary" style="flex:1;justify-content:center;font-size:10px;"><i class="bi bi-chat-dots"></i> SMS</a>
+                    </div>
+                </div>`;
+        } else {
+            result.innerHTML = '<div class="alert alert-danger" style="margin:0;font-size:12px;">' + (d.error || 'Error') + '</div>';
+        }
     });
 }
 
