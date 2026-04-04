@@ -2271,15 +2271,15 @@ def get_dashboard_stats(academy_id=1):
     conn = get_db()
     stats = {}
 
-    # Active members
+    # Active members — count all members not inactive/deactivated
     if is_postgres():
         row = conn.execute(
-            "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND membership_status = 'active' AND active = true",
+            "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND active = true AND (membership_status IS NULL OR membership_status != 'inactive')",
             (academy_id,)
         ).fetchone()
     else:
         row = conn.execute(
-            "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND membership_status = 'active' AND active = 1",
+            "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND active = 1 AND (membership_status IS NULL OR membership_status != 'inactive')",
             (academy_id,)
         ).fetchone()
     stats['active_members'] = row['cnt'] if isinstance(row, dict) else row[0]
