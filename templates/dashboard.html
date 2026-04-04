@@ -88,28 +88,28 @@
 <!-- Stat cards + Mini Calendar -->
 <div class="stats-cal-row" style="display:flex;gap:16px;margin-bottom:24px;">
     <div class="stat-grid" style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-        <div class="stat-card stat-blue">
+        <div class="stat-card stat-blue" style="position:relative;">
             <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
-            <div class="stat-value">{{ stats.active_members|default(0) }}</div>
+            <div class="stat-value sensitive-value">{{ stats.active_members|default(0) }}</div>
             <div class="stat-label">{{ t('dash_active_members') }}</div>
         </div>
-        <div class="stat-card stat-green">
+        <div class="stat-card stat-green" style="position:relative;">
             <div class="stat-icon"><i class="bi bi-qr-code-scan"></i></div>
-            <div class="stat-value">{{ stats.today_checkins|default(0) }}</div>
+            <div class="stat-value sensitive-value">{{ stats.today_checkins|default(0) }}</div>
             <div class="stat-label">{{ t('dash_today_checkins') }}</div>
         </div>
         <div class="stat-card stat-purple" style="position:relative;">
             <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-            <div class="stat-value" id="revenueValue">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
+            <div class="stat-value sensitive-value">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
             <div class="stat-label">{{ t('dash_monthly_revenue') }}</div>
-            <button onclick="toggleRevenue()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:14px;backdrop-filter:blur(4px);transition:all .2s;" title="Show/Hide">
-                <i class="bi bi-eye" id="revenueEyeIcon"></i>
+            <button onclick="toggleSensitive()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:14px;backdrop-filter:blur(4px);transition:all .2s;" title="Show/Hide All">
+                <i class="bi bi-eye" id="sensitiveEyeIcon"></i>
             </button>
         </div>
-        <div class="stat-card stat-orange">
+        <div class="stat-card stat-orange" style="position:relative;">
             <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-value">{{ stats.expiring_soon|default(0) }}</div>
-        <div class="stat-label">{{ t('dash_expiring_soon') }}</div>
+            <div class="stat-value sensitive-value">{{ stats.expiring_soon|default(0) }}</div>
+            <div class="stat-label">{{ t('dash_expiring_soon') }}</div>
     </div>
     </div>
     <!-- Mini Calendar -->
@@ -186,15 +186,15 @@
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Revenue</div>
-                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--success);">{{ currency_symbol }}{{ "%.0f"|format(total_revenue) }}</div>
+                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--success);" class="sensitive-value">{{ currency_symbol }}{{ "%.0f"|format(total_revenue) }}</div>
             </div>
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Costs</div>
-                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--danger);">{{ currency_symbol }}{{ "%.0f"|format(total_expenses + total_payroll) }}</div>
+                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--danger);" class="sensitive-value">{{ currency_symbol }}{{ "%.0f"|format(total_expenses + total_payroll) }}</div>
             </div>
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Profit</div>
-                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};">{{ currency_symbol }}{{ "%.0f"|format(net_profit) }}</div>
+                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};" class="sensitive-value">{{ currency_symbol }}{{ "%.0f"|format(net_profit) }}</div>
             </div>
         </div>
         <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
@@ -215,15 +215,15 @@
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">New Leads</div>
-                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--primary);">{{ leads_new }}</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--primary);" class="sensitive-value">{{ leads_new }}</div>
             </div>
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Converted</div>
-                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--success);">{{ leads_converted }}</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--success);" class="sensitive-value">{{ leads_converted }}</div>
             </div>
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Rate</div>
-                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if conversion_rate >= 30 %}var(--success){% elif conversion_rate >= 15 %}var(--warning){% else %}var(--text-muted){% endif %};">{{ conversion_rate }}%</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if conversion_rate >= 30 %}var(--success){% elif conversion_rate >= 15 %}var(--warning){% else %}var(--text-muted){% endif %};" class="sensitive-value">{{ conversion_rate }}%</div>
             </div>
         </div>
         {% if urgent_leads and urgent_leads > 0 %}
@@ -241,15 +241,15 @@
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Attendance Rate</div>
-                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if attendance_rate >= 70 %}var(--success){% elif attendance_rate >= 40 %}var(--warning){% else %}var(--danger){% endif %};">{{ attendance_rate }}%</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if attendance_rate >= 70 %}var(--success){% elif attendance_rate >= 40 %}var(--warning){% else %}var(--danger){% endif %};" class="sensitive-value">{{ attendance_rate }}%</div>
             </div>
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Today Check-ins</div>
-                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--primary);">{{ stats.today_checkins|default(0) }}</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--primary);" class="sensitive-value">{{ stats.today_checkins|default(0) }}</div>
             </div>
             <div>
                 <div style="font-size:10px;color:var(--text-muted);">Absent 15d+</div>
-                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if absent_count > 3 %}var(--danger){% else %}var(--text-muted){% endif %};">{{ absent_count }}</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if absent_count > 3 %}var(--danger){% else %}var(--text-muted){% endif %};" class="sensitive-value">{{ absent_count }}</div>
             </div>
         </div>
         <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
@@ -440,26 +440,30 @@
 
 {% block extra_js %}
 <script>
-const REAL_REVENUE = document.getElementById('revenueValue').textContent;
-let revenueHidden = localStorage.getItem('f4a_hide_revenue') === '1';
+// Toggle all sensitive values
+let dataHidden = localStorage.getItem('f4a_hide_data') === '1';
 
-function toggleRevenue() {
-    revenueHidden = !revenueHidden;
-    localStorage.setItem('f4a_hide_revenue', revenueHidden ? '1' : '0');
-    updateRevenueUI();
+function toggleSensitive() {
+    dataHidden = !dataHidden;
+    localStorage.setItem('f4a_hide_data', dataHidden ? '1' : '0');
+    updateSensitiveUI();
 }
-function updateRevenueUI() {
-    const val = document.getElementById('revenueValue');
-    const icon = document.getElementById('revenueEyeIcon');
-    if (revenueHidden) {
-        val.textContent = '******';
-        icon.className = 'bi bi-eye-slash';
-    } else {
-        val.textContent = REAL_REVENUE;
-        icon.className = 'bi bi-eye';
-    }
+
+function updateSensitiveUI() {
+    const icon = document.getElementById('sensitiveEyeIcon');
+    document.querySelectorAll('.sensitive-value').forEach(el => {
+        if (dataHidden) {
+            if (!el.dataset.real) el.dataset.real = el.textContent;
+            el.style.filter = 'blur(8px)';
+            el.style.userSelect = 'none';
+        } else {
+            el.style.filter = 'none';
+            el.style.userSelect = '';
+        }
+    });
+    if (icon) icon.className = dataHidden ? 'bi bi-eye-slash' : 'bi bi-eye';
 }
-updateRevenueUI();
+updateSensitiveUI();
 
 // === MINI CALENDAR WITH TASKS ===
 let calMonth = new Date().getMonth(), calYear = new Date().getFullYear();
