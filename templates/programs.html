@@ -14,15 +14,30 @@
     <div class="card-body">
         <h4 style="font-family:'Space Grotesk';margin-bottom:16px;"><i class="bi bi-plus-circle" style="color:var(--primary);"></i> New Program</h4>
         <form method="post" action="/programs/add" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-            <div style="flex:1;min-width:180px;">
+            <div style="flex:1;min-width:160px;">
                 <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Program Name *</label>
                 <input type="text" name="name" class="form-control" placeholder="Ex: Kids Gi, Adults No-Gi..." required>
+            </div>
+            <div style="min-width:140px;">
+                <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Sport Type</label>
+                <select name="sport_type" class="form-select">
+                    <option value="bjj">BJJ (has belts)</option>
+                    <option value="mma">MMA</option>
+                    <option value="muay_thai">Muay Thai</option>
+                    <option value="wrestling">Wrestling</option>
+                    <option value="judo">Judo (has belts)</option>
+                    <option value="boxing">Boxing</option>
+                    <option value="fitness">Fitness</option>
+                    <option value="yoga">Yoga</option>
+                    <option value="kids">Kids General</option>
+                    <option value="other" selected>Other</option>
+                </select>
             </div>
             <div style="width:60px;">
                 <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Color</label>
                 <input type="color" name="color" value="#00DC82" style="width:100%;height:38px;border:none;border-radius:8px;cursor:pointer;">
             </div>
-            <div style="flex:1;min-width:180px;">
+            <div style="flex:1;min-width:160px;">
                 <label class="form-label" style="font-size:11px;font-weight:700;text-transform:uppercase;">Description</label>
                 <input type="text" name="description" class="form-control" placeholder="Optional description...">
             </div>

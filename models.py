@@ -479,6 +479,8 @@ def init_db():
         "ALTER TABLE payment_methods ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
         "ALTER TABLE payments ADD COLUMN platform_fee REAL DEFAULT 0",
         "ALTER TABLE payments ADD COLUMN stripe_charge_id TEXT DEFAULT ''",
+        "ALTER TABLE programs ADD COLUMN has_belts BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE programs ADD COLUMN sport_type TEXT DEFAULT 'other'",
         """CREATE TABLE IF NOT EXISTS programs (
             id SERIAL PRIMARY KEY,
             academy_id INTEGER DEFAULT 1,

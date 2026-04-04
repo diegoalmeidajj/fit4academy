@@ -1768,8 +1768,18 @@ def program_add():
     name = request.form.get('name', '').strip()
     color = request.form.get('color', '#6366f1').strip()
     description = request.form.get('description', '').strip()
+    sport_type = request.form.get('sport_type', 'other').strip()
+    has_belts = sport_type in ('bjj', 'judo')
     if name:
-        models.add_program(academy_id, name, color, description)
+        pid = models.add_program(academy_id, name, color, description)
+        # Update sport_type and has_belts
+        try:
+            conn = models.get_db()
+            conn.execute("UPDATE programs SET sport_type = ?, has_belts = ? WHERE id = ?", (sport_type, has_belts, pid))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
         flash(f'Program "{name}" created!', 'success')
     return redirect(url_for('programs_list'))
 
@@ -1780,8 +1790,17 @@ def program_edit(program_id):
     name = request.form.get('name', '').strip()
     color = request.form.get('color', '#6366f1').strip()
     description = request.form.get('description', '').strip()
+    sport_type = request.form.get('sport_type', 'other').strip()
+    has_belts = sport_type in ('bjj', 'judo')
     if name:
         models.update_program(program_id, name=name, color=color, description=description)
+        try:
+            conn = models.get_db()
+            conn.execute("UPDATE programs SET sport_type = ?, has_belts = ? WHERE id = ?", (sport_type, has_belts, program_id))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
         flash(f'Program updated!', 'success')
     return redirect(url_for('programs_list'))
 
