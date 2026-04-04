@@ -2299,59 +2299,48 @@ def get_dashboard_stats(academy_id=1):
             stats['active_members'] = 0
 
     # Total members
-    row = conn.execute(
-        "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ?",
-        (academy_id,)
-    ).fetchone()
-    stats['total_members'] = row['cnt'] if isinstance(row, dict) else row[0]
+    try:
+        row = conn.execute("SELECT COUNT(*) as cnt FROM members WHERE academy_id = ?", (academy_id,)).fetchone()
+        stats['total_members'] = row['cnt'] if isinstance(row, dict) else row[0]
+    except Exception:
+        stats['total_members'] = 0
 
     # Today check-ins
-    if is_postgres():
-        row = conn.execute(
-            "SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND check_in_time::date = CURRENT_DATE",
-            (academy_id,)
-        ).fetchone()
-    else:
-        row = conn.execute(
-            "SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND DATE(check_in_time) = date('now')",
-            (academy_id,)
-        ).fetchone()
-    stats['today_checkins'] = row['cnt'] if isinstance(row, dict) else row[0]
+    try:
+        if is_postgres():
+            row = conn.execute("SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND check_in_time::date = CURRENT_DATE", (academy_id,)).fetchone()
+        else:
+            row = conn.execute("SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND DATE(check_in_time) = date('now')", (academy_id,)).fetchone()
+        stats['today_checkins'] = row['cnt'] if isinstance(row, dict) else row[0]
+    except Exception:
+        stats['today_checkins'] = 0
 
     # Monthly revenue
-    if is_postgres():
-        row = conn.execute(
-            """SELECT COALESCE(SUM(amount), 0) as total FROM payments
-               WHERE academy_id = ? AND status = 'completed'
-               AND to_char(payment_date::date, 'YYYY-MM') = to_char(CURRENT_DATE, 'YYYY-MM')""",
-            (academy_id,)
-        ).fetchone()
-    else:
-        row = conn.execute(
-            """SELECT COALESCE(SUM(amount), 0) as total FROM payments
-               WHERE academy_id = ? AND status = 'completed'
-               AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')""",
-            (academy_id,)
-        ).fetchone()
-    stats['monthly_revenue'] = row['total'] if isinstance(row, dict) else row[0]
+    try:
+        if is_postgres():
+            row = conn.execute("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE academy_id = ? AND status = 'completed' AND to_char(payment_date::date, 'YYYY-MM') = to_char(CURRENT_DATE, 'YYYY-MM')", (academy_id,)).fetchone()
+        else:
+            row = conn.execute("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE academy_id = ? AND status = 'completed' AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')", (academy_id,)).fetchone()
+        stats['monthly_revenue'] = row['total'] if isinstance(row, dict) else row[0]
+    except Exception:
+        stats['monthly_revenue'] = 0
 
-    # Expiring memberships (next 30 days)
-    row = conn.execute(
-        """SELECT COUNT(*) as cnt FROM memberships ms
-           JOIN members m ON ms.member_id = m.id
-           WHERE m.academy_id = ? AND ms.status = 'active'
-           AND ms.end_date IS NOT NULL
-           AND ms.end_date BETWEEN date('now') AND date('now', '+30 days')""",
-        (academy_id,)
-    ).fetchone()
-    stats['expiring_soon'] = row['cnt'] if isinstance(row, dict) else row[0]
+    # Expiring memberships
+    try:
+        if is_postgres():
+            row = conn.execute("SELECT COUNT(*) as cnt FROM memberships ms JOIN members m ON ms.member_id = m.id WHERE m.academy_id = ? AND ms.status = 'active' AND ms.end_date IS NOT NULL AND ms.end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'", (academy_id,)).fetchone()
+        else:
+            row = conn.execute("SELECT COUNT(*) as cnt FROM memberships ms JOIN members m ON ms.member_id = m.id WHERE m.academy_id = ? AND ms.status = 'active' AND ms.end_date IS NOT NULL AND ms.end_date BETWEEN date('now') AND date('now', '+30 days')", (academy_id,)).fetchone()
+        stats['expiring_soon'] = row['cnt'] if isinstance(row, dict) else row[0]
+    except Exception:
+        stats['expiring_soon'] = 0
 
     # Prospects count
-    row = conn.execute(
-        "SELECT COUNT(*) as cnt FROM prospects WHERE academy_id = ? AND status NOT IN ('converted', 'lost')",
-        (academy_id,)
-    ).fetchone()
-    stats['active_prospects'] = row['cnt'] if isinstance(row, dict) else row[0]
+    try:
+        row = conn.execute("SELECT COUNT(*) as cnt FROM prospects WHERE academy_id = ? AND status NOT IN ('converted', 'lost')", (academy_id,)).fetchone()
+        stats['active_prospects'] = row['cnt'] if isinstance(row, dict) else row[0]
+    except Exception:
+        stats['active_prospects'] = 0
 
     conn.close()
     return stats
