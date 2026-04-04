@@ -10,6 +10,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
 import config
 import models
 import billing
+import marcos_ai
 from i18n import get_text
 import os
 import json
@@ -3044,6 +3045,110 @@ def api_finance_send_report():
         'report': report_text,
         'note': 'Email delivery coming with SendGrid integration.',
     })
+
+
+@app.route('/api/marcos/advice', methods=['POST'])
+@login_required
+def api_marcos_advice():
+    """Get AI business advice from Marcos."""
+    data = request.get_json() or {}
+    academy_id = _get_academy_id()
+    question = data.get('question', '')
+    month = int(data.get('month', datetime.now().month))
+    year = int(data.get('year', datetime.now().year))
+    months_list = ['January','February','March','April','May','June','July','August','September','October','November','December']
+    month_str = f"{year}-{str(month).zfill(2)}"
+
+    # Gather all data for Marcos
+    try:
+        all_payments = models.get_all_payments(academy_id)
+        month_payments = [p for p in all_payments if str(p.get('payment_date', ''))[:7] == month_str and p.get('status') == 'completed']
+        total_revenue = sum(p.get('amount', 0) for p in month_payments)
+        pending = sum(p.get('amount', 0) for p in all_payments if str(p.get('payment_date', ''))[:7] == month_str and p.get('status') == 'pending')
+    except Exception:
+        total_revenue, pending = 0, 0
+        month_payments = []
+
+    try:
+        expenses = models.get_all_expenses(academy_id, month, year)
+        total_expenses = sum(e.get('amount', 0) for e in expenses)
+    except Exception:
+        expenses, total_expenses = [], 0
+
+    try:
+        payroll = models.get_all_payroll(academy_id, month, year)
+        total_payroll = sum(p.get('net_pay', 0) for p in payroll)
+    except Exception:
+        total_payroll = 0
+
+    net_profit = total_revenue - total_expenses - total_payroll
+    margin = round(net_profit / total_revenue * 100, 1) if total_revenue > 0 else 0
+
+    # Previous month
+    pm = month - 1 if month > 1 else 12
+    py = year if month > 1 else year - 1
+    ps = f"{py}-{str(pm).zfill(2)}"
+    try:
+        prev_rev = sum(p.get('amount', 0) for p in all_payments if str(p.get('payment_date', ''))[:7] == ps and p.get('status') == 'completed')
+    except Exception:
+        prev_rev = 0
+    rev_change = round((total_revenue - prev_rev) / prev_rev * 100, 1) if prev_rev > 0 else 0
+
+    # Members
+    try:
+        members = models.get_all_members(academy_id)
+        active_members = len([m for m in members if m.get('membership_status') == 'active'])
+    except Exception:
+        active_members = 0
+    rpm = round(total_revenue / active_members, 2) if active_members > 0 else 0
+
+    # Leads
+    try:
+        prospects = models.get_all_prospects(academy_id)
+        leads_in = len([p for p in prospects if p.get('source') != 'ex_student' and str(p.get('created_at', ''))[:7] == month_str])
+        leads_converted = len([p for p in prospects if p.get('status') == 'converted' and str(p.get('updated_at', ''))[:7] == month_str])
+        urgent = len([p for p in prospects if p.get('status') == 'new' and not p.get('archived')])
+    except Exception:
+        leads_in, leads_converted, urgent = 0, 0, 0
+    conv_rate = round(leads_converted / leads_in * 100, 1) if leads_in > 0 else 0
+
+    # Attendance
+    try:
+        report = models.get_attendance_report(academy_id, month, year)
+        trained = len([m for m in report if m.get('total_checkins', 0) > 0])
+        total_m = len(report)
+        att_rate = round(trained / total_m * 100, 1) if total_m > 0 else 0
+        absent = len([m for m in report if not m.get('total_checkins')])
+    except Exception:
+        trained, att_rate, absent = 0, 0, 0
+
+    # Top expenses text
+    top_exp = sorted(expenses, key=lambda x: x.get('amount', 0), reverse=True)[:5]
+    top_exp_text = '\n'.join([f"  - {e.get('description') or e.get('category','Other')}: ${e.get('amount',0):,.2f}" for e in top_exp]) or 'None'
+
+    # Revenue sources
+    sources = {}
+    for p in month_payments:
+        notes = p.get('notes', '') or ''
+        src = 'Enrollment' if 'Enrollment' in notes else ('Store' if 'Store' in notes else ('Membership' if p.get('membership_id') else 'Other'))
+        sources[src] = sources.get(src, 0) + p.get('amount', 0)
+    src_text = '\n'.join([f"  - {s}: ${a:,.2f}" for s, a in sources.items()]) or 'None'
+
+    context = {
+        'month_name': months_list[month - 1], 'year': year,
+        'revenue': total_revenue, 'expenses': total_expenses,
+        'payroll': total_payroll, 'net_profit': net_profit,
+        'margin': margin, 'pending': pending, 'revenue_change': rev_change,
+        'active_members': active_members, 'revenue_per_member': rpm,
+        'leads_in': leads_in, 'leads_converted': leads_converted,
+        'conversion_rate': conv_rate, 'urgent_leads': urgent,
+        'members_trained': trained, 'attendance_rate': att_rate,
+        'absent_members': absent,
+        'top_expenses_text': top_exp_text, 'revenue_sources_text': src_text,
+    }
+
+    advice = marcos_ai.get_marcos_advice(context, question)
+    return jsonify({'success': True, 'advice': advice, 'ai_enabled': marcos_ai.AI_ENABLED})
 
 
 @app.route('/api/expenses/add', methods=['POST'])
