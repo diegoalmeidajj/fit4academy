@@ -2637,6 +2637,126 @@ def payments_list():
     )
 
 
+@app.route('/payments/<int:payment_id>')
+@login_required
+def payment_detail(payment_id):
+    """Payment detail page with receipt."""
+    payment = models.get_payment_by_id(payment_id)
+    if not payment:
+        flash('Payment not found.', 'error')
+        return redirect(url_for('payments_list'))
+
+    # Categorize source
+    notes = payment.get('notes', '') or ''
+    if 'Enrollment' in notes or 'converted from lead' in notes:
+        payment['source'] = 'Enrollment'
+    elif 'membership' in notes.lower() or payment.get('membership_id'):
+        payment['source'] = 'Membership'
+    elif 'Store' in notes:
+        payment['source'] = 'Store Sale'
+    else:
+        payment['source'] = 'Manual'
+
+    # Get order items if any
+    order_items = []
+    try:
+        conn = models.get_db()
+        items = conn.execute(
+            """SELECT oi.*, p.name as product_name
+               FROM order_items oi
+               LEFT JOIN products p ON oi.product_id = p.id
+               WHERE oi.payment_id = ?""",
+            (payment_id,)
+        ).fetchall()
+        conn.close()
+        order_items = [dict(i) for i in items]
+    except Exception:
+        pass
+
+    # Get academy info
+    academy = None
+    try:
+        academy = models.get_academy_by_id(payment.get('academy_id', 1))
+    except Exception:
+        pass
+
+    return render_template('payment_detail.html',
+        payment=payment, order_items=order_items,
+        academy=academy,
+    )
+
+
+@app.route('/receipt/<int:payment_id>')
+def public_receipt(payment_id):
+    """Public receipt page — no login needed."""
+    payment = models.get_payment_by_id(payment_id)
+    if not payment:
+        return "Receipt not found.", 404
+
+    notes = payment.get('notes', '') or ''
+    if 'Enrollment' in notes:
+        payment['source'] = 'Enrollment'
+    elif 'Store' in notes:
+        payment['source'] = 'Store Sale'
+    elif payment.get('membership_id'):
+        payment['source'] = 'Membership'
+    else:
+        payment['source'] = 'Payment'
+
+    order_items = []
+    try:
+        conn = models.get_db()
+        items = conn.execute(
+            """SELECT oi.*, p.name as product_name
+               FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id
+               WHERE oi.payment_id = ?""", (payment_id,)).fetchall()
+        conn.close()
+        order_items = [dict(i) for i in items]
+    except Exception:
+        pass
+
+    academy = None
+    try:
+        academy = models.get_academy_by_id(payment.get('academy_id', 1))
+    except Exception:
+        pass
+
+    return render_template('receipt.html',
+        payment=payment, order_items=order_items,
+        academy=academy,
+    )
+
+
+@app.route('/api/payments/<int:payment_id>/mark-paid', methods=['POST'])
+@login_required
+def api_mark_paid(payment_id):
+    try:
+        models.update_payment(payment_id, status='completed')
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/payments/<int:payment_id>/send-receipt', methods=['POST'])
+@login_required
+def api_send_receipt(payment_id):
+    """Send receipt via email."""
+    payment = models.get_payment_by_id(payment_id)
+    if not payment:
+        return jsonify({'error': 'Payment not found'}), 404
+
+    email = payment.get('email', '')
+    if not email:
+        return jsonify({'error': 'Member has no email registered'}), 400
+
+    base_url = request.host_url.rstrip('/')
+    receipt_url = f"{base_url}/receipt/{payment_id}"
+
+    # TODO: Send actual email via SMTP/SendGrid/etc
+    # For now return the receipt URL
+    return jsonify({'success': True, 'receipt_url': receipt_url, 'email': email})
+
+
 @app.route('/payments/add', methods=['GET', 'POST'])
 @login_required
 def payment_add():

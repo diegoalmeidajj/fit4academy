@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt #{{ payment.id }} — {{ academy.name if academy else 'Fit4Academy' }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: #f8fafc; color: #1e293b; min-height: 100vh; display: flex; justify-content: center; padding: 40px 20px; }
+        .receipt { width: 100%; max-width: 500px; background: #ffffff; border-radius: 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+        .receipt-header { background: linear-gradient(135deg, #00DC82, #059669); padding: 28px; text-align: center; color: #fff; }
+        .receipt-header h1 { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 700; }
+        .receipt-header .academy { font-size: 14px; opacity: 0.9; margin-top: 4px; }
+        .receipt-body { padding: 28px; }
+        .receipt-status { text-align: center; margin-bottom: 24px; }
+        .receipt-status .icon { font-size: 48px; margin-bottom: 8px; }
+        .receipt-status .label { font-size: 14px; font-weight: 600; }
+        .receipt-amount { text-align: center; margin-bottom: 24px; padding: 20px; background: #f0fdf4; border-radius: 12px; }
+        .receipt-amount .value { font-family: 'Space Grotesk'; font-size: 40px; font-weight: 800; color: #059669; }
+        .receipt-amount .fee { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .receipt-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+        .receipt-row .label { color: #64748b; }
+        .receipt-row .value { font-weight: 600; }
+        .receipt-items { margin-top: 20px; padding-top: 16px; border-top: 2px solid #f1f5f9; }
+        .receipt-items h3 { font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .receipt-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #f8fafc; }
+        .receipt-item .name { font-weight: 600; }
+        .receipt-item .detail { font-size: 11px; color: #94a3b8; }
+        .receipt-item .price { font-family: 'Space Grotesk'; font-weight: 700; color: #059669; }
+        .receipt-footer { text-align: center; padding: 20px 28px; border-top: 1px solid #f1f5f9; font-size: 11px; color: #94a3b8; }
+        @media print { body { background: #fff; padding: 0; } .receipt { box-shadow: none; border-radius: 0; max-width: 100%; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="receipt-header">
+            <h1>Receipt</h1>
+            <div class="academy">{{ academy.name if academy else 'Fit4Academy' }}</div>
+        </div>
+
+        <div class="receipt-body">
+            <div class="receipt-status">
+                {% if payment.status == 'completed' %}
+                <div class="icon" style="color:#059669;">&#10003;</div>
+                <div class="label" style="color:#059669;">Payment Successful</div>
+                {% elif payment.status == 'pending' %}
+                <div class="icon" style="color:#f59e0b;">&#8987;</div>
+                <div class="label" style="color:#f59e0b;">Payment Pending</div>
+                {% else %}
+                <div class="icon" style="color:#ef4444;">&#10007;</div>
+                <div class="label" style="color:#ef4444;">{{ payment.status|capitalize }}</div>
+                {% endif %}
+            </div>
+
+            <div class="receipt-amount">
+                <div class="value">${{ "%.2f"|format(payment.amount) }}</div>
+                <div class="fee">+ ${{ "%.2f"|format(payment.platform_fee or 0.30) }} processing fee</div>
+            </div>
+
+            <div class="receipt-row">
+                <span class="label">Receipt #</span>
+                <span class="value">{{ payment.id }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Member</span>
+                <span class="value">{{ payment.first_name }} {{ payment.last_name }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Date</span>
+                <span class="value">{{ (payment.payment_date|string)[:10] }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Time</span>
+                <span class="value">{{ (payment.created_at|string)[11:19] if payment.created_at else '—' }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Method</span>
+                <span class="value" style="text-transform:capitalize;">{{ (payment.method or 'cash')|replace('_',' ') }}</span>
+            </div>
+            <div class="receipt-row">
+                <span class="label">Source</span>
+                <span class="value">{{ payment.source }}</span>
+            </div>
+            {% if payment.reference %}
+            <div class="receipt-row">
+                <span class="label">Reference</span>
+                <span class="value">{{ payment.reference }}</span>
+            </div>
+            {% endif %}
+            {% if payment.notes %}
+            <div class="receipt-row">
+                <span class="label">Description</span>
+                <span class="value" style="max-width:60%;text-align:right;">{{ payment.notes }}</span>
+            </div>
+            {% endif %}
+
+            {% if order_items %}
+            <div class="receipt-items">
+                <h3>Items</h3>
+                {% for item in order_items %}
+                <div class="receipt-item">
+                    <div>
+                        <div class="name">{{ item.product_name or 'Item' }}</div>
+                        <div class="detail">{% if item.color %}{{ item.color }}{% endif %}{% if item.color and item.size %} / {% endif %}{% if item.size %}{{ item.size }}{% endif %} x{{ item.quantity }}</div>
+                    </div>
+                    <div class="price">${{ "%.2f"|format(item.price * item.quantity) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="receipt-footer">
+            <p>Thank you for your purchase!</p>
+            <p style="margin-top:4px;">{{ academy.name if academy else 'Fit4Academy' }}</p>
+        </div>
+
+        <div class="no-print" style="text-align:center;padding:0 28px 20px;">
+            <button onclick="window.print()" style="padding:10px 24px;border-radius:10px;border:none;background:#059669;color:#fff;font-weight:600;cursor:pointer;font-size:13px;">
+                Print Receipt
+            </button>
+        </div>
+    </div>
+</body>
+</html>

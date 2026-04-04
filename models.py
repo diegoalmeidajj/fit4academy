@@ -1474,14 +1474,14 @@ def get_all_payments(academy_id=1):
 def get_payment_by_id(payment_id):
     conn = get_db()
     row = conn.execute(
-        """SELECT p.*, m.first_name, m.last_name
+        """SELECT p.*, m.first_name, m.last_name, m.email, m.phone
            FROM payments p
            JOIN members m ON p.member_id = m.id
            WHERE p.id = ?""",
         (payment_id,)
     ).fetchone()
     conn.close()
-    return row
+    return dict(row) if row else None
 
 
 def get_payments_by_member(member_id):
