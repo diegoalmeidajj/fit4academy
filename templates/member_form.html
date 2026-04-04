@@ -160,8 +160,8 @@
                     {% for p in programs %}
                     <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;border:2px solid var(--border);cursor:pointer;transition:all .2s;background:var(--card-bg);" class="program-checkbox">
                         <input type="checkbox" name="program_ids" value="{{ p.id }}"
-                            data-has-belts="{{ 'true' if p.has_belts else 'false' }}"
-                            data-sport="{{ p.sport_type or 'other' }}"
+                            data-has-belts="{{ 'true' if p.get('has_belts') else 'false' }}"
+                            data-sport="{{ p.get('sport_type') or 'other' }}"
                             onchange="checkBeltVisibility()"
                             style="width:18px;height:18px;accent-color:{{ p.color or '#00DC82' }};cursor:pointer;"
                             {{ 'checked' if p.id in (member_programs|default([])) }}>
@@ -316,23 +316,39 @@ function checkBeltVisibility() {
     const checkboxes = document.querySelectorAll('input[name="program_ids"]:checked');
     let showBelts = false;
     let sportLabel = '';
+
+    // Check each checked program
     checkboxes.forEach(cb => {
-        if (cb.getAttribute('data-has-belts') === 'true') {
+        const hasBelts = cb.getAttribute('data-has-belts');
+        const sport = cb.getAttribute('data-sport') || '';
+        console.log('Program checked:', cb.value, 'has_belts:', hasBelts, 'sport:', sport);
+        if (hasBelts === 'true' || hasBelts === 'True') {
             showBelts = true;
-            const sport = cb.getAttribute('data-sport') || '';
             if (sport === 'bjj') sportLabel = 'BJJ Belt Rank';
             else if (sport === 'judo') sportLabel = 'Judo Belt Rank';
             else sportLabel = 'Belt Rank';
         }
     });
+
+    // Also check by sport type directly (fallback)
+    if (!showBelts) {
+        checkboxes.forEach(cb => {
+            const sport = cb.getAttribute('data-sport') || '';
+            if (sport === 'bjj' || sport === 'judo') {
+                showBelts = true;
+                sportLabel = sport === 'bjj' ? 'BJJ Belt Rank' : 'Judo Belt Rank';
+            }
+        });
+    }
+
     const selector = document.getElementById('inlineBeltSelector');
     const label = document.getElementById('inlineBeltLabel');
     if (selector) {
-        selector.style.display = showBelts ? '' : 'none';
-        if (showBelts) updateBeltOptions();
+        selector.style.display = showBelts ? 'block' : 'none';
     }
-    if (label && sportLabel) {
-        label.innerHTML = '<i class="bi bi-award"></i> ' + sportLabel;
+    if (showBelts) {
+        updateBeltOptions();
+        if (label) label.innerHTML = '<i class="bi bi-award"></i> ' + sportLabel;
     }
 }
 
@@ -345,10 +361,10 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBeltOptions();
     checkBeltVisibility();
 
-    // If editing existing member with belt, show inline belt selector
+    // If editing existing member with belt, always show belt selector
     if (CURRENT_BELT && CURRENT_BELT !== 'White') {
         const sel = document.getElementById('inlineBeltSelector');
-        if (sel) sel.style.display = '';
+        if (sel) sel.style.display = 'block';
     }
 });
 </script>
