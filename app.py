@@ -3185,6 +3185,12 @@ def store_page():
 #  BILLING / STRIPE
 # ═══════════════════════════════════════════════════════════════
 
+@app.route('/integrations')
+@login_required
+def integrations_page():
+    return render_template('integrations.html')
+
+
 @app.route('/api/billing/setup-intent', methods=['POST'])
 @login_required
 def api_billing_setup_intent():

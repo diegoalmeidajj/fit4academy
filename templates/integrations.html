@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Integrations{% endblock %}
+
+{% block extra_css %}
+.integration-card {
+    border: 1px solid var(--border); border-radius: 14px; background: var(--card-bg);
+    padding: 20px; display: flex; align-items: center; gap: 16px; transition: all .2s;
+}
+.integration-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.integration-icon {
+    width: 52px; height: 52px; border-radius: 12px; display: flex;
+    align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;
+}
+.integration-status {
+    margin-left: auto; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;
+}
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-plug" style="color:var(--primary);"></i> Integrations</h1>
+</div>
+
+<p style="color:var(--text-muted);font-size:14px;margin-bottom:24px;">Connect your favorite tools to automate billing, accounting, communication, and more.</p>
+
+<!-- Payment & Billing -->
+<div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;"><i class="bi bi-credit-card"></i> Payment & Billing</div>
+<div class="grid-2 mb-24">
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#635bff,#8b5cf6);color:#fff;"><i class="bi bi-stripe"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Stripe</div>
+            <div style="font-size:12px;color:var(--text-muted);">Accept card & bank payments, recurring billing, auto-charge memberships</div>
+        </div>
+        {% if stripe_enabled %}
+        <span class="integration-status" style="background:rgba(0,220,130,.1);color:var(--primary);border:1px solid rgba(0,220,130,.2);"><i class="bi bi-check-circle-fill"></i> Connected</span>
+        {% else %}
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Connect</span>
+        {% endif %}
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#00d632,#009e25);color:#fff;font-size:20px;font-weight:800;font-family:'Space Grotesk';">S</div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Square</div>
+            <div style="font-size:12px;color:var(--text-muted);">POS payments, in-person card reader, invoicing</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+</div>
+
+<!-- Accounting -->
+<div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;"><i class="bi bi-calculator"></i> Accounting</div>
+<div class="grid-2 mb-24">
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#2ca01c,#108a00);color:#fff;font-size:18px;font-weight:800;font-family:'Space Grotesk';">QB</div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">QuickBooks</div>
+            <div style="font-size:12px;color:var(--text-muted);">Sync payments, invoices, expenses. Auto-categorize revenue</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#d52b1e,#b71c1c);color:#fff;font-size:18px;font-weight:800;font-family:'Space Grotesk';">TT</div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">TurboTax</div>
+            <div style="font-size:12px;color:var(--text-muted);">Export revenue data for tax filing, year-end reports</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+</div>
+
+<!-- Communication -->
+<div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;"><i class="bi bi-chat-dots"></i> Communication</div>
+<div class="grid-2 mb-24">
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;"><i class="bi bi-whatsapp"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">WhatsApp Business</div>
+            <div style="font-size:12px;color:var(--text-muted);">Send payment links, reminders, class updates to members</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#4a90d9,#1a73e8);color:#fff;"><i class="bi bi-envelope"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Email (SendGrid / SMTP)</div>
+            <div style="font-size:12px;color:var(--text-muted);">Auto-send receipts, welcome emails, membership reminders</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#5865F2,#404EED);color:#fff;"><i class="bi bi-chat-left-text"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Twilio SMS</div>
+            <div style="font-size:12px;color:var(--text-muted);">SMS notifications, payment reminders, class alerts</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+</div>
+
+<!-- Scheduling & Calendar -->
+<div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;"><i class="bi bi-calendar"></i> Scheduling & Calendar</div>
+<div class="grid-2 mb-24">
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#4285f4,#1967d2);color:#fff;"><i class="bi bi-google"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Google Calendar</div>
+            <div style="font-size:12px;color:var(--text-muted);">Sync classes, events, and private lessons to Google Calendar</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#ff9500,#ff6b00);color:#fff;"><i class="bi bi-calendar-check"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Calendly</div>
+            <div style="font-size:12px;color:var(--text-muted);">Book private lessons, trial classes, consultations online</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+</div>
+
+<!-- Marketing & Social -->
+<div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;"><i class="bi bi-megaphone"></i> Marketing & Social</div>
+<div class="grid-2 mb-24">
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#e1306c,#c13584);color:#fff;"><i class="bi bi-instagram"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Instagram</div>
+            <div style="font-size:12px;color:var(--text-muted);">Auto-post class photos, lead capture from DMs</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#1877f2,#0d65d9);color:#fff;"><i class="bi bi-facebook"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Facebook / Meta Ads</div>
+            <div style="font-size:12px;color:var(--text-muted);">Track lead conversions from ads, retarget prospects</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#ffe01b,#f5c518);color:#1e293b;"><i class="bi bi-star-fill"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Google Reviews</div>
+            <div style="font-size:12px;color:var(--text-muted);">Auto-request reviews from members after milestones</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#ffe66d,#ffd93d);color:#1e293b;"><i class="bi bi-mailbox"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Mailchimp</div>
+            <div style="font-size:12px;color:var(--text-muted);">Email marketing, newsletters, member engagement campaigns</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+</div>
+
+<!-- Access & Hardware -->
+<div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;"><i class="bi bi-door-open"></i> Access & Hardware</div>
+<div class="grid-2 mb-24">
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;"><i class="bi bi-door-closed"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Door Access Control</div>
+            <div style="font-size:12px;color:var(--text-muted);">Auto-lock/unlock for active members, QR or pin-based entry</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+    <div class="integration-card">
+        <div class="integration-icon" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;"><i class="bi bi-camera-video"></i></div>
+        <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;">Camera / Livestream</div>
+            <div style="font-size:12px;color:var(--text-muted);">Stream classes live for remote members, record sessions</div>
+        </div>
+        <span class="integration-status" style="background:rgba(148,163,184,.1);color:var(--text-muted);border:1px solid var(--border);">Coming Soon</span>
+    </div>
+</div>
+{% endblock %}
