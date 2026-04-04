@@ -16,6 +16,7 @@
 <div class="topbar">
     <h1><i class="bi bi-graph-up-arrow" style="color:var(--primary);"></i> Finance</h1>
     <div class="topbar-actions">
+        <button class="btn btn-outline-secondary" onclick="sendFinanceReport()"><i class="bi bi-envelope"></i> Send Report</button>
         <button class="btn btn-outline-primary" onclick="document.getElementById('expenseModal').style.display='flex'"><i class="bi bi-dash-circle"></i> Add Expense</button>
         <button class="btn btn-outline-primary" onclick="document.getElementById('payrollModal').style.display='flex'"><i class="bi bi-people"></i> Add Payroll</button>
     </div>
@@ -474,6 +475,25 @@
 
 {% block extra_js %}
 <script>
+function sendFinanceReport() {
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending...';
+    fetch('/api/finance/send-report', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({month: {{ month }}, year: {{ year }}})
+    }).then(r => r.json()).then(d => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-envelope"></i> Send Report';
+        if (d.success) {
+            alert('Report sent to ' + d.email + '!');
+        } else {
+            alert(d.error || 'Error sending report');
+        }
+    });
+}
+
 function switchFinTab(tab) {
     ['overview','expenses','payroll','pnl'].forEach(t => {
         document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
