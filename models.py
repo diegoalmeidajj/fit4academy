@@ -1315,18 +1315,32 @@ def delete_checkin(checkin_id):
 
 def get_today_checkins(academy_id=1):
     conn = get_db()
-    rows = conn.execute(
-        """SELECT ci.*, m.first_name, m.last_name, m.photo,
-                  b.name as belt_name, b.color as belt_color,
-                  c.name as class_name
-           FROM check_ins ci
-           JOIN members m ON ci.member_id = m.id
-           LEFT JOIN belt_ranks b ON m.belt_rank_id = b.id
-           LEFT JOIN classes c ON ci.class_id = c.id
-           WHERE ci.academy_id = ? AND DATE(ci.check_in_time) = date('now')
-           ORDER BY ci.check_in_time DESC""",
-        (academy_id,)
-    ).fetchall()
+    if is_postgres():
+        rows = conn.execute(
+            """SELECT ci.*, m.first_name, m.last_name, m.photo,
+                      b.name as belt_name, b.color as belt_color,
+                      c.name as class_name
+               FROM check_ins ci
+               JOIN members m ON ci.member_id = m.id
+               LEFT JOIN belt_ranks b ON m.belt_rank_id = b.id
+               LEFT JOIN classes c ON ci.class_id = c.id
+               WHERE ci.academy_id = ? AND ci.check_in_time::date = CURRENT_DATE
+               ORDER BY ci.check_in_time DESC""",
+            (academy_id,)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT ci.*, m.first_name, m.last_name, m.photo,
+                      b.name as belt_name, b.color as belt_color,
+                      c.name as class_name
+               FROM check_ins ci
+               JOIN members m ON ci.member_id = m.id
+               LEFT JOIN belt_ranks b ON m.belt_rank_id = b.id
+               LEFT JOIN classes c ON ci.class_id = c.id
+               WHERE ci.academy_id = ? AND DATE(ci.check_in_time) = date('now')
+               ORDER BY ci.check_in_time DESC""",
+            (academy_id,)
+        ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -2272,19 +2286,33 @@ def get_dashboard_stats(academy_id=1):
     stats['total_members'] = row['cnt'] if isinstance(row, dict) else row[0]
 
     # Today check-ins
-    row = conn.execute(
-        "SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND DATE(check_in_time) = date('now')",
-        (academy_id,)
-    ).fetchone()
+    if is_postgres():
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND check_in_time::date = CURRENT_DATE",
+            (academy_id,)
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM check_ins WHERE academy_id = ? AND DATE(check_in_time) = date('now')",
+            (academy_id,)
+        ).fetchone()
     stats['today_checkins'] = row['cnt'] if isinstance(row, dict) else row[0]
 
     # Monthly revenue
-    row = conn.execute(
-        """SELECT COALESCE(SUM(amount), 0) as total FROM payments
-           WHERE academy_id = ? AND status = 'completed'
-           AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')""",
-        (academy_id,)
-    ).fetchone()
+    if is_postgres():
+        row = conn.execute(
+            """SELECT COALESCE(SUM(amount), 0) as total FROM payments
+               WHERE academy_id = ? AND status = 'completed'
+               AND to_char(payment_date::date, 'YYYY-MM') = to_char(CURRENT_DATE, 'YYYY-MM')""",
+            (academy_id,)
+        ).fetchone()
+    else:
+        row = conn.execute(
+            """SELECT COALESCE(SUM(amount), 0) as total FROM payments
+               WHERE academy_id = ? AND status = 'completed'
+               AND strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')""",
+            (academy_id,)
+        ).fetchone()
     stats['monthly_revenue'] = row['total'] if isinstance(row, dict) else row[0]
 
     # Expiring memberships (next 30 days)
