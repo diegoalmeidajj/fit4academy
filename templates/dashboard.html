@@ -110,10 +110,10 @@
             <div class="stat-value sensitive-value">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
             <div class="stat-label">{{ t('dash_monthly_revenue') }}</div>
         </div>
-        <div class="stat-card stat-orange" style="position:relative;" onclick="toggleOne(this)">
-            <div class="stat-icon"><i class="bi bi-person-lines-fill"></i></div>
-            <div class="stat-value sensitive-value">{{ stats.total_members|default(0) }}</div>
-            <div class="stat-label">Total Members</div>
+        <div class="stat-card {{ 'stat-green' if net_profit >= 0 else 'stat-red' }}" style="position:relative;" onclick="toggleOne(this)">
+            <div class="stat-icon"><i class="bi bi-{% if net_profit >= 0 %}trophy{% else %}exclamation-triangle{% endif %}"></i></div>
+            <div class="stat-value sensitive-value">{{ currency_symbol }}{{ "%.0f"|format(net_profit) }}</div>
+            <div class="stat-label">Net Profit</div>
     </div>
     </div>
     <!-- Mini Calendar -->
