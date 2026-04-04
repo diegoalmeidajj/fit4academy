@@ -444,8 +444,8 @@
 
 {% block extra_js %}
 <script>
-// Toggle all sensitive values — DEFAULT: hidden (blur)
-let dataHidden = localStorage.getItem('f4a_hide_data') !== '0'; // default true
+// Toggle all sensitive values — ALWAYS hidden on page load
+let dataHidden = true;
 
 function toggleSensitive() {
     dataHidden = !dataHidden;
