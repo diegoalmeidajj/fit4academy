@@ -487,6 +487,22 @@ def dashboard():
     except Exception:
         pass
 
+    # ── Member growth (this month vs last month) ──
+    members_growth = 0
+    new_members_count = 0
+    try:
+        all_members = models.get_all_members(academy_id)
+        today_d_temp = date.today()
+        this_month = today_d_temp.strftime('%Y-%m')
+        prev_m = today_d_temp.month - 1 if today_d_temp.month > 1 else 12
+        prev_y = today_d_temp.year if today_d_temp.month > 1 else today_d_temp.year - 1
+        prev_month = f"{prev_y}-{str(prev_m).zfill(2)}"
+        new_members_count = len([m for m in all_members if str(m.get('created_at', ''))[:7] == this_month])
+        prev_members_count = len([m for m in all_members if str(m.get('created_at', ''))[:7] == prev_month])
+        members_growth = new_members_count - prev_members_count
+    except Exception:
+        pass
+
     # ── Finance summary ──
     today_d = date.today()
     month_str = today_d.strftime('%Y-%m')
@@ -561,6 +577,8 @@ def dashboard():
         conversion_rate=conversion_rate_dash,
         attendance_rate=attendance_rate_dash,
         absent_count=absent_count,
+        members_growth=members_growth,
+        new_members_count=new_members_count,
     )
 
 

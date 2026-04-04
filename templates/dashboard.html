@@ -111,8 +111,8 @@
             <div class="stat-value sensitive-value">{{ currency_symbol }}{{ "%.0f"|format(net_profit) }}</div>
             <div class="stat-label">Net Profit</div>
             <div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;" class="sensitive-value">
-                <i class="bi bi-{% if margin >= 0 %}arrow-up-right{% else %}arrow-down-right{% endif %}"></i>
-                {{ margin }}% margin · {{ stats.active_members|default(0) }} members
+                <i class="bi bi-{% if members_growth >= 0 %}arrow-up-right{% else %}arrow-down-right{% endif %}"></i>
+                {% if members_growth > 0 %}+{{ members_growth }}{% elif members_growth < 0 %}{{ members_growth }}{% else %}0{% endif %} members vs last month · {{ new_members_count }} new
             </div>
     </div>
     </div>
