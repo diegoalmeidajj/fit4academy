@@ -5107,36 +5107,6 @@ def favicon():
     )
 
 
-@app.route('/debug-members')
-@login_required
-def debug_members():
-    """Temporary debug route — delete after fixing."""
-    academy_id = _get_academy_id()
-    try:
-        conn = models.get_db()
-        # Count all members
-        r1 = conn.execute("SELECT COUNT(*) as cnt FROM members").fetchone()
-        total_all = r1['cnt'] if isinstance(r1, dict) else r1[0]
-        # Count by academy
-        r2 = conn.execute("SELECT COUNT(*) as cnt FROM members WHERE academy_id = ?", (academy_id,)).fetchone()
-        total_academy = r2['cnt'] if isinstance(r2, dict) else r2[0]
-        # Count active
-        r3 = conn.execute("SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND membership_status = 'active'", (academy_id,)).fetchone()
-        total_active = r3['cnt'] if isinstance(r3, dict) else r3[0]
-        # Sample members
-        rows = conn.execute("SELECT id, first_name, last_name, academy_id, membership_status, active FROM members LIMIT 10").fetchall()
-        members_sample = [dict(r) for r in rows]
-        conn.close()
-        return jsonify({
-            'academy_id': academy_id,
-            'total_all_members': total_all,
-            'total_this_academy': total_academy,
-            'total_active': total_active,
-            'sample_members': members_sample,
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)})
-
 
 @app.route('/robots.txt')
 def robots():
