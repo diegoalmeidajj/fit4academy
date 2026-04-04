@@ -81,28 +81,10 @@
                 </div>
             </div>
 
-            <!-- Belt Ranking (shown only when BJJ/belt program is selected) -->
-            <div class="form-section" id="beltSection">
-                <div class="form-section-title"><i class="bi bi-award"></i> {{ t('member_academy_info') }} <span id="beltSportLabel" style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(0,220,130,.08);color:var(--primary);font-weight:600;margin-left:6px;"></span></div>
+            <!-- Academy Info -->
+            <div class="form-section">
+                <div class="form-section-title"><i class="bi bi-gear"></i> Academy Info</div>
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <select id="beltCategory" class="form-select" onchange="updateBeltOptions()">
-                            <option value="kids" {{ 'selected' if member and member.belt in ['White','Grey','Yellow','Orange','Green'] and member.belt != 'White' }}>Kids (4-15)</option>
-                            <option value="adults" {{ 'selected' if not member or member.belt in ['White','Blue','Purple','Brown','Black','Red/Black','Red/White','Red'] }}>Adults (16+)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">{{ t('member_belt') }} *</label>
-                        <select name="belt" id="beltSelect" class="form-select" required onchange="updateStripeOptions()">
-                        </select>
-                        <div id="beltColorBar" style="height:4px;border-radius:0 0 8px 8px;margin-top:2px;transition:background .3s;"></div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">{{ t('member_stripes') }}</label>
-                        <select name="stripes" id="stripesSelect" class="form-select">
-                        </select>
-                    </div>
                     <div class="form-group">
                         <label class="form-label">PIN <span style="font-size:10px;color:var(--text-muted);">(4 digits)</span></label>
                         <input type="text" name="pin" class="form-control" value="{{ member.pin|default('', true) if member else '' }}" placeholder="Auto-generated" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" style="font-family:monospace;font-size:18px;letter-spacing:4px;font-weight:700;color:var(--primary);">
@@ -170,7 +152,7 @@
                 </div>
             </div>
 
-            <!-- Programs -->
+            <!-- Programs + Belt (inline) -->
             {% if programs|default([]) %}
             <div class="form-section">
                 <div class="form-section-title"><i class="bi bi-collection"></i> Programs</div>
@@ -192,6 +174,22 @@
                         {% if p.sport_type == 'judo' %}<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,.08);color:#8b5cf6;font-weight:600;">Judo</span>{% endif %}
                     </label>
                     {% endfor %}
+                </div>
+                <!-- Belt selector appears here inline when BJJ/Judo selected -->
+                <div id="inlineBeltSelector" style="display:none;margin-top:12px;padding:14px;background:rgba(0,220,130,.04);border:1px solid rgba(0,220,130,.12);border-radius:12px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;margin-bottom:8px;" id="inlineBeltLabel"><i class="bi bi-award"></i> Belt Rank</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <select id="beltCategory" class="form-select" onchange="updateBeltOptions()" style="width:auto;font-size:12px;padding:6px 10px;">
+                            <option value="kids">Kids (4-15)</option>
+                            <option value="adults" selected>Adults (16+)</option>
+                        </select>
+                        <select name="belt" id="beltSelect" class="form-select" required onchange="updateStripeOptions()" style="width:auto;font-size:12px;padding:6px 10px;font-weight:700;">
+                        </select>
+                        <div id="beltColorBar" style="width:40px;height:8px;border-radius:4px;transition:background .3s;"></div>
+                        <select name="stripes" id="stripesSelect" class="form-select" style="width:auto;font-size:12px;padding:6px 10px;">
+                        </select>
+                        <span style="font-size:11px;color:var(--text-muted);">stripes</span>
+                    </div>
                 </div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:6px;"><a href="/programs" style="color:var(--primary);">Manage Programs</a></div>
             </div>
@@ -313,7 +311,7 @@ document.querySelector('[name=dob]').addEventListener('change', function() {
     updateBeltOptions();
 });
 
-// Show/hide belt section based on selected programs
+// Show/hide inline belt selector based on selected programs
 function checkBeltVisibility() {
     const checkboxes = document.querySelectorAll('input[name="program_ids"]:checked');
     let showBelts = false;
@@ -322,24 +320,24 @@ function checkBeltVisibility() {
         if (cb.getAttribute('data-has-belts') === 'true') {
             showBelts = true;
             const sport = cb.getAttribute('data-sport') || '';
-            if (sport === 'bjj') sportLabel = 'Brazilian Jiu-Jitsu';
-            else if (sport === 'judo') sportLabel = 'Judo';
-            else sportLabel = 'Belt Ranking';
+            if (sport === 'bjj') sportLabel = 'BJJ Belt Rank';
+            else if (sport === 'judo') sportLabel = 'Judo Belt Rank';
+            else sportLabel = 'Belt Rank';
         }
     });
-    const section = document.getElementById('beltSection');
-    const label = document.getElementById('beltSportLabel');
-    if (section) {
-        section.style.display = showBelts ? '' : 'none';
+    const selector = document.getElementById('inlineBeltSelector');
+    const label = document.getElementById('inlineBeltLabel');
+    if (selector) {
+        selector.style.display = showBelts ? '' : 'none';
+        if (showBelts) updateBeltOptions();
     }
-    if (label) {
-        label.textContent = sportLabel;
+    if (label && sportLabel) {
+        label.innerHTML = '<i class="bi bi-award"></i> ' + sportLabel;
     }
 }
 
 // Init on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Detect category from current belt
     const kidsBelts = ['Grey','Yellow','Orange','Green'];
     if (kidsBelts.includes(CURRENT_BELT)) {
         document.getElementById('beltCategory').value = 'kids';
@@ -347,9 +345,10 @@ document.addEventListener('DOMContentLoaded', function() {
     updateBeltOptions();
     checkBeltVisibility();
 
-    // If editing existing member with belt, keep section visible
+    // If editing existing member with belt, show inline belt selector
     if (CURRENT_BELT && CURRENT_BELT !== 'White') {
-        document.getElementById('beltSection').style.display = '';
+        const sel = document.getElementById('inlineBeltSelector');
+        if (sel) sel.style.display = '';
     }
 });
 </script>
