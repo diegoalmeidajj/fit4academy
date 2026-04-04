@@ -487,6 +487,58 @@ def dashboard():
     except Exception:
         pass
 
+    # ── Finance summary ──
+    today_d = date.today()
+    month_str = today_d.strftime('%Y-%m')
+    total_revenue = 0
+    total_expenses_dash = 0
+    total_payroll_dash = 0
+    pending_payments = 0
+    try:
+        all_payments = models.get_all_payments(academy_id)
+        month_pays = [p for p in all_payments if str(p.get('payment_date', ''))[:7] == month_str and p.get('status') == 'completed']
+        total_revenue = sum(p.get('amount', 0) for p in month_pays)
+        pending_payments = sum(p.get('amount', 0) for p in all_payments if str(p.get('payment_date', ''))[:7] == month_str and p.get('status') == 'pending')
+        stats['monthly_revenue'] = total_revenue
+    except Exception:
+        pass
+    try:
+        expenses_dash = models.get_all_expenses(academy_id, today_d.month, today_d.year)
+        total_expenses_dash = sum(e.get('amount', 0) for e in expenses_dash)
+    except Exception:
+        pass
+    try:
+        payroll_dash = models.get_all_payroll(academy_id, today_d.month, today_d.year)
+        total_payroll_dash = sum(p.get('net_pay', 0) for p in payroll_dash)
+    except Exception:
+        pass
+    net_profit_dash = total_revenue - total_expenses_dash - total_payroll_dash
+    margin_dash = round(net_profit_dash / total_revenue * 100, 1) if total_revenue > 0 else 0
+
+    # ── Leads summary ──
+    leads_new = 0
+    leads_converted = 0
+    conversion_rate_dash = 0
+    try:
+        prospects = models.get_all_prospects(academy_id)
+        leads_new = len([p for p in prospects if p.get('source') != 'ex_student' and str(p.get('created_at', ''))[:7] == month_str])
+        leads_converted = len([p for p in prospects if p.get('status') == 'converted' and str(p.get('updated_at', ''))[:7] == month_str])
+        conversion_rate_dash = round(leads_converted / leads_new * 100, 1) if leads_new > 0 else 0
+    except Exception:
+        pass
+
+    # ── Attendance summary ──
+    attendance_rate_dash = 0
+    absent_count = 0
+    try:
+        att_report = models.get_attendance_report(academy_id, today_d.month, today_d.year)
+        trained = len([m for m in att_report if m.get('total_checkins', 0) > 0])
+        total_att = len(att_report)
+        attendance_rate_dash = round(trained / total_att * 100, 1) if total_att > 0 else 0
+        absent_count = len([m for m in att_report if not m.get('total_checkins')])
+    except Exception:
+        pass
+
     return render_template('dashboard.html',
         greeting=greeting,
         stats=stats,
@@ -498,6 +550,17 @@ def dashboard():
         at_risk=at_risk,
         schedule_days=schedule_days,
         today_tasks=today_tasks,
+        total_revenue=total_revenue,
+        total_expenses=total_expenses_dash,
+        total_payroll=total_payroll_dash,
+        net_profit=net_profit_dash,
+        margin=margin_dash,
+        pending_payments=pending_payments,
+        leads_new=leads_new,
+        leads_converted=leads_converted,
+        conversion_rate=conversion_rate_dash,
+        attendance_rate=attendance_rate_dash,
+        absent_count=absent_count,
     )
 
 

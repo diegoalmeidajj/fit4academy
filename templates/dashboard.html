@@ -174,6 +174,90 @@
 </div>
 {% endif %}
 
+<!-- Business Overview -->
+<div class="grid-3 mb-16">
+    <!-- Finance -->
+    <div class="card" style="padding:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <i class="bi bi-graph-up-arrow" style="color:var(--primary);font-size:16px;"></i>
+            <span style="font-size:12px;font-weight:700;">Finance — This Month</span>
+            <a href="/finance" style="margin-left:auto;font-size:10px;color:var(--primary);text-decoration:none;">View All →</a>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Revenue</div>
+                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--success);">{{ currency_symbol }}{{ "%.0f"|format(total_revenue) }}</div>
+            </div>
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Costs</div>
+                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:var(--danger);">{{ currency_symbol }}{{ "%.0f"|format(total_expenses + total_payroll) }}</div>
+            </div>
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Profit</div>
+                <div style="font-family:'Space Grotesk';font-size:18px;font-weight:700;color:{% if net_profit >= 0 %}var(--success){% else %}var(--danger){% endif %};">{{ currency_symbol }}{{ "%.0f"|format(net_profit) }}</div>
+            </div>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            {% if total_revenue > 0 %}
+            <div style="width:{{ [margin, 100]|min }}%;height:100%;background:{% if margin >= 20 %}var(--success){% elif margin >= 0 %}var(--warning){% else %}var(--danger){% endif %};border-radius:3px;"></div>
+            {% endif %}
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">{{ margin }}% margin{% if pending_payments > 0 %} · {{ currency_symbol }}{{ "%.0f"|format(pending_payments) }} pending{% endif %}</div>
+    </div>
+
+    <!-- Leads -->
+    <div class="card" style="padding:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <i class="bi bi-funnel" style="color:var(--primary);font-size:16px;"></i>
+            <span style="font-size:12px;font-weight:700;">Leads — This Month</span>
+            <a href="/prospects" style="margin-left:auto;font-size:10px;color:var(--primary);text-decoration:none;">View All →</a>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">New Leads</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--primary);">{{ leads_new }}</div>
+            </div>
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Converted</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--success);">{{ leads_converted }}</div>
+            </div>
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Rate</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if conversion_rate >= 30 %}var(--success){% elif conversion_rate >= 15 %}var(--warning){% else %}var(--text-muted){% endif %};">{{ conversion_rate }}%</div>
+            </div>
+        </div>
+        {% if urgent_leads and urgent_leads > 0 %}
+        <div style="padding:6px 10px;border-radius:6px;background:rgba(239,68,68,.08);font-size:10px;color:var(--danger);font-weight:600;"><i class="bi bi-exclamation-triangle"></i> {{ urgent_leads }} leads waiting 24h+</div>
+        {% endif %}
+    </div>
+
+    <!-- Attendance -->
+    <div class="card" style="padding:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <i class="bi bi-check2-circle" style="color:var(--primary);font-size:16px;"></i>
+            <span style="font-size:12px;font-weight:700;">Attendance — This Month</span>
+            <a href="/attendance" style="margin-left:auto;font-size:10px;color:var(--primary);text-decoration:none;">View All →</a>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Attendance Rate</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if attendance_rate >= 70 %}var(--success){% elif attendance_rate >= 40 %}var(--warning){% else %}var(--danger){% endif %};">{{ attendance_rate }}%</div>
+            </div>
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Today Check-ins</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--primary);">{{ stats.today_checkins|default(0) }}</div>
+            </div>
+            <div>
+                <div style="font-size:10px;color:var(--text-muted);">Absent 15d+</div>
+                <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:{% if absent_count > 3 %}var(--danger){% else %}var(--text-muted){% endif %};">{{ absent_count }}</div>
+            </div>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div style="width:{{ attendance_rate }}%;height:100%;background:{% if attendance_rate >= 70 %}var(--success){% elif attendance_rate >= 40 %}var(--warning){% else %}var(--danger){% endif %};border-radius:3px;"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Today's Classes + Recent Check-ins -->
 <div class="grid-2 mb-24">
     <div>
