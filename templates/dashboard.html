@@ -85,28 +85,32 @@
     </div>
 </div>
 
+<!-- Global show/hide toggle -->
+<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+    <button onclick="toggleSensitive()" style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;color:var(--text-muted);font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;transition:all .2s;" title="Show/Hide All Data">
+        <i class="bi bi-eye-slash" id="sensitiveEyeIcon" style="font-size:14px;"></i> <span id="sensitiveLabel">Show</span>
+    </button>
+</div>
+
 <!-- Stat cards + Mini Calendar -->
 <div class="stats-cal-row" style="display:flex;gap:16px;margin-bottom:24px;">
     <div class="stat-grid" style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-        <div class="stat-card stat-blue" style="position:relative;">
+        <div class="stat-card stat-blue" style="position:relative;" onclick="toggleOne(this)">
             <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
             <div class="stat-value sensitive-value">{{ stats.active_members|default(0) }}</div>
             <div class="stat-label">{{ t('dash_active_members') }}</div>
         </div>
-        <div class="stat-card stat-green" style="position:relative;">
+        <div class="stat-card stat-green" style="position:relative;" onclick="toggleOne(this)">
             <div class="stat-icon"><i class="bi bi-qr-code-scan"></i></div>
             <div class="stat-value sensitive-value">{{ stats.today_checkins|default(0) }}</div>
             <div class="stat-label">{{ t('dash_today_checkins') }}</div>
         </div>
-        <div class="stat-card stat-purple" style="position:relative;">
+        <div class="stat-card stat-purple" style="position:relative;" onclick="toggleOne(this)">
             <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
             <div class="stat-value sensitive-value">{{ currency_symbol }}{{ stats.monthly_revenue|default(0)|int }}</div>
             <div class="stat-label">{{ t('dash_monthly_revenue') }}</div>
-            <button onclick="toggleSensitive()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:14px;backdrop-filter:blur(4px);transition:all .2s;" title="Show/Hide All">
-                <i class="bi bi-eye" id="sensitiveEyeIcon"></i>
-            </button>
         </div>
-        <div class="stat-card stat-orange" style="position:relative;">
+        <div class="stat-card stat-orange" style="position:relative;" onclick="toggleOne(this)">
             <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
             <div class="stat-value sensitive-value">{{ stats.expiring_soon|default(0) }}</div>
             <div class="stat-label">{{ t('dash_expiring_soon') }}</div>
@@ -177,7 +181,7 @@
 <!-- Business Overview -->
 <div class="grid-3 mb-16">
     <!-- Finance -->
-    <div class="card" style="padding:18px;">
+    <div class="card" style="padding:18px;cursor:pointer;" onclick="toggleOne(this)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
             <i class="bi bi-graph-up-arrow" style="color:var(--primary);font-size:16px;"></i>
             <span style="font-size:12px;font-weight:700;">Finance — This Month</span>
@@ -206,7 +210,7 @@
     </div>
 
     <!-- Leads -->
-    <div class="card" style="padding:18px;">
+    <div class="card" style="padding:18px;cursor:pointer;" onclick="toggleOne(this)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
             <i class="bi bi-funnel" style="color:var(--primary);font-size:16px;"></i>
             <span style="font-size:12px;font-weight:700;">Leads — This Month</span>
@@ -232,7 +236,7 @@
     </div>
 
     <!-- Attendance -->
-    <div class="card" style="padding:18px;">
+    <div class="card" style="padding:18px;cursor:pointer;" onclick="toggleOne(this)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
             <i class="bi bi-check2-circle" style="color:var(--primary);font-size:16px;"></i>
             <span style="font-size:12px;font-weight:700;">Attendance — This Month</span>
@@ -440,8 +444,8 @@
 
 {% block extra_js %}
 <script>
-// Toggle all sensitive values
-let dataHidden = localStorage.getItem('f4a_hide_data') === '1';
+// Toggle all sensitive values — DEFAULT: hidden (blur)
+let dataHidden = localStorage.getItem('f4a_hide_data') !== '0'; // default true
 
 function toggleSensitive() {
     dataHidden = !dataHidden;
@@ -449,11 +453,21 @@ function toggleSensitive() {
     updateSensitiveUI();
 }
 
+function toggleOne(card) {
+    const vals = card.querySelectorAll('.sensitive-value');
+    if (!vals.length) return;
+    const isBlurred = vals[0].style.filter && vals[0].style.filter.includes('blur');
+    vals.forEach(v => {
+        v.style.filter = isBlurred ? 'none' : 'blur(8px)';
+        v.style.userSelect = isBlurred ? '' : 'none';
+    });
+}
+
 function updateSensitiveUI() {
     const icon = document.getElementById('sensitiveEyeIcon');
+    const label = document.getElementById('sensitiveLabel');
     document.querySelectorAll('.sensitive-value').forEach(el => {
         if (dataHidden) {
-            if (!el.dataset.real) el.dataset.real = el.textContent;
             el.style.filter = 'blur(8px)';
             el.style.userSelect = 'none';
         } else {
@@ -462,6 +476,7 @@ function updateSensitiveUI() {
         }
     });
     if (icon) icon.className = dataHidden ? 'bi bi-eye-slash' : 'bi bi-eye';
+    if (label) label.textContent = dataHidden ? 'Show' : 'Hide';
 }
 updateSensitiveUI();
 
