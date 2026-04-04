@@ -2596,6 +2596,62 @@ def api_belt_change_member():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/belts/add-rank', methods=['POST'])
+@login_required
+def api_add_belt_rank():
+    """Add a custom belt rank."""
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    color = data.get('color', '#808080')
+    max_stripes = int(data.get('max_stripes', 4))
+    min_months = int(data.get('min_months', 0))
+    sort_order = int(data.get('sort_order', 99))
+    if not name:
+        return jsonify({'error': 'Belt name required'}), 400
+    try:
+        bid = models.create_belt_rank(name, color, sort_order, max_stripes, min_months)
+        return jsonify({'success': True, 'id': bid})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/belts/edit-rank', methods=['POST'])
+@login_required
+def api_edit_belt_rank():
+    """Edit a belt rank."""
+    data = request.get_json() or {}
+    belt_id = data.get('belt_id')
+    if not belt_id:
+        return jsonify({'error': 'belt_id required'}), 400
+    try:
+        models.update_belt_rank(int(belt_id),
+            name=data.get('name'), color=data.get('color'),
+            max_stripes=int(data.get('max_stripes', 4)),
+            min_months=int(data.get('min_months', 0)),
+            sort_order=int(data.get('sort_order', 0)))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/belts/delete-rank', methods=['POST'])
+@login_required
+def api_delete_belt_rank():
+    """Delete a custom belt rank."""
+    data = request.get_json() or {}
+    belt_id = data.get('belt_id')
+    if not belt_id:
+        return jsonify({'error': 'belt_id required'}), 400
+    try:
+        conn = models.get_db()
+        conn.execute("DELETE FROM belt_ranks WHERE id = ?", (int(belt_id),))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/belts/remove-member', methods=['POST'])
 @login_required
 def api_belt_remove_member():

@@ -217,26 +217,21 @@ function previewPhoto(input) {
     }
 }
 
-/* ===== Smart Belt System ===== */
-const BELTS = {
-    kids: [
-        {name:'White', color:'#e2e8f0', text:'#334155', stripes:4},
-        {name:'Grey', color:'#808080', text:'#fff', stripes:4},
-        {name:'Yellow', color:'#FFD700', text:'#1a1a2e', stripes:4},
-        {name:'Orange', color:'#FF8C00', text:'#fff', stripes:4},
-        {name:'Green', color:'#228B22', text:'#fff', stripes:4},
-    ],
-    adults: [
-        {name:'White', color:'#e2e8f0', text:'#334155', stripes:4},
-        {name:'Blue', color:'#0056B3', text:'#fff', stripes:4},
-        {name:'Purple', color:'#6F42C1', text:'#fff', stripes:4},
-        {name:'Brown', color:'#8B4513', text:'#fff', stripes:4},
-        {name:'Black', color:'#000000', text:'#fff', stripes:6},
-        {name:'Red/Black', color:'#8B0000', text:'#fff', stripes:0},
-        {name:'Red/White', color:'#DC143C', text:'#fff', stripes:0},
-        {name:'Red', color:'#FF0000', text:'#fff', stripes:0},
-    ]
-};
+/* ===== Smart Belt System — loaded from database ===== */
+const ALL_BELT_RANKS = {{ belt_ranks|tojson }};
+
+// Categorize belts from DB
+const KIDS_BELT_NAMES = ['White', 'Grey', 'Yellow', 'Orange', 'Green'];
+const ADULT_BELT_NAMES = ['White', 'Blue', 'Purple', 'Brown', 'Black', 'Red/Black', 'Red/White', 'Red'];
+
+const BELTS = { kids: [], adults: [] };
+ALL_BELT_RANKS.forEach(b => {
+    const entry = {name: b.name, color: b.color || '#808080', text: (b.name === 'White' || b.name === 'Yellow') ? '#334155' : '#fff', stripes: b.max_stripes || 4};
+    if (KIDS_BELT_NAMES.includes(b.name)) BELTS.kids.push(entry);
+    if (ADULT_BELT_NAMES.includes(b.name)) BELTS.adults.push(entry);
+    // Custom belts not in either list go to adults
+    if (!KIDS_BELT_NAMES.includes(b.name) && !ADULT_BELT_NAMES.includes(b.name)) BELTS.adults.push(entry);
+});
 
 const CURRENT_BELT = '{{ member.belt if member else "White" }}';
 const CURRENT_STRIPES = {{ member.stripes if member else 0 }};

@@ -78,6 +78,7 @@
 <div class="topbar">
     <h1><i class="bi bi-award" style="color:var(--primary);"></i> {{ t('belts_title') }}</h1>
     <div class="topbar-actions">
+        <button class="btn btn-outline-primary" onclick="document.getElementById('customBeltModal').style.display='flex'"><i class="bi bi-plus-circle"></i> Custom Belt</button>
         <a href="/belts/promote" class="btn btn-primary"><i class="bi bi-award"></i> New Belt</a>
     </div>
 </div>
@@ -362,5 +363,72 @@ function switchBeltTab(tab) {
         }
     });
 }
+
+function addCustomBelt() {
+    const data = {
+        name: document.getElementById('cbName').value,
+        color: document.getElementById('cbColor').value,
+        max_stripes: document.getElementById('cbStripes').value,
+        min_months: document.getElementById('cbMonths').value,
+        sort_order: document.getElementById('cbOrder').value,
+    };
+    if (!data.name) { alert('Belt name required'); return; }
+    fetch('/api/belts/add-rank', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else alert(d.error); });
+}
+
+function deleteCustomBelt(id) {
+    if (!confirm('Delete this belt rank?')) return;
+    fetch('/api/belts/delete-rank', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({belt_id:id}) })
+    .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); });
+}
 </script>
+
+<!-- Custom Belt Modal -->
+<div id="customBeltModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card-bg);border-radius:16px;padding:28px;max-width:460px;width:90%;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="font-family:'Space Grotesk';font-size:18px;font-weight:700;margin:0;"><i class="bi bi-plus-circle" style="color:var(--primary);"></i> Add Custom Belt</h3>
+            <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);" onclick="document.getElementById('customBeltModal').style.display='none'">&times;</button>
+        </div>
+        <div class="grid-2">
+            <div class="form-group">
+                <label class="form-label">Belt Name *</label>
+                <input type="text" id="cbName" class="form-control" placeholder="e.g. Coral">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Color</label>
+                <input type="color" id="cbColor" value="#808080" style="width:100%;height:38px;border:none;border-radius:8px;cursor:pointer;">
+            </div>
+        </div>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">Max Stripes</label>
+                <input type="number" id="cbStripes" class="form-control" value="4" min="0" max="10">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Min Months</label>
+                <input type="number" id="cbMonths" class="form-control" value="0" min="0">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sort Order</label>
+                <input type="number" id="cbOrder" class="form-control" value="99" min="0">
+            </div>
+        </div>
+        <button onclick="addCustomBelt()" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;"><i class="bi bi-check-lg"></i> Add Belt</button>
+
+        <!-- Existing belts list -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Current Belt Ranks</div>
+            {% for b in belt_ranks %}
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+                <div style="width:20px;height:20px;border-radius:6px;background:{{ b.color }};border:1px solid rgba(0,0,0,.1);flex-shrink:0;"></div>
+                <span style="font-weight:600;font-size:13px;flex:1;">{{ b.name }}</span>
+                <span style="font-size:10px;color:var(--text-muted);">{{ b.max_stripes }} stripes · {{ b.min_months }}mo</span>
+                <button onclick="deleteCustomBelt({{ b.id }})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:2px;" title="Delete"><i class="bi bi-x"></i></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
 {% endblock %}
