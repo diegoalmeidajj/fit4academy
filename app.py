@@ -3543,6 +3543,12 @@ def store_page():
 #  BILLING / STRIPE
 # ═══════════════════════════════════════════════════════════════
 
+@app.route('/ai')
+@login_required
+def ai_page():
+    return render_template('ai.html')
+
+
 @app.route('/integrations')
 @login_required
 def integrations_page():

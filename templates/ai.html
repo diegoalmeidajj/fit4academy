@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Marcos AI{% endblock %}
+
+{% block extra_css %}
+.marcos-header {
+    background: linear-gradient(135deg, rgba(234,179,8,0.08), rgba(245,158,11,0.05));
+    border: 1px solid rgba(234,179,8,0.15); border-radius: 16px;
+    padding: 28px; text-align: center; margin-bottom: 20px;
+}
+.marcos-avatar {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 24px; font-family: 'Space Grotesk';
+    margin: 0 auto 12px; box-shadow: 0 4px 16px rgba(234,179,8,0.3);
+}
+.chat-bubble {
+    padding: 16px 20px; border-radius: 16px; font-size: 13px; line-height: 1.8;
+    white-space: pre-wrap; max-width: 100%;
+}
+.chat-marcos {
+    background: rgba(234,179,8,0.06); border: 1px solid rgba(234,179,8,0.12);
+    border-bottom-left-radius: 4px;
+}
+.chat-user {
+    background: rgba(0,220,130,0.06); border: 1px solid rgba(0,220,130,0.12);
+    border-bottom-right-radius: 4px; text-align: right;
+}
+.quick-btn {
+    padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 600;
+    border: 1.5px solid rgba(234,179,8,0.3); background: rgba(234,179,8,0.05);
+    color: #fbbf24; cursor: pointer; transition: all .2s;
+}
+.quick-btn:hover { background: rgba(234,179,8,0.12); border-color: #fbbf24; }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-stars" style="color:#fbbf24;"></i> Marcos AI</h1>
+</div>
+
+<!-- Header -->
+<div class="marcos-header">
+    <div class="marcos-avatar">M</div>
+    <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;">Hey, I'm Marcos!</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-top:4px;max-width:500px;margin-left:auto;margin-right:auto;">
+        Your AI business advisor trained for academy owners. I analyze your real data and give you actionable tips on finance, marketing, retention, and growth.
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;justify-content:center;">
+    <button class="quick-btn" onclick="askMarcos('Give me your top insights for this month')"><i class="bi bi-lightning"></i> Monthly Insights</button>
+    <button class="quick-btn" onclick="askMarcos('How can I increase my revenue?')"><i class="bi bi-graph-up"></i> Grow Revenue</button>
+    <button class="quick-btn" onclick="askMarcos('How to reduce my expenses?')"><i class="bi bi-scissors"></i> Cut Costs</button>
+    <button class="quick-btn" onclick="askMarcos('How to improve member retention?')"><i class="bi bi-people"></i> Retention Tips</button>
+    <button class="quick-btn" onclick="askMarcos('How to convert more leads into members?')"><i class="bi bi-funnel"></i> Lead Conversion</button>
+    <button class="quick-btn" onclick="askMarcos('What marketing strategies should I use?')"><i class="bi bi-megaphone"></i> Marketing</button>
+    <button class="quick-btn" onclick="askMarcos('Should I raise my prices?')"><i class="bi bi-tag"></i> Pricing</button>
+    <button class="quick-btn" onclick="askMarcos('How to start a kids program?')"><i class="bi bi-emoji-smile"></i> Kids Program</button>
+</div>
+
+<!-- Chat Area -->
+<div class="card" style="border:1px solid rgba(234,179,8,0.15);">
+    <div class="card-body" style="min-height:300px;">
+        <div id="chatArea">
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+                <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0;">M</div>
+                <div class="chat-bubble chat-marcos">
+                    👋 Hey! I'm ready to help you grow your academy. Click one of the quick buttons above or ask me anything below.
+
+I have access to your finance, members, leads, attendance, and expense data — so my advice is based on YOUR real numbers, not generic tips.</div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div style="display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+            <input type="text" id="marcosInput" class="form-control" placeholder="Ask Marcos anything about your academy..." style="font-size:13px;"
+                   onkeydown="if(event.key==='Enter')askMarcos(this.value)">
+            <button onclick="askMarcos(document.getElementById('marcosInput').value)" style="padding:10px 18px;border-radius:10px;border:none;cursor:pointer;font-weight:700;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+                <i class="bi bi-send"></i> Ask
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function askMarcos(question) {
+    if (!question || !question.trim()) return;
+    const chat = document.getElementById('chatArea');
+    const input = document.getElementById('marcosInput');
+    input.value = '';
+
+    // Add user bubble
+    chat.innerHTML += `
+        <div style="display:flex;gap:10px;margin-bottom:16px;justify-content:flex-end;">
+            <div class="chat-bubble chat-user">${question}</div>
+        </div>`;
+
+    // Add loading
+    const loadId = 'load-' + Date.now();
+    chat.innerHTML += `
+        <div style="display:flex;gap:10px;margin-bottom:16px;" id="${loadId}">
+            <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0;">M</div>
+            <div class="chat-bubble chat-marcos" style="color:var(--text-muted);"><i class="bi bi-hourglass-split"></i> Analyzing your data...</div>
+        </div>`;
+
+    chat.scrollTop = chat.scrollHeight;
+
+    fetch('/api/marcos/advice', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question: question, month: new Date().getMonth() + 1, year: new Date().getFullYear()})
+    }).then(r => r.json()).then(d => {
+        const loadEl = document.getElementById(loadId);
+        if (d.success) {
+            const badge = d.ai_enabled ?
+                '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(234,179,8,.15);color:#fbbf24;font-weight:600;">AI Powered</span>' :
+                '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(139,92,246,.1);color:#8b5cf6;font-weight:600;">Smart Analysis</span>';
+            const formatted = d.advice.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            loadEl.innerHTML = `
+                <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#fbbf24,#f59e0b);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0;">M</div>
+                <div class="chat-bubble chat-marcos"><div style="margin-bottom:8px;">${badge}</div>${formatted}</div>`;
+        } else {
+            loadEl.querySelector('.chat-marcos').innerHTML = '<span style="color:var(--danger);">Error: ' + (d.error || 'Could not get advice') + '</span>';
+        }
+        chat.scrollTop = chat.scrollHeight;
+    });
+}
+</script>
+{% endblock %}

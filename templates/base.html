@@ -380,6 +380,7 @@
                 <a href="/media" class="{{ 'active' if request.path == '/media' }}"><i class="bi bi-camera-video"></i> {{ t('nav_media') }}</a>
                 <a href="/notifications" class="{{ 'active' if request.path == '/notifications' }}"><i class="bi bi-bell"></i> {{ t('nav_notifications') }}</a>
                 <a href="/integrations" class="{{ 'active' if request.path == '/integrations' }}"><i class="bi bi-plug"></i> Integrations</a>
+                <a href="/ai" class="{{ 'active' if request.path == '/ai' }}" style="{% if request.path == '/ai' %}background:linear-gradient(135deg,rgba(234,179,8,0.25),rgba(245,158,11,0.15));color:#fbbf24;box-shadow:0 0 0 1px rgba(234,179,8,0.3);{% endif %}"><i class="bi bi-stars" style="color:#fbbf24;"></i> <span style="color:{% if request.path == '/ai' %}#fbbf24{% else %}inherit{% endif %};">Marcos AI</span></a>
             </div>
             {% if session.get('role') == 'admin' %}
             <div class="nav-section">
