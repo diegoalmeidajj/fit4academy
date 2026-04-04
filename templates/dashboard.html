@@ -97,9 +97,9 @@
     <div class="stat-grid" style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
         <div class="stat-card stat-blue" style="position:relative;" onclick="toggleOne(this)">
             <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
-            <div class="stat-value">{{ stats.active_members|default(0) }}</div>
+            <div class="stat-value sensitive-value">{{ stats.active_members|default(0) }}</div>
             <div class="stat-label">Active Members</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;"><i class="bi bi-qr-code-scan"></i> {{ stats.today_checkins|default(0) }} check-ins today</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;" class="sensitive-value"><i class="bi bi-qr-code-scan"></i> {{ stats.today_checkins|default(0) }} check-ins today</div>
         </div>
         <div class="stat-card stat-purple" style="position:relative;" onclick="toggleOne(this)">
             <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>

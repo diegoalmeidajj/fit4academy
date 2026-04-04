@@ -2272,10 +2272,16 @@ def get_dashboard_stats(academy_id=1):
     stats = {}
 
     # Active members
-    row = conn.execute(
-        "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND membership_status = 'active' AND active = ?",
-        (academy_id, True)
-    ).fetchone()
+    if is_postgres():
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND membership_status = 'active' AND active = true",
+            (academy_id,)
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM members WHERE academy_id = ? AND membership_status = 'active' AND active = 1",
+            (academy_id,)
+        ).fetchone()
     stats['active_members'] = row['cnt'] if isinstance(row, dict) else row[0]
 
     # Total members
