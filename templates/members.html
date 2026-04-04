@@ -75,17 +75,6 @@
             <canvas id="sparkMembers" width="80" height="40"></canvas>
         </div>
     </div>
-    <!-- New Leads -->
-    <div class="card" style="padding:16px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div>
-                <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">{{ t('stats_new_leads') }}</div>
-                <div style="font-family:'Space Grotesk';font-size:26px;font-weight:700;margin:4px 0;">{{ new_leads_this_month|default(0) }}</div>
-                <div style="font-size:11px;color:var(--text-muted);font-weight:600;">{{ t('stats_this_month') }}</div>
-            </div>
-            <canvas id="sparkLeads" width="80" height="40"></canvas>
-        </div>
-    </div>
     <!-- Lost Members -->
     <div class="card" style="padding:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -363,7 +352,6 @@ function bulkExport() {
 
     sparkline('sparkGrowth', growthData, '#00DC82');
     sparkline('sparkMembers', newMembersData, '#10b981');
-    sparkline('sparkLeads', leadsData, '#f59e0b');
     sparkline('sparkLost', lostData, '#ef4444');
 })();
 
