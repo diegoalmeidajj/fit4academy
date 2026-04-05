@@ -4347,6 +4347,10 @@ def event_add():
                 max_participants=int(request.form.get('max_participants', 0) or 0),
                 price=float(request.form.get('price', 0) or 0),
                 photo=photo_url,
+                landing_color=request.form.get('landing_color', '#00DC82'),
+                landing_headline=request.form.get('landing_headline', ''),
+                landing_cta=request.form.get('landing_cta', 'Register Now'),
+                landing_bg_style=request.form.get('landing_bg_style', 'gradient'),
             )
             flash('Event created!', 'success')
             return redirect(url_for('events_list'))
@@ -4395,6 +4399,10 @@ def event_edit(event_id):
             }
             if photo_url:
                 update_data['photo'] = photo_url
+            update_data['landing_color'] = request.form.get('landing_color', '#00DC82')
+            update_data['landing_headline'] = request.form.get('landing_headline', '')
+            update_data['landing_cta'] = request.form.get('landing_cta', 'Register Now')
+            update_data['landing_bg_style'] = request.form.get('landing_bg_style', 'gradient')
             models.update_event(event_id, **update_data)
             flash('Event updated!', 'success')
             return redirect(url_for('events_list'))

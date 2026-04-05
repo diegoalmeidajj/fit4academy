@@ -489,6 +489,10 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
         "ALTER TABLE events ADD COLUMN photo TEXT DEFAULT ''",
+        "ALTER TABLE events ADD COLUMN landing_color TEXT DEFAULT '#00DC82'",
+        "ALTER TABLE events ADD COLUMN landing_headline TEXT DEFAULT ''",
+        "ALTER TABLE events ADD COLUMN landing_cta TEXT DEFAULT 'Register Now'",
+        "ALTER TABLE events ADD COLUMN landing_bg_style TEXT DEFAULT 'gradient'",
         "ALTER TABLE payments ADD COLUMN platform_fee REAL DEFAULT 0",
         "ALTER TABLE payments ADD COLUMN stripe_charge_id TEXT DEFAULT ''",
         "ALTER TABLE programs ADD COLUMN has_belts BOOLEAN DEFAULT FALSE",
@@ -1831,7 +1835,8 @@ def create_event(academy_id=1, **kwargs):
 def update_event(event_id, **kwargs):
     conn = get_db()
     allowed = ['name', 'event_type', 'description', 'event_date', 'start_time',
-               'end_time', 'location', 'max_participants', 'price', 'active', 'photo']
+               'end_time', 'location', 'max_participants', 'price', 'active', 'photo',
+               'landing_color', 'landing_headline', 'landing_cta', 'landing_bg_style']
     fields = []
     values = []
     for k, v in kwargs.items():

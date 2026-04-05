@@ -8,17 +8,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
+        :root {
+            --accent: {{ event.landing_color or '#00DC82' }};
+        }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        {% if event.landing_bg_style == 'light' %}
+        body { min-height: 100vh; background: #f8fafc; color: #1e293b; }
+        .info-card { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
+        .reg-section { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
+        .form-control, .form-select { background: #fff; border-color: #e2e8f0; color: #1e293b; }
+        .form-control::placeholder { color: #94a3b8; }
+        .hero-overlay { background: linear-gradient(0deg, rgba(248,250,252,0.95) 0%, rgba(248,250,252,0.3) 60%, transparent 100%); }
+        .hero h1 { color: #1e293b; }
+        .hero-meta { color: #64748b; }
+        .desc { color: #64748b; }
+        .footer { color: #94a3b8; }
+        {% else %}
         body { min-height: 100vh; background: #0a0f1a; color: #e2e8f0; }
+        {% endif %}
         .hero { position: relative; min-height: 340px; display: flex; align-items: flex-end; overflow: hidden; }
-        .hero-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #00DC82, #059669); }
+        .hero-bg { position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), #059669); }
         .hero-bg img { width: 100%; height: 100%; object-fit: cover; }
         .hero-overlay { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(10,15,26,0.95) 0%, rgba(10,15,26,0.3) 60%, transparent 100%); }
         .hero-content { position: relative; z-index: 2; padding: 40px; width: 100%; max-width: 700px; }
-        .event-badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; background: rgba(0,220,130,0.2); color: #00DC82; border: 1px solid rgba(0,220,130,0.3); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .event-badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; background: rgba(0,220,130,0.2); color: var(--accent); border: 1px solid rgba(0,220,130,0.3); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         .hero h1 { font-family: 'Space Grotesk'; font-size: 36px; font-weight: 800; margin-bottom: 12px; line-height: 1.1; }
         .hero-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; color: #94a3b8; }
-        .hero-meta i { color: #00DC82; margin-right: 4px; }
+        .hero-meta i { color: var(--accent); margin-right: 4px; }
         .container { max-width: 700px; margin: 0 auto; padding: 0 24px; }
         .content { padding: 32px 0; }
         .desc { font-size: 15px; line-height: 1.8; color: #94a3b8; margin-bottom: 32px; }
@@ -31,20 +47,20 @@
         .form-group { margin-bottom: 14px; }
         .form-label { font-size: 11px; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         .form-control { width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 14px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); color: #fff; outline: none; transition: all .2s; }
-        .form-control:focus { border-color: #00DC82; box-shadow: 0 0 0 3px rgba(0,220,130,0.15); }
+        .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,220,130,0.15); }
         .form-control::placeholder { color: #475569; }
         .form-select { width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 14px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); color: #fff; outline: none; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #00DC82, #059669); color: #fff; transition: all .3s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, var(--accent), #059669); color: #fff; transition: all .3s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
         .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,220,130,0.3); }
         .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .spots { font-size: 13px; color: #64748b; text-align: center; margin-top: 10px; }
         .success-msg { text-align: center; padding: 40px 20px; }
-        .success-msg i { font-size: 48px; color: #00DC82; }
+        .success-msg i { font-size: 48px; color: var(--accent); }
         .footer { text-align: center; padding: 24px; font-size: 11px; color: #475569; }
-        .footer a { color: #00DC82; text-decoration: none; }
+        .footer a { color: var(--accent); text-decoration: none; }
         .academy-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-        .academy-brand .logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#00DC82,#059669); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 12px; }
+        .academy-brand .logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,var(--accent),#059669); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 12px; }
         .academy-brand .name { font-size: 13px; font-weight: 600; color: #94a3b8; }
         @media (max-width: 600px) { .hero h1 { font-size: 26px; } .hero-content { padding: 24px; } .info-grid, .grid-2 { grid-template-columns: 1fr; } }
     </style>
@@ -62,7 +78,7 @@
                 <div class="name">{{ academy_name }}</div>
             </div>
             <div class="event-badge">{{ event.event_type or 'Event' }}</div>
-            <h1>{{ event.name }}</h1>
+            <h1>{{ event.landing_headline or event.name }}</h1>
             <div class="hero-meta">
                 <span><i class="bi bi-calendar"></i> {{ (event.event_date|string)[:10] if event.event_date else 'TBA' }}</span>
                 {% if event.start_time %}<span><i class="bi bi-clock"></i> {{ event.start_time }}{% if event.end_time %} — {{ event.end_time }}{% endif %}</span>{% endif %}
@@ -92,13 +108,13 @@
                 </div>
                 <div class="info-card">
                     <div class="label">Price</div>
-                    <div class="value" style="color:#00DC82;">{% if event.price and event.price > 0 %}${{ "%.2f"|format(event.price) }}{% else %}FREE{% endif %}</div>
+                    <div class="value" style="color:var(--accent);">{% if event.price and event.price > 0 %}${{ "%.2f"|format(event.price) }}{% else %}FREE{% endif %}</div>
                 </div>
             </div>
 
             <!-- Registration Form -->
             <div class="reg-section" id="regForm">
-                <h2><i class="bi bi-person-plus" style="color:#00DC82;"></i> Register Now</h2>
+                <h2><i class="bi bi-person-plus" style="color:var(--accent);"></i> {{ event.landing_cta or 'Register Now' }}</h2>
                 <div class="grid-2">
                     <div class="form-group">
                         <label class="form-label">Full Name *</label>
@@ -139,7 +155,7 @@
                     </select>
                 </div>
                 <button onclick="submitRegistration()" id="regBtn" class="submit-btn">
-                    <i class="bi bi-check-lg"></i> Register for This Event
+                    <i class="bi bi-check-lg"></i> {{ event.landing_cta or 'Register for This Event' }}
                 </button>
                 {% if event.max_participants and event.max_participants > 0 %}
                 <div class="spots">{{ event.max_participants - registrations }} spots remaining</div>

@@ -75,6 +75,40 @@
                 {% endif %}
             </div>
 
+            <!-- Landing Page Customization -->
+            <div class="form-group mb-24" style="padding:18px;border-radius:12px;background:rgba(0,220,130,.04);border:1px solid rgba(0,220,130,.12);">
+                <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;margin-bottom:14px;"><i class="bi bi-palette" style="color:var(--primary);"></i> Landing Page Customization</div>
+                <div class="grid-3 mb-16">
+                    <div class="form-group">
+                        <label class="form-label">Accent Color</label>
+                        <input type="color" name="landing_color" value="{{ event.landing_color if event and event.landing_color else '#00DC82' }}" style="width:100%;height:42px;border:none;border-radius:8px;cursor:pointer;">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Button Text</label>
+                        <input type="text" name="landing_cta" class="form-control" value="{{ event.landing_cta if event and event.landing_cta else 'Register Now' }}" placeholder="Register Now">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Background Style</label>
+                        <select name="landing_bg_style" class="form-select">
+                            <option value="gradient" {{ 'selected' if not event or not event.landing_bg_style or event.landing_bg_style == 'gradient' }}>Gradient</option>
+                            <option value="dark" {{ 'selected' if event and event.landing_bg_style == 'dark' }}>Dark</option>
+                            <option value="light" {{ 'selected' if event and event.landing_bg_style == 'light' }}>Light</option>
+                            <option value="photo" {{ 'selected' if event and event.landing_bg_style == 'photo' }}>Photo Only</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Custom Headline (optional)</label>
+                    <input type="text" name="landing_headline" class="form-control" value="{{ event.landing_headline if event and event.landing_headline else '' }}" placeholder="Leave empty to use event title">
+                </div>
+                {% if event %}
+                <div style="margin-top:12px;display:flex;gap:8px;">
+                    <a href="/event/{{ event.id }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Preview Landing Page</a>
+                    <button type="button" onclick="navigator.clipboard.writeText(window.location.origin+'/event/{{ event.id }}');alert('Link copied!')" class="btn btn-sm btn-outline-secondary"><i class="bi bi-link-45deg"></i> Copy Link</button>
+                </div>
+                {% endif %}
+            </div>
+
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <a href="/events" class="btn btn-outline-secondary">{{ t('cancel') }}</a>
                 {% if event %}
