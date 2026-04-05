@@ -4300,6 +4300,24 @@ def events_list():
         events = models.get_all_events(academy_id)
     except Exception:
         events = []
+
+    today = date.today()
+    for e in events:
+        # Map DB fields to template fields
+        e['title'] = e.get('name', '')
+        e['type'] = e.get('event_type', 'seminar')
+        e['date'] = str(e.get('event_date', ''))[:10] if e.get('event_date') else ''
+        e['photo'] = e.get('photo', '')
+        e['is_upcoming'] = e['date'] >= str(today) if e['date'] else True
+        # Count registrations
+        try:
+            conn = models.get_db()
+            row = conn.execute("SELECT COUNT(*) as cnt FROM event_registrations WHERE event_id = ?", (e['id'],)).fetchone()
+            e['registrations'] = row['cnt'] if isinstance(row, dict) else row[0]
+            conn.close()
+        except Exception:
+            e['registrations'] = 0
+
     return render_template('events.html', events=events)
 
 
@@ -4312,17 +4330,23 @@ def event_add():
         if not validate_csrf():
             return redirect(url_for('event_add'))
         try:
+            # Form uses 'title' and 'type', map to model fields
+            photo_url = ''
+            if 'photo' in request.files and request.files['photo'].filename:
+                photo_url = _save_upload(request.files['photo'], 'events')
+
             models.create_event(
                 academy_id=academy_id,
-                name=request.form.get('name', '').strip(),
-                event_type=request.form.get('event_type', 'seminar'),
+                name=request.form.get('title', '').strip(),
+                event_type=request.form.get('type', 'seminar'),
                 description=request.form.get('description', ''),
-                event_date=request.form.get('event_date') or None,
+                event_date=request.form.get('date') or None,
                 start_time=request.form.get('start_time', ''),
                 end_time=request.form.get('end_time', ''),
                 location=request.form.get('location', ''),
-                max_participants=int(request.form.get('max_participants', 0)),
-                price=float(request.form.get('price', 0)),
+                max_participants=int(request.form.get('max_participants', 0) or 0),
+                price=float(request.form.get('price', 0) or 0),
+                photo=photo_url,
             )
             flash('Event created!', 'success')
             return redirect(url_for('events_list'))
@@ -4341,6 +4365,11 @@ def event_edit(event_id):
         if not event:
             flash('Event not found.', 'error')
             return redirect(url_for('events_list'))
+        event = dict(event) if not isinstance(event, dict) else event
+        # Map DB fields to form fields
+        event['title'] = event.get('name', '')
+        event['type'] = event.get('event_type', 'seminar')
+        event['date'] = str(event.get('event_date', ''))[:10] if event.get('event_date') else ''
     except Exception:
         flash('Error loading event.', 'error')
         return redirect(url_for('events_list'))
@@ -4349,17 +4378,24 @@ def event_edit(event_id):
         if not validate_csrf():
             return redirect(url_for('event_edit', event_id=event_id))
         try:
-            models.update_event(event_id,
-                name=request.form.get('name', '').strip(),
-                event_type=request.form.get('event_type', 'seminar'),
-                description=request.form.get('description', ''),
-                event_date=request.form.get('event_date') or None,
-                start_time=request.form.get('start_time', ''),
-                end_time=request.form.get('end_time', ''),
-                location=request.form.get('location', ''),
-                max_participants=int(request.form.get('max_participants', 0)),
-                price=float(request.form.get('price', 0)),
-            )
+            photo_url = ''
+            if 'photo' in request.files and request.files['photo'].filename:
+                photo_url = _save_upload(request.files['photo'], 'events')
+
+            update_data = {
+                'name': request.form.get('title', '').strip(),
+                'event_type': request.form.get('type', 'seminar'),
+                'description': request.form.get('description', ''),
+                'event_date': request.form.get('date') or None,
+                'start_time': request.form.get('start_time', ''),
+                'end_time': request.form.get('end_time', ''),
+                'location': request.form.get('location', ''),
+                'max_participants': int(request.form.get('max_participants', 0) or 0),
+                'price': float(request.form.get('price', 0) or 0),
+            }
+            if photo_url:
+                update_data['photo'] = photo_url
+            models.update_event(event_id, **update_data)
             flash('Event updated!', 'success')
             return redirect(url_for('events_list'))
         except Exception as e:
@@ -4367,6 +4403,77 @@ def event_edit(event_id):
             flash('Error updating event.', 'error')
 
     return render_template('event_form.html', event=event)
+
+
+@app.route('/event/<int:event_id>')
+def public_event_page(event_id):
+    """Public event landing page — no login needed. For lead capture."""
+    try:
+        conn = models.get_db()
+        event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+        if not event:
+            conn.close()
+            return "Event not found.", 404
+        event = dict(event)
+        # Count registrations
+        row = conn.execute("SELECT COUNT(*) as cnt FROM event_registrations WHERE event_id = ?", (event_id,)).fetchone()
+        registrations = row['cnt'] if isinstance(row, dict) else row[0]
+        conn.close()
+    except Exception as e:
+        return f"Error: {e}", 500
+
+    academy = None
+    try:
+        academy = models.get_academy_by_id(event.get('academy_id', 1))
+    except Exception:
+        pass
+    academy_name = academy.get('name', 'Fit4Academy') if academy else 'Fit4Academy'
+
+    return render_template('event_landing.html',
+        event=event, registrations=registrations, academy_name=academy_name)
+
+
+@app.route('/api/events/<int:event_id>/register', methods=['POST'])
+def api_event_register(event_id):
+    """Public API — register for an event (lead capture)."""
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    email = data.get('email', '').strip()
+    if not name or not email:
+        return jsonify({'error': 'Name and email required'}), 400
+    try:
+        conn = models.get_db()
+        conn.execute(
+            "INSERT INTO event_registrations (event_id, name, email, phone, experience, source) VALUES (?,?,?,?,?,?)",
+            (event_id, name, email, data.get('phone', ''), data.get('experience', ''), data.get('source', ''))
+        )
+        conn.commit()
+
+        # Also create as prospect/lead
+        event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+        academy_id = dict(event).get('academy_id', 1) if event else 1
+        conn.close()
+
+        # Add to prospects pipeline
+        name_parts = name.split(' ', 1)
+        try:
+            models.create_prospect(
+                academy_id=academy_id,
+                first_name=name_parts[0],
+                last_name=name_parts[1] if len(name_parts) > 1 else '',
+                email=email,
+                phone=data.get('phone', ''),
+                source=f"event-{event_id}",
+                status='new',
+                previous_experience=data.get('experience', ''),
+                notes=f"Registered for event #{event_id}",
+            )
+        except Exception:
+            pass
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/events/<int:event_id>/delete', methods=['POST'])

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event.name }} — {{ academy_name }}</title>
+    <meta name="description" content="{{ event.description[:160] if event.description else event.name }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { min-height: 100vh; background: #0a0f1a; color: #e2e8f0; }
+        .hero { position: relative; min-height: 340px; display: flex; align-items: flex-end; overflow: hidden; }
+        .hero-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #00DC82, #059669); }
+        .hero-bg img { width: 100%; height: 100%; object-fit: cover; }
+        .hero-overlay { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(10,15,26,0.95) 0%, rgba(10,15,26,0.3) 60%, transparent 100%); }
+        .hero-content { position: relative; z-index: 2; padding: 40px; width: 100%; max-width: 700px; }
+        .event-badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; background: rgba(0,220,130,0.2); color: #00DC82; border: 1px solid rgba(0,220,130,0.3); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .hero h1 { font-family: 'Space Grotesk'; font-size: 36px; font-weight: 800; margin-bottom: 12px; line-height: 1.1; }
+        .hero-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; color: #94a3b8; }
+        .hero-meta i { color: #00DC82; margin-right: 4px; }
+        .container { max-width: 700px; margin: 0 auto; padding: 0 24px; }
+        .content { padding: 32px 0; }
+        .desc { font-size: 15px; line-height: 1.8; color: #94a3b8; margin-bottom: 32px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px; }
+        .info-card { padding: 16px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+        .info-card .label { font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .info-card .value { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; margin-top: 4px; }
+        .reg-section { background: rgba(0,220,130,0.04); border: 1px solid rgba(0,220,130,0.12); border-radius: 16px; padding: 28px; margin-bottom: 32px; }
+        .reg-section h2 { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+        .form-group { margin-bottom: 14px; }
+        .form-label { font-size: 11px; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control { width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 14px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); color: #fff; outline: none; transition: all .2s; }
+        .form-control:focus { border-color: #00DC82; box-shadow: 0 0 0 3px rgba(0,220,130,0.15); }
+        .form-control::placeholder { color: #475569; }
+        .form-select { width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 14px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); color: #fff; outline: none; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #00DC82, #059669); color: #fff; transition: all .3s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,220,130,0.3); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .spots { font-size: 13px; color: #64748b; text-align: center; margin-top: 10px; }
+        .success-msg { text-align: center; padding: 40px 20px; }
+        .success-msg i { font-size: 48px; color: #00DC82; }
+        .footer { text-align: center; padding: 24px; font-size: 11px; color: #475569; }
+        .footer a { color: #00DC82; text-decoration: none; }
+        .academy-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .academy-brand .logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,#00DC82,#059669); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 12px; }
+        .academy-brand .name { font-size: 13px; font-weight: 600; color: #94a3b8; }
+        @media (max-width: 600px) { .hero h1 { font-size: 26px; } .hero-content { padding: 24px; } .info-grid, .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <!-- Hero -->
+    <div class="hero">
+        <div class="hero-bg">
+            {% if event.photo %}<img src="{{ event.photo }}">{% endif %}
+        </div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <div class="academy-brand">
+                <div class="logo">F4</div>
+                <div class="name">{{ academy_name }}</div>
+            </div>
+            <div class="event-badge">{{ event.event_type or 'Event' }}</div>
+            <h1>{{ event.name }}</h1>
+            <div class="hero-meta">
+                <span><i class="bi bi-calendar"></i> {{ (event.event_date|string)[:10] if event.event_date else 'TBA' }}</span>
+                {% if event.start_time %}<span><i class="bi bi-clock"></i> {{ event.start_time }}{% if event.end_time %} — {{ event.end_time }}{% endif %}</span>{% endif %}
+                {% if event.location %}<span><i class="bi bi-geo-alt"></i> {{ event.location }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="content">
+            {% if event.description %}
+            <div class="desc">{{ event.description }}</div>
+            {% endif %}
+
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="label">Date</div>
+                    <div class="value">{{ (event.event_date|string)[:10] if event.event_date else 'TBA' }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Time</div>
+                    <div class="value">{{ event.start_time or 'TBA' }}{% if event.end_time %} — {{ event.end_time }}{% endif %}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Location</div>
+                    <div class="value">{{ event.location or 'TBA' }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="label">Price</div>
+                    <div class="value" style="color:#00DC82;">{% if event.price and event.price > 0 %}${{ "%.2f"|format(event.price) }}{% else %}FREE{% endif %}</div>
+                </div>
+            </div>
+
+            <!-- Registration Form -->
+            <div class="reg-section" id="regForm">
+                <h2><i class="bi bi-person-plus" style="color:#00DC82;"></i> Register Now</h2>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" id="regName" class="form-control" placeholder="Your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="regEmail" class="form-control" placeholder="your@email.com" required>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" id="regPhone" class="form-control" placeholder="+1 555-1234">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">BJJ Experience</label>
+                        <select id="regExp" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="none">No experience</option>
+                            <option value="beginner">Beginner (< 1 year)</option>
+                            <option value="intermediate">Intermediate (1-3 years)</option>
+                            <option value="advanced">Advanced (3+ years)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">How did you hear about this event?</label>
+                    <select id="regSource" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="google">Google</option>
+                        <option value="friend">Friend / Referral</option>
+                        <option value="flyer">Flyer</option>
+                        <option value="website">Website</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <button onclick="submitRegistration()" id="regBtn" class="submit-btn">
+                    <i class="bi bi-check-lg"></i> Register for This Event
+                </button>
+                {% if event.max_participants and event.max_participants > 0 %}
+                <div class="spots">{{ event.max_participants - registrations }} spots remaining</div>
+                {% endif %}
+            </div>
+
+            <!-- Success -->
+            <div id="regSuccess" class="success-msg" style="display:none;">
+                <i class="bi bi-check-circle-fill"></i>
+                <h2 style="font-family:'Space Grotesk';margin-top:12px;">You're Registered!</h2>
+                <p style="color:#94a3b8;margin-top:8px;">We'll send you more details soon. See you there!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Powered by <a href="#">Fit4Academy</a> · {{ academy_name }}
+    </div>
+
+    <script>
+    function submitRegistration() {
+        const btn = document.getElementById('regBtn');
+        const name = document.getElementById('regName').value;
+        const email = document.getElementById('regEmail').value;
+        if (!name || !email) { alert('Name and email are required'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Registering...';
+
+        fetch('/api/events/{{ event.id }}/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name,
+                email: email,
+                phone: document.getElementById('regPhone').value,
+                experience: document.getElementById('regExp').value,
+                source: document.getElementById('regSource').value,
+            })
+        }).then(r => r.json()).then(d => {
+            if (d.success) {
+                document.getElementById('regForm').style.display = 'none';
+                document.getElementById('regSuccess').style.display = '';
+            } else {
+                alert(d.error || 'Registration failed');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg"></i> Register for This Event';
+            }
+        });
+    }
+    </script>
+</body>
+</html>
