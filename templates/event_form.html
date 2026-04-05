@@ -86,8 +86,15 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Waiver Text (customizable)</label>
-                    <textarea name="waiver_text" class="form-control" rows="6" placeholder="I, the undersigned, acknowledge and agree that participation in martial arts activities involves inherent risks of injury...">{{ event.waiver_text if event and event.waiver_text else '' }}</textarea>
-                    <small style="font-size:10px;color:var(--text-muted);">Leave empty for default waiver. This text will appear on the event landing page.</small>
+                    <textarea name="waiver_text" id="waiverTextArea" class="form-control" rows="8" placeholder="Write your custom waiver or use a template below...">{{ event.waiver_text if event and event.waiver_text else '' }}</textarea>
+                    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                        <button type="button" onclick="loadWaiverTemplate('bjj')" class="btn btn-sm btn-outline-secondary" style="font-size:10px;"><i class="bi bi-file-text"></i> BJJ Template</button>
+                        <button type="button" onclick="loadWaiverTemplate('mma')" class="btn btn-sm btn-outline-secondary" style="font-size:10px;"><i class="bi bi-file-text"></i> MMA Template</button>
+                        <button type="button" onclick="loadWaiverTemplate('kids')" class="btn btn-sm btn-outline-secondary" style="font-size:10px;"><i class="bi bi-file-text"></i> Kids Template</button>
+                        <button type="button" onclick="loadWaiverTemplate('competition')" class="btn btn-sm btn-outline-secondary" style="font-size:10px;"><i class="bi bi-file-text"></i> Competition Template</button>
+                        <button type="button" onclick="document.getElementById('waiverTextArea').value=''" class="btn btn-sm btn-outline-danger" style="font-size:10px;"><i class="bi bi-x"></i> Clear</button>
+                    </div>
+                    <small style="font-size:10px;color:var(--text-muted);margin-top:4px;display:block;">Select a template or write your own. The text is fully editable after loading.</small>
                 </div>
             </div>
 
@@ -143,4 +150,95 @@
         {% endif %}
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+const WAIVER_TEMPLATES = {
+    bjj: `WAIVER AND RELEASE OF LIABILITY — BRAZILIAN JIU-JITSU
+
+I, the undersigned participant, hereby acknowledge and agree to the following:
+
+1. ASSUMPTION OF RISK: I understand that Brazilian Jiu-Jitsu (BJJ) is a full-contact martial art involving grappling, joint locks, chokes, throws, and ground fighting. I acknowledge that participation involves inherent risks of physical injury including but not limited to: bruises, sprains, strains, fractures, dislocations, concussions, and in rare cases, serious injury or death.
+
+2. VOLUNTARY PARTICIPATION: I voluntarily choose to participate in BJJ training, classes, open mats, seminars, and/or competitions organized by this academy. I understand I may withdraw from any activity at any time.
+
+3. PHYSICAL FITNESS: I certify that I am physically fit and have no medical condition that would prevent my participation. I have disclosed any relevant medical conditions to the instructor. I agree to consult with a physician before participating if I have any doubts about my physical ability.
+
+4. RELEASE OF LIABILITY: I hereby release, waive, discharge, and covenant not to sue the academy, its owners, instructors, staff, volunteers, and affiliates from any and all liability, claims, demands, or causes of action arising out of or related to any injury, illness, damage, or death that may occur as a result of my participation.
+
+5. RULES AND CONDUCT: I agree to follow all rules, regulations, and instructions provided by the instructors. I understand that unsportsmanlike conduct, dangerous behavior, or failure to follow safety guidelines may result in removal from the activity.
+
+6. MEDIA CONSENT: I grant permission for the academy to use photographs and videos taken during activities for promotional purposes, unless I notify the academy in writing otherwise.
+
+7. EMERGENCY MEDICAL TREATMENT: In the event of an emergency, I authorize the academy to obtain medical treatment on my behalf if I am unable to do so myself. I understand that I am responsible for all medical costs.
+
+8. BINDING AGREEMENT: This waiver is binding upon myself, my heirs, executors, administrators, and assigns. I have read this waiver, understand its contents, and sign it voluntarily.
+
+By registering for this event, I confirm that I have read, understood, and agree to all terms above.`,
+
+    mma: `WAIVER AND RELEASE OF LIABILITY — MIXED MARTIAL ARTS (MMA)
+
+I, the undersigned participant, hereby acknowledge and agree to the following:
+
+1. ASSUMPTION OF RISK: I understand that Mixed Martial Arts (MMA) training includes striking (punches, kicks, elbows, knees), grappling, wrestling, and other combat techniques. I acknowledge the inherent risks of physical injury including but not limited to: cuts, bruises, sprains, fractures, concussions, dental injuries, and in rare cases, serious injury.
+
+2. VOLUNTARY PARTICIPATION: I voluntarily choose to participate in MMA training, sparring sessions, and related activities. I understand I may stop any activity at any time if I feel unsafe.
+
+3. PROTECTIVE EQUIPMENT: I agree to wear all required protective equipment (mouthguard, gloves, shin guards, etc.) as directed by the instructors.
+
+4. RELEASE OF LIABILITY: I hereby release, waive, and discharge the academy, its owners, instructors, staff, and affiliates from any liability for injury, illness, or damage arising from my participation.
+
+5. PHYSICAL FITNESS: I certify that I am in good health and have disclosed any medical conditions to the instructor.
+
+6. RULES AND CONDUCT: I agree to follow all gym rules, respect training partners, and control the intensity of my techniques as instructed.
+
+By registering, I confirm I have read, understood, and agree to all terms above.`,
+
+    kids: `WAIVER AND RELEASE OF LIABILITY — YOUTH/KIDS MARTIAL ARTS PROGRAM
+
+I, the undersigned parent/legal guardian, hereby acknowledge and agree to the following on behalf of my child:
+
+1. ASSUMPTION OF RISK: I understand that martial arts training for children involves physical activity including grappling, controlled techniques, and exercises. While instructors prioritize safety, I acknowledge that minor injuries may occur during normal training.
+
+2. PARENTAL CONSENT: I, as parent/legal guardian, give my consent for my child to participate in martial arts classes, events, and related activities at this academy.
+
+3. MEDICAL INFORMATION: I have disclosed any relevant medical conditions, allergies, or special needs of my child to the academy.
+
+4. EMERGENCY CONTACT: I have provided accurate emergency contact information. In the event of an emergency, I authorize the academy to seek medical attention for my child if I cannot be reached.
+
+5. RELEASE OF LIABILITY: I hereby release, waive, and discharge the academy, its owners, instructors, and staff from any liability for injury that may occur during my child's participation, except in cases of gross negligence.
+
+6. PICKUP AUTHORIZATION: I understand that my child will only be released to authorized individuals.
+
+7. PHOTO/VIDEO CONSENT: I grant permission for the academy to use photographs and videos of my child for promotional purposes. (Opt-out available upon written request.)
+
+By registering my child, I confirm that I have read, understood, and agree to all terms above as their parent/legal guardian.`,
+
+    competition: `WAIVER AND RELEASE OF LIABILITY — COMPETITION/TOURNAMENT
+
+I, the undersigned competitor, hereby acknowledge and agree to the following:
+
+1. ASSUMPTION OF RISK: I understand that martial arts competition involves full-contact techniques at competitive intensity. I acknowledge the elevated risk of injury compared to regular training.
+
+2. RULES COMPLIANCE: I agree to compete under the rules established for this event. Illegal techniques or unsportsmanlike conduct will result in disqualification.
+
+3. MEDICAL CLEARANCE: I certify that I am physically fit to compete and have not been advised by a medical professional to refrain from competition.
+
+4. DRUG-FREE COMPETITION: I certify that I am not under the influence of any prohibited substances.
+
+5. RELEASE OF LIABILITY: I hereby release, waive, and discharge the event organizers, host academy, referees, volunteers, and all affiliated parties from any liability for injury arising from my participation.
+
+6. MEDIA CONSENT: I grant permission for photographs and video recordings of my matches to be used for event coverage and promotional purposes.
+
+7. RESULTS & DECISIONS: I understand that referee decisions are final. I agree to accept all outcomes with sportsmanship.
+
+By registering for this competition, I confirm I have read, understood, and agree to all terms above.`
+};
+
+function loadWaiverTemplate(type) {
+    const textarea = document.getElementById('waiverTextArea');
+    if (textarea.value && !confirm('This will replace the current waiver text. Continue?')) return;
+    textarea.value = WAIVER_TEMPLATES[type] || '';
+}
+</script>
 {% endblock %}
