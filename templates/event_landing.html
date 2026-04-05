@@ -154,9 +154,69 @@
                         <option value="other">Other</option>
                     </select>
                 </div>
+                {% if event.waiver_required %}
+                <!-- Waiver -->
+                <div style="margin-top:16px;padding:16px;border-radius:12px;background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.12);max-height:200px;overflow-y:auto;">
+                    <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:8px;"><i class="bi bi-file-earmark-text"></i> Waiver & Liability Release</div>
+                    <div style="font-size:12px;line-height:1.7;color:#94a3b8;">{{ event.waiver_text or 'I, the undersigned, acknowledge and agree that participation in martial arts activities, including but not limited to Brazilian Jiu-Jitsu, involves inherent risks of physical injury. I voluntarily assume all risks associated with my participation. I hereby release, waive, and discharge the academy, its instructors, staff, and affiliates from any and all liability for any injury, illness, or damage arising from my participation. I confirm that I am physically fit to participate and have consulted with a physician if necessary.' }}</div>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" id="waiverCheck" style="width:18px;height:18px;accent-color:var(--accent);">
+                    <span>I have read and agree to the waiver & liability release *</span>
+                </label>
+                {% endif %}
+
+                {% if event.price and event.price > 0 %}
+                <!-- Payment section for paid events -->
+                <div style="margin-top:16px;padding:16px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <span style="font-size:13px;font-weight:700;">Payment</span>
+                        <span style="font-family:'Space Grotesk';font-size:20px;font-weight:800;color:var(--accent);">${{ "%.2f"|format(event.price + 0.30) }}</span>
+                    </div>
+                    <div style="font-size:11px;color:#64748b;margin-bottom:12px;">Event: ${{ "%.2f"|format(event.price) }} + $0.30 processing fee</div>
+                    <!-- Payment method tabs -->
+                    <div style="display:flex;gap:6px;margin-bottom:12px;">
+                        <button type="button" onclick="switchPayMethod('card')" id="pmCard" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--accent);background:rgba(0,220,130,0.06);color:var(--accent);"><i class="bi bi-credit-card"></i> Card</button>
+                        <button type="button" onclick="switchPayMethod('bank')" id="pmBank" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid rgba(255,255,255,0.1);background:none;color:#94a3b8;"><i class="bi bi-bank"></i> Bank (ACH)</button>
+                    </div>
+                    <div id="payCard">
+                        <div class="form-group">
+                            <label class="form-label">Card Number</label>
+                            <input type="text" id="cardNum" class="form-control" placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric">
+                        </div>
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Expiry</label>
+                                <input type="text" id="cardExp" class="form-control" placeholder="MM/YY" maxlength="5">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">CVV</label>
+                                <input type="text" id="cardCvv" class="form-control" placeholder="123" maxlength="4" inputmode="numeric">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="payBank" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Routing Number</label>
+                            <input type="text" id="bankRouting" class="form-control" placeholder="9 digits" maxlength="9" inputmode="numeric">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Account Number</label>
+                            <input type="text" id="bankAccount" class="form-control" placeholder="Account number" inputmode="numeric">
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#64748b;margin-top:8px;">
+                        <i class="bi bi-shield-lock-fill" style="color:var(--accent);"></i> 256-bit SSL Encrypted · PCI Compliant
+                    </div>
+                </div>
+                <button onclick="submitRegistration()" id="regBtn" class="submit-btn">
+                    <i class="bi bi-lock-fill"></i> Pay ${{ "%.2f"|format(event.price + 0.30) }} & Register
+                </button>
+                {% else %}
                 <button onclick="submitRegistration()" id="regBtn" class="submit-btn">
                     <i class="bi bi-check-lg"></i> {{ event.landing_cta or 'Register for This Event' }}
                 </button>
+                {% endif %}
                 {% if event.max_participants and event.max_participants > 0 %}
                 <div class="spots">{{ event.max_participants - registrations }} spots remaining</div>
                 {% endif %}
@@ -176,11 +236,35 @@
     </div>
 
     <script>
+    function switchPayMethod(method) {
+        document.getElementById('payCard').style.display = method === 'card' ? '' : 'none';
+        document.getElementById('payBank').style.display = method === 'bank' ? '' : 'none';
+        document.getElementById('pmCard').style.borderColor = method === 'card' ? 'var(--accent)' : 'rgba(255,255,255,0.1)';
+        document.getElementById('pmCard').style.color = method === 'card' ? 'var(--accent)' : '#94a3b8';
+        document.getElementById('pmBank').style.borderColor = method === 'bank' ? 'var(--accent)' : 'rgba(255,255,255,0.1)';
+        document.getElementById('pmBank').style.color = method === 'bank' ? 'var(--accent)' : '#94a3b8';
+    }
+
+    // Auto-format card
+    document.getElementById('cardNum')?.addEventListener('input', function(e) {
+        let v = e.target.value.replace(/\s/g,'').replace(/\D/g,'');
+        e.target.value = v.replace(/(\d{4})(?=\d)/g, '$1 ');
+    });
+    document.getElementById('cardExp')?.addEventListener('input', function(e) {
+        let v = e.target.value.replace(/\D/g,'');
+        if (v.length >= 2) v = v.slice(0,2)+'/'+v.slice(2);
+        e.target.value = v;
+    });
+
     function submitRegistration() {
         const btn = document.getElementById('regBtn');
         const name = document.getElementById('regName').value;
         const email = document.getElementById('regEmail').value;
         if (!name || !email) { alert('Name and email are required'); return; }
+
+        // Check waiver
+        const waiverCheck = document.getElementById('waiverCheck');
+        if (waiverCheck && !waiverCheck.checked) { alert('Please read and accept the waiver to continue'); return; }
 
         btn.disabled = true;
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Registering...';

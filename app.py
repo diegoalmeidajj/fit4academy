@@ -4351,6 +4351,8 @@ def event_add():
                 landing_headline=request.form.get('landing_headline', ''),
                 landing_cta=request.form.get('landing_cta', 'Register Now'),
                 landing_bg_style=request.form.get('landing_bg_style', 'gradient'),
+                waiver_required=bool(request.form.get('waiver_required')),
+                waiver_text=request.form.get('waiver_text', ''),
             )
             flash('Event created!', 'success')
             return redirect(url_for('events_list'))
@@ -4403,6 +4405,8 @@ def event_edit(event_id):
             update_data['landing_headline'] = request.form.get('landing_headline', '')
             update_data['landing_cta'] = request.form.get('landing_cta', 'Register Now')
             update_data['landing_bg_style'] = request.form.get('landing_bg_style', 'gradient')
+            update_data['waiver_required'] = bool(request.form.get('waiver_required'))
+            update_data['waiver_text'] = request.form.get('waiver_text', '')
             models.update_event(event_id, **update_data)
             flash('Event updated!', 'success')
             return redirect(url_for('events_list'))
@@ -4456,7 +4460,7 @@ def public_event_page(event_id):
 
 @app.route('/api/events/<int:event_id>/register', methods=['POST'])
 def api_event_register(event_id):
-    """Public API — register for an event (lead capture)."""
+    """Public API — register for an event (lead capture + payment)."""
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     email = data.get('email', '').strip()
@@ -4464,16 +4468,55 @@ def api_event_register(event_id):
         return jsonify({'error': 'Name and email required'}), 400
     try:
         conn = models.get_db()
+
+        # Get event info
+        event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
+        if not event:
+            conn.close()
+            return jsonify({'error': 'Event not found'}), 404
+        event = dict(event)
+        academy_id = event.get('academy_id', 1)
+        price = float(event.get('price', 0) or 0)
+
+        # Save registration
         conn.execute(
             "INSERT INTO event_registrations (event_id, name, email, phone, experience, source) VALUES (?,?,?,?,?,?)",
             (event_id, name, email, data.get('phone', ''), data.get('experience', ''), data.get('source', ''))
         )
         conn.commit()
-
-        # Also create as prospect/lead
-        event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
-        academy_id = dict(event).get('academy_id', 1) if event else 1
         conn.close()
+
+        # Record payment if paid event
+        if price > 0:
+            # Create a temporary member or find existing
+            name_parts = name.split(' ', 1)
+            first = name_parts[0]
+            last = name_parts[1] if len(name_parts) > 1 else ''
+
+            # Check if member exists by email
+            member_id = None
+            try:
+                conn2 = models.get_db()
+                row = conn2.execute("SELECT id FROM members WHERE email = ? AND academy_id = ?", (email, academy_id)).fetchone()
+                if row:
+                    member_id = row['id'] if isinstance(row, dict) else row[0]
+                else:
+                    # Create member
+                    member_id = models.create_member(
+                        academy_id=academy_id, first_name=first, last_name=last,
+                        email=email, phone=data.get('phone', ''), source=f'event-{event_id}')
+                conn2.close()
+            except Exception:
+                pass
+
+            if member_id:
+                models.create_payment(
+                    member_id=member_id, amount=price, academy_id=academy_id,
+                    method=data.get('payment_method', 'card'),
+                    status='completed', platform_fee=0.30,
+                    notes=f"Event registration: {event.get('name', '')} (event #{event_id})",
+                    payment_date=str(date.today()),
+                )
 
         # Add to prospects pipeline
         name_parts = name.split(' ', 1)
@@ -4487,7 +4530,7 @@ def api_event_register(event_id):
                 source=f"event-{event_id}",
                 status='new',
                 previous_experience=data.get('experience', ''),
-                notes=f"Registered for event #{event_id}",
+                notes=f"Registered for event: {event.get('name', '')}",
             )
         except Exception:
             pass

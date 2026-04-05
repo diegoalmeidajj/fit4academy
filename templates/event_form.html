@@ -75,6 +75,22 @@
                 {% endif %}
             </div>
 
+            <!-- Waiver -->
+            <div class="form-group mb-24" style="padding:18px;border-radius:12px;background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.12);">
+                <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;margin-bottom:14px;"><i class="bi bi-file-earmark-text" style="color:var(--warning);"></i> Waiver / Liability Release</div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:10px;">
+                        <input type="checkbox" name="waiver_required" style="width:18px;height:18px;" {{ 'checked' if event and event.waiver_required }}>
+                        <span style="font-weight:600;">Require waiver signature before registration</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Waiver Text (customizable)</label>
+                    <textarea name="waiver_text" class="form-control" rows="6" placeholder="I, the undersigned, acknowledge and agree that participation in martial arts activities involves inherent risks of injury...">{{ event.waiver_text if event and event.waiver_text else '' }}</textarea>
+                    <small style="font-size:10px;color:var(--text-muted);">Leave empty for default waiver. This text will appear on the event landing page.</small>
+                </div>
+            </div>
+
             <!-- Landing Page Customization -->
             <div class="form-group mb-24" style="padding:18px;border-radius:12px;background:rgba(0,220,130,.04);border:1px solid rgba(0,220,130,.12);">
                 <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;margin-bottom:14px;"><i class="bi bi-palette" style="color:var(--primary);"></i> Landing Page Customization</div>

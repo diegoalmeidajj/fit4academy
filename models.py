@@ -493,6 +493,10 @@ def init_db():
         "ALTER TABLE events ADD COLUMN landing_headline TEXT DEFAULT ''",
         "ALTER TABLE events ADD COLUMN landing_cta TEXT DEFAULT 'Register Now'",
         "ALTER TABLE events ADD COLUMN landing_bg_style TEXT DEFAULT 'gradient'",
+        "ALTER TABLE events ADD COLUMN waiver_text TEXT DEFAULT ''",
+        "ALTER TABLE events ADD COLUMN waiver_required BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE event_registrations ADD COLUMN waiver_signed BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE event_registrations ADD COLUMN waiver_signed_at TIMESTAMP",
         "ALTER TABLE payments ADD COLUMN platform_fee REAL DEFAULT 0",
         "ALTER TABLE payments ADD COLUMN stripe_charge_id TEXT DEFAULT ''",
         "ALTER TABLE programs ADD COLUMN has_belts BOOLEAN DEFAULT FALSE",
@@ -1836,7 +1840,8 @@ def update_event(event_id, **kwargs):
     conn = get_db()
     allowed = ['name', 'event_type', 'description', 'event_date', 'start_time',
                'end_time', 'location', 'max_participants', 'price', 'active', 'photo',
-               'landing_color', 'landing_headline', 'landing_cta', 'landing_bg_style']
+               'landing_color', 'landing_headline', 'landing_cta', 'landing_bg_style',
+               'waiver_required', 'waiver_text']
     fields = []
     values = []
     for k, v in kwargs.items():
