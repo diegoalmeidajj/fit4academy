@@ -384,29 +384,6 @@
     </div>
 </div>
 
-<!-- ═══ MARCOS AI ADVISOR ═══ -->
-<div class="card mt-16" style="border:1px solid rgba(0,220,130,.2);background:linear-gradient(135deg,rgba(0,220,130,.03),rgba(6,182,212,.03));">
-    <div class="card-header" style="display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(0,220,130,.1);">
-        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#00DC82,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;font-family:'Space Grotesk';">M</div>
-        <div>
-            <div style="font-weight:700;font-size:14px;">Marcos — AI Business Advisor</div>
-            <div style="font-size:10px;color:var(--text-muted);">Trained for academy owners · Analyzes your real data</div>
-        </div>
-        <button onclick="getMarcosAdvice()" class="btn btn-sm btn-primary" style="margin-left:auto;"><i class="bi bi-stars"></i> Get Insights</button>
-    </div>
-    <div class="card-body">
-        <div id="marcosResponse" style="font-size:13px;line-height:1.7;white-space:pre-wrap;">
-            <div style="color:var(--text-muted);font-style:italic;">Click "Get Insights" to have Marcos analyze your academy's performance and give you actionable tips.</div>
-        </div>
-        <!-- Ask a question -->
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
-            <div style="display:flex;gap:8px;">
-                <input type="text" id="marcosQuestion" class="form-control" placeholder="Ask Marcos anything... e.g. How can I increase enrollment?" style="font-size:13px;">
-                <button onclick="getMarcosAdvice(document.getElementById('marcosQuestion').value)" class="btn btn-primary" style="white-space:nowrap;"><i class="bi bi-send"></i></button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- ═══ ADD EXPENSE MODAL ═══ -->
 <div id="expenseModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
@@ -499,26 +476,6 @@
 
 {% block extra_js %}
 <script>
-function getMarcosAdvice(question) {
-    const el = document.getElementById('marcosResponse');
-    el.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--primary);"><div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#00DC82,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;">M</div> Marcos is analyzing your data...</div>';
-    fetch('/api/marcos/advice', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({month: {{ month }}, year: {{ year }}, question: question || ''})
-    }).then(r => r.json()).then(d => {
-        if (d.success) {
-            const badge = d.ai_enabled ?
-                '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(0,220,130,.1);color:var(--primary);font-weight:600;">AI Powered</span>' :
-                '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(139,92,246,.1);color:#8b5cf6;font-weight:600;">Smart Analysis</span>';
-            el.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#00DC82,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800;">M</div><strong>Marcos</strong> ' + badge + '</div>' + d.advice.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        } else {
-            el.innerHTML = '<div style="color:var(--danger);">Error: ' + (d.error || 'Could not get advice') + '</div>';
-        }
-    });
-    if (document.getElementById('marcosQuestion')) document.getElementById('marcosQuestion').value = '';
-}
-
 function sendFinanceReport() {
     const btn = event.target.closest('button');
     btn.disabled = true;
