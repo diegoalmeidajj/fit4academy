@@ -39,15 +39,15 @@
         <div class="stat-value">{{ products|sum(attribute='stock') }}</div>
         <div class="stat-label">Total Stock</div>
     </div>
-    <div class="stat-card {{ 'stat-red' if low_stock_items|length > 0 else 'stat-orange' }}">
-        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-value">{{ low_stock_items|length }}</div>
-        <div class="stat-label">Low Stock (≤2)</div>
-    </div>
     <div class="stat-card stat-purple">
         <div class="stat-icon"><i class="bi bi-receipt"></i></div>
         <div class="stat-value">{{ orders|length }}</div>
         <div class="stat-label">Items Sold</div>
+    </div>
+    <div class="stat-card {{ 'stat-red' if low_stock_items|length > 0 else 'stat-orange' }}">
+        <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-value">{{ low_stock_items|length }}</div>
+        <div class="stat-label">Low Stock (≤2)</div>
     </div>
 </div>
 
