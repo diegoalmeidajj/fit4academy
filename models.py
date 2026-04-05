@@ -1820,16 +1820,47 @@ def get_upcoming_events(academy_id=1, limit=10):
 
 def create_event(academy_id=1, **kwargs):
     conn = get_db()
-    cur = conn.execute(
-        """INSERT INTO events (academy_id, name, event_type, description, event_date,
-           start_time, end_time, location, max_participants, price, photo, active)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (academy_id, kwargs.get('name', ''), kwargs.get('event_type', 'seminar'),
-         kwargs.get('description', ''), kwargs.get('event_date'),
-         kwargs.get('start_time', ''), kwargs.get('end_time', ''),
-         kwargs.get('location', ''), kwargs.get('max_participants', 0),
-         kwargs.get('price', 0), kwargs.get('photo', ''), True)
-    )
+    # Ensure new columns exist
+    for col, default in [('photo', "''"), ('landing_color', "''"), ('landing_headline', "''"),
+                          ('landing_cta', "''"), ('landing_bg_style', "''"),
+                          ('waiver_required', 'FALSE'), ('waiver_text', "''")]:
+        try:
+            conn.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT DEFAULT {default}")
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+
+    try:
+        cur = conn.execute(
+            """INSERT INTO events (academy_id, name, event_type, description, event_date,
+               start_time, end_time, location, max_participants, price, photo, active,
+               landing_color, landing_headline, landing_cta, landing_bg_style,
+               waiver_required, waiver_text)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (academy_id, kwargs.get('name', ''), kwargs.get('event_type', 'seminar'),
+             kwargs.get('description', ''), kwargs.get('event_date'),
+             kwargs.get('start_time', ''), kwargs.get('end_time', ''),
+             kwargs.get('location', ''), kwargs.get('max_participants', 0),
+             kwargs.get('price', 0), kwargs.get('photo', ''), True,
+             kwargs.get('landing_color', '#00DC82'), kwargs.get('landing_headline', ''),
+             kwargs.get('landing_cta', 'Register Now'), kwargs.get('landing_bg_style', 'gradient'),
+             kwargs.get('waiver_required', False), kwargs.get('waiver_text', ''))
+        )
+    except Exception:
+        # Fallback without new columns
+        cur = conn.execute(
+            """INSERT INTO events (academy_id, name, event_type, description, event_date,
+               start_time, end_time, location, max_participants, price, active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (academy_id, kwargs.get('name', ''), kwargs.get('event_type', 'seminar'),
+             kwargs.get('description', ''), kwargs.get('event_date'),
+             kwargs.get('start_time', ''), kwargs.get('end_time', ''),
+             kwargs.get('location', ''), kwargs.get('max_participants', 0),
+             kwargs.get('price', 0), True)
+        )
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
