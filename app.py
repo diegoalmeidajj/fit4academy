@@ -4418,6 +4418,19 @@ def public_event_page(event_id):
     """Public event landing page — no login needed. For lead capture."""
     try:
         conn = models.get_db()
+        # Ensure table exists
+        conn.execute("""CREATE TABLE IF NOT EXISTS event_registrations (
+            id SERIAL PRIMARY KEY,
+            event_id INTEGER NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            email TEXT DEFAULT '',
+            phone TEXT DEFAULT '',
+            experience TEXT DEFAULT '',
+            source TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.commit()
         event = conn.execute("SELECT * FROM events WHERE id = ?", (event_id,)).fetchone()
         if not event:
             conn.close()
