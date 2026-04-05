@@ -25,9 +25,17 @@
     </div>
 </div>
 
-<!-- Stats -->
-{% set low_stock_items = products|selectattr('stock', 'le', 2)|list %}
-{% set out_of_stock_items = products|selectattr('stock', 'eq', 0)|list %}
+<!-- Stats — low stock = 2 or less -->
+{% set low_stock_items = [] %}
+{% set out_of_stock_items = [] %}
+{% for p in products %}
+    {% if p.stock is not none and p.stock|int <= 2 %}
+        {% if low_stock_items.append(p) %}{% endif %}
+    {% endif %}
+    {% if p.stock is not none and p.stock|int == 0 %}
+        {% if out_of_stock_items.append(p) %}{% endif %}
+    {% endif %}
+{% endfor %}
 <div class="grid-4 mb-16">
     <div class="stat-card stat-blue">
         <div class="stat-icon"><i class="bi bi-bag"></i></div>
