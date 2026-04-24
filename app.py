@@ -4597,10 +4597,21 @@ def media_upload():
     description = request.form.get('description', '')
     belt_level = request.form.get('belt_level', 'all')
 
-    # Handle file upload
+    # Handle file upload — template sends name="files"; also accept single "file" or raw URL
+    file_obj = None
+    if 'files' in request.files and request.files['files'].filename:
+        file_obj = request.files['files']
+    elif 'file' in request.files and request.files['file'].filename:
+        file_obj = request.files['file']
+
     url = ''
-    if 'file' in request.files:
-        url = _save_upload(request.files['file'], 'media')
+    if file_obj:
+        ext = os.path.splitext(file_obj.filename or '')[1].lower()
+        if ext in {'.mp4', '.mov', '.webm'}:
+            media_type = 'video'
+        elif ext in {'.jpg', '.jpeg', '.png', '.gif', '.webp'}:
+            media_type = 'photo'
+        url = _save_upload(file_obj, 'media')
     elif request.form.get('url'):
         url = request.form.get('url', '')
 
@@ -4708,25 +4719,45 @@ def member_portal(token):
         return render_template('portal_disabled.html', member=member), 403
 
     academy_id = member.get('academy_id', 1)
-    category = request.args.get('category', '')
 
     try:
         all_media = models.get_media_for_member(member, academy_id)
-        if category:
-            media_items = [m for m in all_media if (m.get('category') or '') == category]
-        else:
-            media_items = all_media
-        categories = sorted({m.get('category') or 'general' for m in all_media})
     except Exception as e:
         print(f"[Portal] Load error: {e}")
-        media_items = []
-        categories = []
+        all_media = []
+
+    # Group by category, in a fixed display order (Netflix-style rows)
+    _CATEGORY_ORDER = [
+        ('technique', 'Techniques', 'bi-lightning-charge-fill'),
+        ('position',  'Positions',  'bi-diagram-3-fill'),
+        ('class',     'Classes',    'bi-mortarboard-fill'),
+        ('drill',     'Drills',     'bi-activity'),
+        ('sparring',  'Sparring',   'bi-fire'),
+        ('event',     'Events',     'bi-calendar-event-fill'),
+    ]
+    grouped = {key: [] for key, _, _ in _CATEGORY_ORDER}
+    others = []
+    for m in all_media:
+        cat = (m.get('category') or '').lower().strip()
+        if cat in grouped:
+            grouped[cat].append(m)
+        else:
+            others.append(m)
+
+    rows = []
+    for key, title, icon in _CATEGORY_ORDER:
+        if grouped[key]:
+            rows.append({'key': key, 'title': title, 'icon': icon, 'items': grouped[key]})
+    if others:
+        rows.append({'key': 'other', 'title': 'More', 'icon': 'bi-collection-fill', 'items': others})
+
+    hero = all_media[0] if all_media else None
 
     return render_template('portal.html',
         member=member,
-        media_items=media_items,
-        categories=categories,
-        active_category=category,
+        rows=rows,
+        hero=hero,
+        all_media=all_media,
     )
 
 

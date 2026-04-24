@@ -7,117 +7,308 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 <style>
     :root {
-        --brand: {{ member.get('portal_primary_color') or '#6366f1' }};
-        --brand-dark: color-mix(in srgb, var(--brand) 80%, black);
+        --brand: {{ member.get('portal_primary_color') or '#e50914' }};
+        --brand-dark: color-mix(in srgb, var(--brand) 70%, black);
+        --bg: #0a0a0a;
+        --bg-card: #1a1a1a;
+        --text: #fafafa;
+        --text-muted: #9ca3af;
     }
     * { box-sizing: border-box; }
+    html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; }
     body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background: #0a0f1a;
-        color: #e2e8f0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
         min-height: 100vh;
+        overflow-x: hidden;
     }
-    header {
-        background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-        padding: 16px 20px;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        box-shadow: 0 2px 10px rgba(0,0,0,.3);
-    }
-    .header-inner {
-        max-width: 900px;
-        margin: 0 auto;
+    a { color: inherit; text-decoration: none; }
+
+    /* ═══ Header ═══ */
+    .navbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 100;
+        padding: 14px 4%;
+        background: linear-gradient(180deg, rgba(0,0,0,.85) 0%, rgba(0,0,0,0) 100%);
         display: flex;
         align-items: center;
         gap: 12px;
-        color: #fff;
+        transition: background .3s;
     }
-    .logo { height: 36px; border-radius: 6px; }
-    .logo-fallback {
-        height: 36px; width: 36px;
-        background: rgba(255,255,255,.2);
-        border-radius: 6px;
+    .navbar.scrolled { background: rgba(10,10,10,.95); backdrop-filter: blur(8px); }
+    .nav-logo { height: 34px; border-radius: 6px; }
+    .nav-logo-fallback {
+        width: 34px; height: 34px; border-radius: 6px;
+        background: var(--brand);
         display: grid; place-items: center;
-        font-weight: 700; font-size: 16px;
+        font-weight: 800; font-size: 16px; color: #fff;
     }
-    .academy-name { font-weight: 700; font-size: 16px; }
-    .member-info { font-size: 12px; opacity: .85; }
-    main { max-width: 900px; margin: 0 auto; padding: 20px; }
-    .welcome {
-        background: rgba(255,255,255,.04);
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 16px;
+    .nav-name { font-weight: 700; font-size: 17px; letter-spacing: -.2px; }
+    .nav-spacer { flex: 1; }
+    .nav-profile {
+        display: flex; align-items: center; gap: 10px;
+        padding: 6px 10px;
+        border-radius: 20px;
+        background: rgba(255,255,255,.08);
+        font-size: 13px;
+    }
+    .nav-profile .avatar {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: var(--brand);
+        display: grid; place-items: center;
+        font-weight: 700; font-size: 12px;
+    }
+    .nav-profile .belt-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #fff; margin-right: 4px;
+    }
+
+    /* ═══ Hero banner ═══ */
+    .hero {
+        position: relative;
+        min-height: 75vh;
+        max-height: 820px;
+        display: flex;
+        align-items: flex-end;
+        padding: 0 4% 10vh;
+        overflow: hidden;
+    }
+    .hero-bg {
+        position: absolute; inset: 0;
+        z-index: 0;
+    }
+    .hero-bg img, .hero-bg video {
+        width: 100%; height: 100%;
+        object-fit: cover;
+    }
+    .hero-gradient {
+        position: absolute; inset: 0; z-index: 1;
+        background:
+            linear-gradient(90deg, rgba(10,10,10,.95) 0%, rgba(10,10,10,.4) 50%, rgba(10,10,10,.2) 100%),
+            linear-gradient(180deg, rgba(10,10,10,.4) 0%, rgba(10,10,10,.1) 40%, rgba(10,10,10,1) 100%);
+    }
+    .hero-content { position: relative; z-index: 2; max-width: 720px; }
+    .hero-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--brand);
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 14px;
+    }
+    .hero-title {
+        font-size: clamp(28px, 4.5vw, 56px);
+        font-weight: 800;
+        letter-spacing: -1.5px;
+        line-height: 1.05;
+        margin: 0 0 12px;
+        text-shadow: 0 2px 20px rgba(0,0,0,.6);
+    }
+    .hero-meta {
+        display: flex; gap: 14px;
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    .hero-meta .chip {
+        padding: 2px 8px;
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .hero-desc {
+        font-size: 16px; line-height: 1.5;
+        color: rgba(255,255,255,.9);
+        margin-bottom: 20px;
+        max-width: 560px;
+        text-shadow: 0 1px 8px rgba(0,0,0,.6);
+    }
+    .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 11px 22px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 15px;
+        border: none;
+        cursor: pointer;
+        transition: all .15s;
+    }
+    .btn-play { background: #fff; color: #000; }
+    .btn-play:hover { background: rgba(255,255,255,.8); }
+    .btn-info { background: rgba(109,109,110,.6); color: #fff; }
+    .btn-info:hover { background: rgba(109,109,110,.4); }
+
+    .welcome-banner {
+        position: relative;
+        z-index: 2;
+        margin: -60px 4% 0;
+        background: linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+        padding: 14px 20px;
+        border-radius: 10px;
         border-left: 3px solid var(--brand);
         font-size: 14px;
+        backdrop-filter: blur(6px);
     }
-    .filters {
-        display: flex; gap: 8px; overflow-x: auto;
-        margin-bottom: 16px; padding-bottom: 4px;
+    .welcome-banner .price-tag {
+        display: inline-block;
+        background: rgba(255,255,255,.08);
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-left: 10px;
     }
-    .pill {
-        padding: 6px 14px;
-        border-radius: 20px;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.08);
-        color: #e2e8f0;
+
+    /* ═══ Rows ═══ */
+    .rows-wrap { padding: 30px 0 60px; }
+    .row {
+        margin-bottom: 42px;
+        padding: 0;
+    }
+    .row-header {
+        display: flex; align-items: center; gap: 10px;
+        padding: 0 4%;
+        margin-bottom: 14px;
+    }
+    .row-header h2 {
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: -.4px;
+        margin: 0;
+    }
+    .row-header .row-icon {
+        color: var(--brand);
+        font-size: 20px;
+    }
+    .row-header .row-count {
+        color: var(--text-muted);
         font-size: 13px;
         font-weight: 600;
-        white-space: nowrap;
-        text-decoration: none;
-        transition: all .2s;
+        margin-left: 6px;
     }
-    .pill.active {
-        background: var(--brand);
-        border-color: var(--brand);
+
+    .row-scroller {
+        position: relative;
+        padding: 0 4%;
+    }
+    .row-strip {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        padding-bottom: 12px;
+        scrollbar-width: none;
+    }
+    .row-strip::-webkit-scrollbar { display: none; }
+
+    .row-btn {
+        position: absolute;
+        top: 0; bottom: 12px;
+        width: 50px;
+        background: linear-gradient(90deg, rgba(10,10,10,.9), rgba(10,10,10,.2));
+        border: none;
         color: #fff;
+        font-size: 28px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity .2s;
+        z-index: 3;
+        display: grid; place-items: center;
     }
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 10px;
+    .row-btn.next {
+        right: 0;
+        background: linear-gradient(270deg, rgba(10,10,10,.9), rgba(10,10,10,.2));
     }
+    .row-btn.prev { left: 0; }
+    .row-scroller:hover .row-btn { opacity: 1; }
+
     .card {
-        background: rgba(255,255,255,.04);
-        border-radius: 12px;
+        flex: 0 0 auto;
+        width: 280px;
+        aspect-ratio: 16/9;
+        border-radius: 6px;
         overflow: hidden;
-        aspect-ratio: 4/3;
         position: relative;
         cursor: pointer;
-        transition: transform .2s;
-        border: 1px solid rgba(255,255,255,.06);
+        background: var(--bg-card);
+        transition: transform .2s ease, box-shadow .2s ease;
     }
-    .card:hover { transform: translateY(-2px); }
+    .card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 32px rgba(0,0,0,.7);
+        z-index: 2;
+    }
     .card img, .card video {
-        width: 100%; height: 100%; object-fit: cover;
+        width: 100%; height: 100%;
+        object-fit: cover;
+        display: block;
     }
     .card .overlay {
         position: absolute;
-        bottom: 0; left: 0; right: 0;
-        padding: 8px 10px;
-        background: linear-gradient(transparent, rgba(0,0,0,.8));
-        color: #fff;
+        inset: auto 0 0 0;
+        padding: 14px 12px 10px;
+        background: linear-gradient(transparent, rgba(0,0,0,.85));
+        opacity: 0;
+        transition: opacity .2s;
     }
-    .card .title { font-size: 12px; font-weight: 600; margin-bottom: 2px; line-height: 1.2; }
-    .card .meta { font-size: 10px; opacity: .75; }
-    .play-icon {
+    .card:hover .overlay { opacity: 1; }
+    .card .title {
+        font-size: 14px; font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 3px;
+    }
+    .card .meta {
+        font-size: 11px; color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+    }
+    .card .play-icon {
         position: absolute; top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 40px; color: rgba(255,255,255,.9);
-        text-shadow: 0 2px 10px rgba(0,0,0,.5);
+        transform: translate(-50%,-50%);
+        font-size: 46px;
+        color: rgba(255,255,255,.95);
+        text-shadow: 0 2px 14px rgba(0,0,0,.7);
+        opacity: .85;
     }
+    .card .badge-new {
+        position: absolute;
+        top: 8px; left: 8px;
+        background: var(--brand);
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+
+    /* ═══ Empty state ═══ */
     .empty {
         text-align: center;
-        padding: 60px 20px;
-        color: #94a3b8;
+        padding: 80px 20px;
+        color: var(--text-muted);
     }
-    .empty i { font-size: 48px; display: block; margin-bottom: 12px; opacity: .5; }
+    .empty .empty-icon {
+        font-size: 56px; opacity: .3;
+        margin-bottom: 12px;
+    }
+    .empty .empty-title {
+        font-size: 20px; font-weight: 700; color: var(--text);
+        margin-bottom: 6px;
+    }
+
+    /* ═══ Lightbox / Player ═══ */
     .lightbox {
         position: fixed; inset: 0;
-        z-index: 100;
-        background: rgba(0,0,0,.95);
+        z-index: 1000;
+        background: rgba(0,0,0,.97);
         display: none;
         align-items: center;
         justify-content: center;
@@ -125,136 +316,234 @@
     }
     .lightbox.show { display: flex; }
     .lightbox-content {
-        max-width: 100%;
-        max-height: 100%;
+        max-width: 1200px;
+        width: 100%;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 12px;
+        gap: 16px;
     }
-    .lightbox img, .lightbox video {
+    .lightbox-media {
+        width: 100%;
+        max-height: 75vh;
+        background: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+    }
+    .lightbox-media img, .lightbox-media video {
         max-width: 100%;
-        max-height: 80vh;
-        border-radius: 12px;
+        max-height: 75vh;
+        display: block;
     }
-    .lightbox-info { color: #fff; text-align: center; max-width: 600px; }
+    .lightbox-info h3 { margin: 0 0 6px; font-size: 22px; font-weight: 700; }
+    .lightbox-info .tags {
+        display: flex; gap: 8px; flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+    .lightbox-info .tag {
+        font-size: 11px; font-weight: 700;
+        padding: 3px 8px; border-radius: 3px;
+        background: rgba(255,255,255,.1);
+        text-transform: uppercase;
+        letter-spacing: .3px;
+    }
+    .lightbox-info p { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin: 0; }
     .lightbox-close {
-        position: absolute; top: 16px; right: 16px;
-        color: #fff; font-size: 28px; cursor: pointer;
-        background: rgba(0,0,0,.5);
+        position: absolute;
+        top: 20px; right: 20px;
         width: 44px; height: 44px;
         border-radius: 50%;
+        background: rgba(0,0,0,.6);
+        color: #fff; font-size: 28px;
         display: grid; place-items: center;
+        cursor: pointer;
+        z-index: 1001;
     }
-    .price-tag {
-        display: inline-block;
-        background: rgba(255,255,255,.1);
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 12px;
-        margin-top: 4px;
+
+    /* ═══ Mobile ═══ */
+    @media (max-width: 768px) {
+        .hero { min-height: 60vh; padding-bottom: 8vh; }
+        .hero-title { font-size: 26px; letter-spacing: -.5px; }
+        .hero-desc { font-size: 14px; }
+        .hero-badge { font-size: 10px; }
+        .card { width: 220px; }
+        .nav-name { font-size: 14px; }
+        .nav-profile { font-size: 11px; padding: 4px 8px; }
+        .nav-profile .avatar { width: 22px; height: 22px; font-size: 10px; }
+        .row-header h2 { font-size: 17px; }
+        .welcome-banner { font-size: 13px; padding: 10px 14px; margin-top: -40px; }
+        .row-btn { display: none; }
     }
     @media (max-width: 480px) {
-        .grid { grid-template-columns: repeat(2, 1fr); }
-        .academy-name { font-size: 14px; }
+        .card { width: 180px; }
+        .btn { padding: 9px 16px; font-size: 13px; }
     }
 </style>
 </head>
 <body>
 
-<header>
-    <div class="header-inner">
-        {% if member.get('academy_logo') %}
-            <img src="{{ member.get('academy_logo') }}" class="logo" alt="logo">
-        {% else %}
-            <div class="logo-fallback">{{ (member.get('academy_name') or 'A')[:1].upper() }}</div>
-        {% endif %}
-        <div style="flex:1;">
-            <div class="academy-name">{{ member.get('academy_name') or 'Academy' }}</div>
-            <div class="member-info">
-                {{ member.get('first_name') }} {{ member.get('last_name') }}
-                {% if member.get('belt_name') %}· {{ member.get('belt_name') }}{% endif %}
-            </div>
-        </div>
-    </div>
-</header>
-
-<main>
-    {% if member.get('portal_welcome') %}
-        <div class="welcome">
-            {{ member.get('portal_welcome') }}
-            {% if member.get('portal_price_display') %}
-                <br><span class="price-tag"><i class="bi bi-tag"></i> {{ member.get('portal_price_display') }}</span>
-            {% endif %}
-        </div>
-    {% endif %}
-
-    {% if categories %}
-    <div class="filters">
-        <a href="/portal/{{ member.get('portal_token') }}" class="pill {% if not active_category %}active{% endif %}">All</a>
-        {% for cat in categories %}
-            <a href="/portal/{{ member.get('portal_token') }}?category={{ cat }}"
-               class="pill {% if active_category == cat %}active{% endif %}">{{ cat|title }}</a>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if media_items %}
-    <div class="grid">
-        {% for m in media_items %}
-        <div class="card" onclick="openMedia({{ loop.index0 }})">
-            {% if m.get('media_type') == 'video' %}
-                <video src="{{ m.get('url') }}" muted></video>
-                <i class="bi bi-play-circle-fill play-icon"></i>
-            {% else %}
-                <img src="{{ m.get('url') }}" alt="{{ m.get('title') }}">
-            {% endif %}
-            <div class="overlay">
-                <div class="title">{{ m.get('title') or 'Untitled' }}</div>
-                <div class="meta">
-                    {% if m.get('category') %}{{ m.get('category')|title }}{% endif %}
-                    {% if m.get('belt_level') and m.get('belt_level') != 'all' %} · {{ m.get('belt_level')|title }}{% endif %}
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
+<nav class="navbar" id="navbar">
+    {% if member.get('academy_logo') %}
+        <img src="{{ member.get('academy_logo') }}" class="nav-logo" alt="logo">
     {% else %}
+        <div class="nav-logo-fallback">{{ (member.get('academy_name') or 'A')[:1].upper() }}</div>
+    {% endif %}
+    <div class="nav-name">{{ member.get('academy_name') or 'Academy' }}</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-profile">
+        <div class="avatar">{{ (member.get('first_name') or 'U')[:1].upper() }}</div>
+        <span>{{ member.get('first_name') }}</span>
+        {% if member.get('belt_name') %}
+            <span style="opacity:.6;">·</span>
+            <span>{{ member.get('belt_name') }}</span>
+        {% endif %}
+    </div>
+</nav>
+
+{% if hero %}
+<section class="hero">
+    <div class="hero-bg">
+        {% if hero.get('media_type') == 'video' %}
+            <video src="{{ hero.get('url') }}" autoplay muted loop playsinline></video>
+        {% else %}
+            <img src="{{ hero.get('url') }}" alt="{{ hero.get('title') }}">
+        {% endif %}
+    </div>
+    <div class="hero-gradient"></div>
+    <div class="hero-content">
+        <div class="hero-badge"><i class="bi bi-star-fill"></i> Featured</div>
+        <h1 class="hero-title">{{ hero.get('title') or 'Latest from your academy' }}</h1>
+        <div class="hero-meta">
+            {% if hero.get('category') %}<span class="chip">{{ hero.get('category')|title }}</span>{% endif %}
+            {% if hero.get('belt_level') and hero.get('belt_level') != 'all' %}<span class="chip">{{ hero.get('belt_level')|title }} Belt</span>{% endif %}
+            {% if hero.get('media_type') == 'video' %}<span><i class="bi bi-play-circle"></i> Video</span>{% else %}<span><i class="bi bi-image"></i> Photo</span>{% endif %}
+        </div>
+        {% if hero.get('description') %}
+            <p class="hero-desc">{{ hero.get('description') }}</p>
+        {% endif %}
+        <div class="hero-actions">
+            <button class="btn btn-play" onclick="openMediaById({{ hero.get('id') }})">
+                <i class="bi bi-play-fill" style="font-size:22px;"></i> Watch Now
+            </button>
+            {% if hero.get('description') %}
+            <button class="btn btn-info" onclick="openMediaById({{ hero.get('id') }})">
+                <i class="bi bi-info-circle"></i> More Info
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if member.get('portal_welcome') or member.get('portal_price_display') %}
+<div class="welcome-banner">
+    {% if member.get('portal_welcome') %}{{ member.get('portal_welcome') }}{% endif %}
+    {% if member.get('portal_price_display') %}<span class="price-tag"><i class="bi bi-tag-fill"></i> {{ member.get('portal_price_display') }}</span>{% endif %}
+</div>
+{% endif %}
+
+<div class="rows-wrap">
+    {% for row in rows %}
+    <section class="row">
+        <div class="row-header">
+            <i class="bi {{ row.icon }} row-icon"></i>
+            <h2>{{ row.title }}</h2>
+            <span class="row-count">{{ row['items']|length }}</span>
+        </div>
+        <div class="row-scroller">
+            <button class="row-btn prev" onclick="scrollRow('{{ row.key }}', -1)" aria-label="Previous"><i class="bi bi-chevron-left"></i></button>
+            <div class="row-strip" id="strip-{{ row.key }}">
+                {% for m in row['items'] %}
+                <div class="card" onclick="openMediaById({{ m.get('id') }})">
+                    {% if m.get('media_type') == 'video' %}
+                        <video src="{{ m.get('url') }}" muted preload="metadata"></video>
+                        <i class="bi bi-play-circle-fill play-icon"></i>
+                    {% else %}
+                        <img src="{{ m.get('url') }}" alt="{{ m.get('title') }}" loading="lazy">
+                    {% endif %}
+                    <div class="overlay">
+                        <div class="title">{{ m.get('title') or 'Untitled' }}</div>
+                        <div class="meta">
+                            {% if m.get('belt_level') and m.get('belt_level') != 'all' %}{{ m.get('belt_level')|title }} · {% endif %}
+                            {{ (m.get('media_type') or 'photo')|title }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <button class="row-btn next" onclick="scrollRow('{{ row.key }}', 1)" aria-label="Next"><i class="bi bi-chevron-right"></i></button>
+        </div>
+    </section>
+    {% endfor %}
+
+    {% if not rows %}
     <div class="empty">
-        <i class="bi bi-collection-play"></i>
-        <div style="font-weight:600;margin-bottom:4px;">No media yet</div>
-        <div style="font-size:13px;">Your coach hasn't uploaded content for your belt rank yet. Check back soon!</div>
+        <div class="empty-icon"><i class="bi bi-collection-play"></i></div>
+        <div class="empty-title">No content yet</div>
+        <div>Your coach hasn't uploaded content for your belt rank. Check back soon!</div>
     </div>
     {% endif %}
-</main>
+</div>
 
 <div class="lightbox" id="lightbox" onclick="closeMedia(event)">
-    <div class="lightbox-close" onclick="closeMedia(event, true)"><i class="bi bi-x"></i></div>
-    <div class="lightbox-content" id="lightboxContent"></div>
+    <div class="lightbox-close" onclick="closeMedia(event, true)"><i class="bi bi-x-lg"></i></div>
+    <div class="lightbox-content" id="lightboxContent" onclick="event.stopPropagation();"></div>
 </div>
 
 <script>
-const mediaItems = {{ media_items|tojson }};
-function openMedia(idx) {
-    const m = mediaItems[idx];
+const ALL_MEDIA = {{ all_media|tojson }};
+const MEDIA_BY_ID = Object.fromEntries(ALL_MEDIA.map(m => [m.id, m]));
+
+function openMediaById(id) {
+    const m = MEDIA_BY_ID[id];
     if (!m) return;
     const box = document.getElementById('lightbox');
     const content = document.getElementById('lightboxContent');
     const mediaEl = m.media_type === 'video'
-        ? `<video src="${m.url}" controls autoplay playsinline style="max-width:100%;max-height:80vh;"></video>`
-        : `<img src="${m.url}" alt="${m.title || ''}">`;
-    const desc = m.description ? `<div style="font-size:14px;opacity:.85;margin-top:8px;">${m.description}</div>` : '';
-    content.innerHTML = mediaEl + `<div class="lightbox-info"><div style="font-weight:600;">${m.title || 'Untitled'}</div>${desc}</div>`;
+        ? `<div class="lightbox-media"><video src="${m.url}" controls autoplay playsinline></video></div>`
+        : `<div class="lightbox-media"><img src="${m.url}" alt=""></div>`;
+    const tags = [];
+    if (m.category) tags.push(`<span class="tag">${m.category}</span>`);
+    if (m.belt_level && m.belt_level !== 'all') tags.push(`<span class="tag">${m.belt_level} belt</span>`);
+    tags.push(`<span class="tag">${m.media_type || 'photo'}</span>`);
+    const desc = m.description ? `<p>${m.description}</p>` : '';
+    content.innerHTML = mediaEl + `
+        <div class="lightbox-info">
+            <h3>${m.title || 'Untitled'}</h3>
+            <div class="tags">${tags.join('')}</div>
+            ${desc}
+        </div>`;
     box.classList.add('show');
+    document.body.style.overflow = 'hidden';
 }
 function closeMedia(e, force) {
-    if (!force && e.target.closest('.lightbox-content')) return;
+    if (!force && e && e.target && e.target.closest('.lightbox-content')) return;
     const box = document.getElementById('lightbox');
     const video = box.querySelector('video');
-    if (video) video.pause();
+    if (video) { video.pause(); }
     document.getElementById('lightboxContent').innerHTML = '';
     box.classList.remove('show');
+    document.body.style.overflow = '';
 }
+function scrollRow(key, direction) {
+    const strip = document.getElementById('strip-' + key);
+    if (!strip) return;
+    const amount = strip.clientWidth * 0.8 * direction;
+    strip.scrollBy({ left: amount, behavior: 'smooth' });
+}
+
+// Navbar background on scroll
+window.addEventListener('scroll', () => {
+    const nav = document.getElementById('navbar');
+    if (window.scrollY > 60) nav.classList.add('scrolled');
+    else nav.classList.remove('scrolled');
+});
+
+// Close lightbox on Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMedia(null, true);
+});
 </script>
 </body>
 </html>
