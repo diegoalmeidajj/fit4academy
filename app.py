@@ -22,6 +22,12 @@ app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
+_IS_PRODUCTION = os.getenv('FLASK_ENV') == 'production' or bool(os.getenv('RAILWAY_ENVIRONMENT'))
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = _IS_PRODUCTION
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
+
 # Ensure upload directory exists
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -5538,6 +5544,7 @@ def public_webauthn_register():
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
+    debug_mode = os.getenv('FLASK_DEBUG', '').lower() in ('1', 'true', 'yes') and not _IS_PRODUCTION
     print("  Fit4Academy")
     print(f"  http://localhost:{port}")
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

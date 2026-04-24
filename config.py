@@ -2,7 +2,17 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'fit4academy-dev-key-2026')
+_IS_PRODUCTION = os.getenv('FLASK_ENV') == 'production' or bool(os.getenv('RAILWAY_ENVIRONMENT'))
+
+SECRET_KEY = os.getenv('SECRET_KEY', '')
+if not SECRET_KEY:
+    if _IS_PRODUCTION:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is required in production. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    SECRET_KEY = 'dev-only-insecure-key-do-not-use-in-production'
+
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'academy.db')
 PORT = int(os.getenv('PORT', 8080))

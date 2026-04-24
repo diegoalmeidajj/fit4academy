@@ -24,14 +24,15 @@ def _get_database_url():
         from railway_config import IS_RAILWAY, RAILWAY_DATABASE_URL
         if IS_RAILWAY:
             url = RAILWAY_DATABASE_URL
-    # Last resort fallback for Railway
     if not url and bool(os.getenv('RAILWAY_ENVIRONMENT')):
-        url = 'postgresql://postgres:CVZWuWARcAdzxVPdJxcKITadIAnxxUJK@ballast.proxy.rlwy.net:12466/railway'
-        print("[DB] Using hardcoded Railway PostgreSQL URL (env vars not found)")
+        raise RuntimeError(
+            "[DB] Running on Railway but DATABASE_URL is not set. "
+            "Configure DATABASE_URL in the Railway dashboard (Variables tab)."
+        )
     if url:
         print(f"[DB] URL found: {url[:40]}...")
     else:
-        print("[DB] WARNING: No database URL found!")
+        print("[DB] No database URL — falling back to local SQLite.")
     return url
 
 
