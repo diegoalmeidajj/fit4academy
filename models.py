@@ -530,6 +530,11 @@ def init_db():
             completed BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
+        "ALTER TABLE academies ADD COLUMN media_portal_enabled BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE academies ADD COLUMN portal_primary_color TEXT DEFAULT '#6366f1'",
+        "ALTER TABLE academies ADD COLUMN portal_welcome TEXT DEFAULT ''",
+        "ALTER TABLE academies ADD COLUMN portal_price_display TEXT DEFAULT ''",
+        "ALTER TABLE members ADD COLUMN portal_token TEXT DEFAULT ''",
     ]:
         try:
             conn.execute(alter)
@@ -748,7 +753,9 @@ def create_academy(name, owner_id, **kwargs):
 def update_academy(academy_id, **kwargs):
     conn = get_db()
     allowed = ['name', 'logo', 'address', 'city', 'state', 'zip_code', 'country',
-               'phone', 'email', 'website', 'timezone', 'currency', 'language', 'theme']
+               'phone', 'email', 'website', 'timezone', 'currency', 'language', 'theme',
+               'media_portal_enabled', 'portal_primary_color', 'portal_welcome',
+               'portal_price_display']
     fields = []
     values = []
     for k, v in kwargs.items():
@@ -1971,6 +1978,54 @@ def delete_media(media_id):
     conn.commit()
     conn.close()
     return True
+
+
+def get_member_by_portal_token(token):
+    if not token:
+        return None
+    conn = get_db()
+    row = conn.execute(
+        """SELECT m.*, b.name as belt_name, b.color as belt_color, a.name as academy_name,
+                  a.logo as academy_logo, a.portal_primary_color, a.portal_welcome,
+                  a.portal_price_display, a.media_portal_enabled
+           FROM members m
+           LEFT JOIN belt_ranks b ON m.belt_rank_id = b.id
+           LEFT JOIN academies a ON m.academy_id = a.id
+           WHERE m.portal_token = ?""",
+        (token,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def ensure_portal_token(member_id):
+    import secrets
+    conn = get_db()
+    row = conn.execute("SELECT portal_token FROM members WHERE id = ?", (member_id,)).fetchone()
+    row_dict = dict(row) if row else {}
+    if row_dict.get('portal_token'):
+        conn.close()
+        return row_dict['portal_token']
+    token = secrets.token_urlsafe(16)
+    conn.execute("UPDATE members SET portal_token = ? WHERE id = ?", (token, member_id))
+    conn.commit()
+    conn.close()
+    return token
+
+
+def get_media_for_member(member, academy_id):
+    """Return media visible to a member: academy_id match + belt_level = 'all' or member's belt."""
+    belt_name = (member.get('belt_name') or '').lower() if member else ''
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT * FROM media
+           WHERE academy_id = ?
+             AND (belt_level = 'all' OR belt_level = '' OR LOWER(belt_level) = ?)
+           ORDER BY created_at DESC""",
+        (academy_id, belt_name)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -4643,6 +4643,94 @@ def media_delete(media_id):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  MEMBER PORTAL (add-on for academies to sell content to students)
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/settings/portal', methods=['GET', 'POST'])
+@login_required
+def portal_settings():
+    academy_id = _get_academy_id()
+
+    if request.method == 'POST':
+        if not validate_csrf():
+            return redirect(url_for('portal_settings'))
+        update_data = {
+            'media_portal_enabled': request.form.get('enabled') == 'on',
+            'portal_primary_color': request.form.get('primary_color', '#6366f1').strip() or '#6366f1',
+            'portal_welcome': request.form.get('welcome', '').strip(),
+            'portal_price_display': request.form.get('price_display', '').strip(),
+        }
+        try:
+            models.update_academy(academy_id, **update_data)
+            flash('Portal settings saved!', 'success')
+        except Exception as e:
+            print(f"[Portal] Settings error: {e}")
+            flash('Error saving portal settings.', 'error')
+        return redirect(url_for('portal_settings'))
+
+    try:
+        academy = models.get_academy_by_id(academy_id)
+        academy = dict(academy) if academy else None
+        members = models.get_all_members(academy_id)
+        members_with_token_count = sum(1 for m in members if dict(m).get('portal_token'))
+        total_members = len(members)
+    except Exception as e:
+        print(f"[Portal] Settings load error: {e}")
+        academy = None
+        members_with_token_count = 0
+        total_members = 0
+
+    return render_template('settings_portal.html',
+        academy=academy,
+        members_with_token_count=members_with_token_count,
+        total_members=total_members,
+    )
+
+
+@app.route('/api/members/<int:member_id>/portal-link')
+@login_required
+def get_member_portal_link(member_id):
+    try:
+        token = models.ensure_portal_token(member_id)
+        link = url_for('member_portal', token=token, _external=True)
+        return jsonify({'success': True, 'token': token, 'link': link})
+    except Exception as e:
+        print(f"[Portal] Link error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/portal/<token>')
+def member_portal(token):
+    member = models.get_member_by_portal_token(token)
+    if not member:
+        return render_template('portal_invalid.html'), 404
+    if not member.get('media_portal_enabled'):
+        return render_template('portal_disabled.html', member=member), 403
+
+    academy_id = member.get('academy_id', 1)
+    category = request.args.get('category', '')
+
+    try:
+        all_media = models.get_media_for_member(member, academy_id)
+        if category:
+            media_items = [m for m in all_media if (m.get('category') or '') == category]
+        else:
+            media_items = all_media
+        categories = sorted({m.get('category') or 'general' for m in all_media})
+    except Exception as e:
+        print(f"[Portal] Load error: {e}")
+        media_items = []
+        categories = []
+
+    return render_template('portal.html',
+        member=member,
+        media_items=media_items,
+        categories=categories,
+        active_category=category,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
 #  SETTINGS
 # ═══════════════════════════════════════════════════════════════
 

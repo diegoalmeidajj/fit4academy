@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Portal Settings{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <h1><i class="bi bi-collection-play" style="color:var(--primary);"></i> Member Media Portal</h1>
+    <a href="/settings" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Settings</a>
+</div>
+
+<div class="card" style="padding: 24px; margin-bottom: 20px;">
+    <p style="color: var(--text-muted); margin-bottom: 0;">
+        Enable a branded media portal for your students. Upload technique videos, class recordings, and
+        event photos in the <a href="/media"><strong>Media</strong></a> page — students access them via a
+        personal QR link, filtered by their belt rank.
+    </p>
+</div>
+
+<form method="post" action="/settings/portal" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="card" style="padding: 24px; margin-bottom: 16px;">
+        <h3 style="margin-top: 0;">1. Activation</h3>
+        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+            <input type="checkbox" name="enabled" {% if academy and academy.get('media_portal_enabled') %}checked{% endif %}
+                   style="width: 20px; height: 20px;">
+            <span><strong>Enable member media portal</strong></span>
+        </label>
+        <p style="color: var(--text-muted); font-size: 13px; margin-top: 8px; margin-bottom: 0;">
+            When disabled, portal links return a "not active" message to students.
+        </p>
+    </div>
+
+    <div class="card" style="padding: 24px; margin-bottom: 16px;">
+        <h3 style="margin-top: 0;">2. Branding</h3>
+        <div style="display: grid; gap: 16px;">
+            <div>
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Primary Color</label>
+                <input type="color" name="primary_color"
+                       value="{{ (academy.get('portal_primary_color') if academy else '') or '#6366f1' }}"
+                       style="width: 80px; height: 40px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;">
+                <span style="color: var(--text-muted); font-size: 13px; margin-left: 8px;">
+                    Used on portal header, buttons, accents
+                </span>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Welcome Message</label>
+                <textarea name="welcome" rows="2"
+                          placeholder="Welcome to our members area..."
+                          style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-family: inherit;">{{ academy.get('portal_welcome') if academy else '' }}</textarea>
+                <small style="color: var(--text-muted);">Shown at the top of the student portal.</small>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Price Displayed to Students (optional)</label>
+                <input type="text" name="price_display"
+                       value="{{ academy.get('portal_price_display') if academy else '' }}"
+                       placeholder="e.g., $15/month — ask your instructor"
+                       style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text);">
+                <small style="color: var(--text-muted);">Optional note shown to students (no billing automation yet).</small>
+            </div>
+            <div>
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Academy Logo</label>
+                <div style="margin-top: 4px;">
+                    {% if academy and academy.get('logo') %}
+                        <img src="{{ academy.get('logo') }}" style="max-height: 60px; border-radius: 8px;">
+                        <br><small style="color: var(--text-muted);">To change, update in <a href="/settings">main Settings</a>.</small>
+                    {% else %}
+                        <p style="color: var(--text-muted); font-size: 13px;">No logo set. Upload one in <a href="/settings">main Settings</a>.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 24px; margin-bottom: 16px;">
+        <h3 style="margin-top: 0;">3. Student Access</h3>
+        <p style="color: var(--text-muted); font-size: 14px;">
+            {{ members_with_token_count }} of {{ total_members }} members have an active portal link.
+        </p>
+        <p style="font-size: 13px; color: var(--text-muted);">
+            Open a member's profile to see their personal portal link and QR. The link is unique per student.
+        </p>
+        <a href="/members" class="btn btn-outline-primary btn-sm"><i class="bi bi-people"></i> Go to Members</a>
+    </div>
+
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Portal Settings</button>
+</form>
+{% endblock %}
