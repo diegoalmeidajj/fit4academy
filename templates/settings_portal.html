@@ -76,12 +76,40 @@
         <p style="color: var(--text-muted); font-size: 14px;">
             {{ members_with_token_count }} of {{ total_members }} members have an active portal link.
         </p>
-        <p style="font-size: 13px; color: var(--text-muted);">
-            Open a member's profile to see their personal portal link and QR. The link is unique per student.
-        </p>
-        <a href="/members" class="btn btn-outline-primary btn-sm"><i class="bi bi-people"></i> Go to Members</a>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="generateAllTokens(event)">
+                <i class="bi bi-magic"></i> Generate links for all members
+            </button>
+            <a href="/members" class="btn btn-outline-secondary btn-sm"><i class="bi bi-people"></i> View Members</a>
+        </div>
+        <div id="genResult" style="font-size: 13px; color: var(--text-muted);"></div>
     </div>
 
     <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Portal Settings</button>
 </form>
+
+<script>
+async function generateAllTokens(ev) {
+    ev.preventDefault();
+    const btn = ev.currentTarget;
+    const result = document.getElementById('genResult');
+    btn.disabled = true;
+    result.textContent = 'Generating...';
+    try {
+        const fd = new FormData();
+        fd.append('csrf_token', '{{ csrf_token() }}');
+        const res = await fetch('/api/portal/generate-all-tokens', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+            result.innerHTML = `<span style="color: var(--success);">✓ Done — ${data.generated} new link(s) generated (${data.total} total members). Reload page to see updated count.</span>`;
+        } else {
+            result.innerHTML = `<span style="color: var(--danger);">✗ ${data.error || 'Error'}</span>`;
+        }
+    } catch (e) {
+        result.innerHTML = `<span style="color: var(--danger);">✗ ${e.message}</span>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+</script>
 {% endblock %}

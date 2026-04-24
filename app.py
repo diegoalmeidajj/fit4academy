@@ -4702,11 +4702,34 @@ def portal_settings():
 @login_required
 def get_member_portal_link(member_id):
     try:
+        member = models.get_member_by_id(member_id)
+        if not member:
+            return jsonify({'success': False, 'error': f'Member #{member_id} not found'}), 404
         token = models.ensure_portal_token(member_id)
         link = url_for('member_portal', token=token, _external=True)
         return jsonify({'success': True, 'token': token, 'link': link})
     except Exception as e:
         print(f"[Portal] Link error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/portal/generate-all-tokens', methods=['POST'])
+@login_required
+def generate_all_portal_tokens():
+    if not validate_csrf():
+        return jsonify({'success': False, 'error': 'Invalid CSRF'}), 400
+    academy_id = _get_academy_id()
+    try:
+        members = models.get_all_members(academy_id)
+        generated = 0
+        for m in members:
+            m_dict = dict(m)
+            if not m_dict.get('portal_token'):
+                models.ensure_portal_token(m_dict['id'])
+                generated += 1
+        return jsonify({'success': True, 'generated': generated, 'total': len(members)})
+    except Exception as e:
+        print(f"[Portal] Generate all error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
