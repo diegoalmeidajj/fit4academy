@@ -45,7 +45,7 @@ def staff_promotion_requests_list():
             'member_id': r.get('member_id'),
             'first_name': r.get('first_name', ''),
             'last_name': r.get('last_name', ''),
-            'photo_url': r.get('photo_url', ''),
+            'photo_url': r.get('photo', ''),
             'current_belt': r.get('current_belt'),
             'current_stripes': r.get('current_stripes'),
             'requested_belt': r.get('requested_belt'),
@@ -130,7 +130,7 @@ def staff_chat_threads():
             'member_id': r.get('member_id'),
             'first_name': r.get('first_name', ''),
             'last_name': r.get('last_name', ''),
-            'photo_url': r.get('photo_url', ''),
+            'photo_url': r.get('photo', ''),
             'last_message': r.get('body', ''),
             'last_sender': r.get('sender_type'),
             'last_at': str(r.get('created_at', ''))[:19],
@@ -165,7 +165,7 @@ def staff_chat_messages_list(member_id):
         'id': member.get('id'),
         'first_name': member.get('first_name', ''),
         'last_name': member.get('last_name', ''),
-        'photo_url': member.get('photo_url', ''),
+        'photo_url': member.get('photo', ''),
     }})
 
 

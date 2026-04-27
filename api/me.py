@@ -38,7 +38,7 @@ def me():
             'last_name': member.get('last_name', ''),
             'email': member.get('email', ''),
             'phone': member.get('phone', ''),
-            'photo_url': member.get('photo_url', ''),
+            'photo_url': member.get('photo', ''),
             'belt': belt,
             'stripes': stripes,
             'membership_status': member.get('membership_status', ''),

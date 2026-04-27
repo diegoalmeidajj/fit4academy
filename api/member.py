@@ -87,7 +87,7 @@ def member_dashboard():
             'id': member.get('id'),
             'first_name': member.get('first_name', ''),
             'last_name': member.get('last_name', ''),
-            'photo_url': member.get('photo_url', ''),
+            'photo_url': member.get('photo', ''),
             'belt': member.get('belt_name') or member.get('belt') or 'White',
             'belt_color': member.get('belt_color') or '#ffffff',
             'stripes': member.get('stripes', 0) or 0,
@@ -234,7 +234,7 @@ def member_update_profile():
     """Allow member to update their own basic profile fields."""
     _, member_id = current_subject()
     data = request.get_json(silent=True) or {}
-    allowed_fields = {'phone', 'address', 'city', 'state', 'zip_code', 'photo_url'}
+    allowed_fields = {'phone', 'address', 'city', 'state', 'zip_code', 'photo'}
     payload = {k: v for k, v in data.items() if k in allowed_fields}
     if not payload:
         return jsonify({'error': 'no_fields'}), 400

@@ -1066,7 +1066,7 @@ def get_promotion_requests_for_academy(academy_id, status=None):
     try:
         if status:
             rows = conn.execute(
-                """SELECT pr.*, m.first_name, m.last_name, m.email, m.photo_url
+                """SELECT pr.*, m.first_name, m.last_name, m.email, m.photo
                    FROM belt_promotion_requests pr
                    JOIN members m ON pr.member_id = m.id
                    WHERE pr.academy_id = ? AND pr.status = ?
@@ -1075,7 +1075,7 @@ def get_promotion_requests_for_academy(academy_id, status=None):
             ).fetchall()
         else:
             rows = conn.execute(
-                """SELECT pr.*, m.first_name, m.last_name, m.email, m.photo_url
+                """SELECT pr.*, m.first_name, m.last_name, m.email, m.photo
                    FROM belt_promotion_requests pr
                    JOIN members m ON pr.member_id = m.id
                    WHERE pr.academy_id = ?
@@ -1184,7 +1184,7 @@ def get_chat_threads_for_academy(academy_id, limit=50):
     conn = get_db()
     try:
         rows = conn.execute(
-            """SELECT cm.*, m.first_name, m.last_name, m.photo_url
+            """SELECT cm.*, m.first_name, m.last_name, m.photo
                FROM chat_messages cm
                JOIN members m ON cm.member_id = m.id
                WHERE cm.academy_id = ? AND cm.id IN (
