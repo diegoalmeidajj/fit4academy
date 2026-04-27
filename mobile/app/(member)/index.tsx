@@ -16,6 +16,7 @@ import { apiGet } from '@/lib/api';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
+import { Icon, IconName } from '@/components/Icon';
 
 type Dashboard = {
   member: {
@@ -29,11 +30,7 @@ type Dashboard = {
     email: string;
     phone: string;
   };
-  academy: {
-    id: number;
-    name: string;
-    primary_color: string;
-  } | null;
+  academy: { id: number; name: string; primary_color: string } | null;
   membership: {
     state: 'active' | 'late' | 'expired' | 'unknown';
     days_late: number;
@@ -42,6 +39,78 @@ type Dashboard = {
   last_checkin: { id: number; created_at: string; class_name: string; method: string } | null;
   total_checkins: number;
 };
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return 'Burning the midnight oil';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function BeltGraphic({ color, stripes }: { color: string; stripes: number }) {
+  // A fabric-like belt rendered as a stack of bars with the cloth color, plus
+  // tape "stripes" on the right end like real BJJ ranks. Visually communicates
+  // achievement far better than a tiny color swatch.
+  const t = useTheme();
+  const beltColor = color || '#ffffff';
+  const isWhite = beltColor.toLowerCase() === '#ffffff' || beltColor.toLowerCase() === '#fff';
+  return (
+    <View
+      style={{
+        width: '100%',
+        height: 56,
+        borderRadius: 10,
+        backgroundColor: beltColor,
+        borderWidth: isWhite ? 1 : 0,
+        borderColor: 'rgba(0,0,0,0.12)',
+        flexDirection: 'row',
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOpacity: t.mode === 'dark' ? 0.5 : 0.12,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 4,
+      }}
+    >
+      <View style={{ flex: 1 }} />
+      {/* Black tape end of the belt where stripes sit */}
+      <View
+        style={{
+          width: 88,
+          height: '100%',
+          backgroundColor: '#0f1419',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          paddingLeft: 10,
+          gap: 6,
+        }}
+      >
+        {Array.from({ length: 4 }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              width: 4,
+              height: 38,
+              borderRadius: 2,
+              backgroundColor: i < stripes ? '#ffffff' : 'rgba(255,255,255,0.10)',
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+type QuickLink = { icon: IconName; label: string; sublabel: string; route: string; tone: 'accent' | 'neutral' };
+
+const QUICK_LINKS: QuickLink[] = [
+  { icon: 'card', label: 'Payments', sublabel: 'View invoices & pay', route: '/(member)/payments', tone: 'accent' },
+  { icon: 'calendar', label: 'Schedule', sublabel: 'Classes this week', route: '/(member)/schedule', tone: 'neutral' },
+  { icon: 'belt', label: 'Promotion', sublabel: 'Track your progress', route: '/(member)/promotion', tone: 'neutral' },
+  { icon: 'message', label: 'Coach chat', sublabel: 'Message your coach', route: '/(member)/chat', tone: 'neutral' },
+];
 
 export default function MemberHome() {
   const t = useTheme();
@@ -84,17 +153,13 @@ export default function MemberHome() {
     : ms?.state === 'late' ? 'warning'
     : ms?.state === 'expired' ? 'danger' : 'neutral';
 
-  const QUICK_LINKS = [
-    { emoji: '💳', label: 'Payments', route: '/(member)/payments' },
-    { emoji: '🏆', label: 'Events', route: '/(member)/events' },
-    { emoji: '🥋', label: 'Promotion', route: '/(member)/promotion' },
-    { emoji: '💬', label: 'Coach chat', route: '/(member)/chat' },
-  ];
+  const firstName = data?.member.first_name || me.first_name || 'athlete';
+  const beltLabel = data?.member.belt || 'White';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.tokens.bg.canvas }}>
       <ScrollView
-        contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.xxxl }}
+        contentContainerStyle={{ paddingBottom: spacing.xxxl + 40 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -104,88 +169,262 @@ export default function MemberHome() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Greeting */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl, gap: spacing.md }}>
-          <Avatar initials={initials} size={56} />
+        {/* Header — greeting + avatar + bell */}
+        <View
+          style={{
+            paddingHorizontal: spacing.xl,
+            paddingTop: spacing.lg,
+            paddingBottom: spacing.md,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.md,
+          }}
+        >
+          <Avatar initials={initials} size={44} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 22, fontWeight: '700', color: t.tokens.text.primary, letterSpacing: -0.4 }}>
-              Hello, <Text style={{ color: t.tokens.brand.accent }}>{data?.member.first_name || me.first_name || 'athlete'}</Text>.
+            <Text
+              style={{
+                fontSize: 12.5,
+                fontWeight: '500',
+                color: t.tokens.text.muted,
+                letterSpacing: 0.1,
+              }}
+            >
+              {getGreeting()}
             </Text>
-            <Text style={{ ...t.type.body, color: t.tokens.text.muted, marginTop: 2 }}>
-              {data?.academy?.name || me.academy?.name || 'Your academy'}
+            <Text
+              style={{
+                fontSize: 19,
+                fontWeight: '700',
+                color: t.tokens.text.primary,
+                letterSpacing: -0.4,
+                marginTop: 1,
+              }}
+            >
+              {firstName}
             </Text>
           </View>
+          <Pressable
+            onPress={() => router.push('/(member)/chat' as any)}
+            style={({ pressed }) => ({
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: t.tokens.bg.surfaceAlt,
+              alignItems: 'center', justifyContent: 'center',
+              opacity: pressed ? 0.7 : 1,
+            })}
+            hitSlop={8}
+          >
+            <Icon name="bell" size={20} color={t.tokens.text.secondary} />
+          </Pressable>
         </View>
 
-        {/* Belt card */}
-        <Card style={{ marginBottom: spacing.md }}>
-          <Text style={{ ...t.type.caption, color: t.tokens.text.muted, marginBottom: 10 }}>CURRENT RANK</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <View style={{
-              width: 60, height: 16, borderRadius: 4,
-              backgroundColor: data?.member.belt_color || '#fff',
-              borderWidth: 1, borderColor: 'rgba(0,0,0,0.2)',
-            }} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ ...t.type.h3, color: t.tokens.text.primary }}>
-                {data?.member.belt || 'White'} belt
-              </Text>
-              {!!data?.member.stripes && (
-                <Text style={{ ...t.type.body, color: t.tokens.text.muted, marginTop: 4 }}>
-                  {data.member.stripes} stripe{data.member.stripes > 1 ? 's' : ''}
+        {/* Hero rank card */}
+        <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.sm }}>
+          <Card variant="elevated" padded={false} style={{ overflow: 'hidden' }}>
+            <View style={{ padding: spacing.xl, paddingBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <Text style={{ ...t.type.overline, color: t.tokens.text.muted }}>
+                  CURRENT RANK
                 </Text>
-              )}
+                <Badge label={ms?.state === 'active' ? 'Active' : (ms?.state || 'unknown')} tone={msTone} />
+              </View>
+              <Text
+                style={{
+                  fontSize: 30,
+                  fontWeight: '800',
+                  color: t.tokens.text.primary,
+                  letterSpacing: -0.8,
+                  marginTop: 6,
+                }}
+              >
+                {beltLabel}
+                <Text style={{ color: t.tokens.text.muted, fontWeight: '500' }}> belt</Text>
+              </Text>
+              <Text style={{ fontSize: 13, color: t.tokens.text.muted, marginTop: 4 }}>
+                {data?.member.stripes ? `${data.member.stripes} stripe${data.member.stripes > 1 ? 's' : ''}` : 'No stripes yet — keep training.'}
+              </Text>
             </View>
-          </View>
-        </Card>
+            <View style={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.xl }}>
+              <BeltGraphic color={data?.member.belt_color || '#ffffff'} stripes={data?.member.stripes || 0} />
+            </View>
+          </Card>
+        </View>
 
-        {/* Membership card */}
-        <Card style={{ marginBottom: spacing.md }}>
-          <Text style={{ ...t.type.caption, color: t.tokens.text.muted, marginBottom: 10 }}>MEMBERSHIP</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ ...t.type.h3, color: t.tokens.text.primary, flex: 1 }}>{msLabel}</Text>
-            <Badge label={ms?.state || 'unknown'} tone={msTone} />
-          </View>
-          {ms?.next_due && (
-            <Text style={{ ...t.type.body, color: t.tokens.text.muted, marginTop: 8 }}>
-              Next due: {ms.next_due}
+        {/* Stats row */}
+        <View style={{ flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, marginTop: spacing.md }}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: t.tokens.bg.accentSoft,
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: t.tokens.border.subtle,
+              padding: spacing.lg,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: t.tokens.brand.accent, letterSpacing: 0.5 }}>
+              CHECK-INS
             </Text>
-          )}
-        </Card>
-
-        {/* Stats */}
-        <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
-          <Card style={{ flex: 1 }}>
-            <Text style={{ fontSize: 32, fontWeight: '800', color: t.tokens.brand.accent, letterSpacing: -1 }}>
+            <Text
+              style={{
+                fontSize: 36,
+                fontWeight: '800',
+                color: t.tokens.text.primary,
+                letterSpacing: -1.2,
+                marginTop: 6,
+              }}
+            >
               {data?.total_checkins ?? 0}
             </Text>
-            <Text style={{ ...t.type.caption, color: t.tokens.text.muted, marginTop: 4 }}>TOTAL CHECK-INS</Text>
-          </Card>
-          <Card style={{ flex: 1 }}>
-            <Text style={{ fontSize: 24, fontWeight: '800', color: t.tokens.text.primary, letterSpacing: -0.5 }}>
+            <Text style={{ fontSize: 12, color: t.tokens.text.muted, marginTop: 2 }}>
+              all time
+            </Text>
+          </View>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: t.tokens.bg.surface,
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: t.tokens.border.subtle,
+              padding: spacing.lg,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: t.tokens.text.muted, letterSpacing: 0.5 }}>
+              LAST CLASS
+            </Text>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: '800',
+                color: t.tokens.text.primary,
+                letterSpacing: -0.6,
+                marginTop: 6,
+              }}
+              numberOfLines={1}
+            >
               {data?.last_checkin ? data.last_checkin.created_at.slice(5, 10) : '—'}
             </Text>
-            <Text style={{ ...t.type.caption, color: t.tokens.text.muted, marginTop: 4 }}>LAST CHECK-IN</Text>
-          </Card>
+            <Text style={{ fontSize: 12, color: t.tokens.text.muted, marginTop: 2 }} numberOfLines={1}>
+              {data?.last_checkin?.class_name || 'no recent class'}
+            </Text>
+          </View>
         </View>
 
+        {/* Membership status (only when actionable) */}
+        {ms && ms.state !== 'active' && (
+          <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.md }}>
+            <Pressable onPress={() => router.push('/(member)/payments' as any)}>
+              <View
+                style={{
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  backgroundColor:
+                    ms.state === 'late' ? t.tokens.bg.warningSoft :
+                    ms.state === 'expired' ? t.tokens.bg.dangerSoft :
+                    t.tokens.bg.surface,
+                  borderWidth: 1,
+                  borderColor: t.tokens.border.subtle,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                }}
+              >
+                <View
+                  style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor:
+                      ms.state === 'expired' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Icon
+                    name="card"
+                    size={18}
+                    color={ms.state === 'expired' ? '#ef4444' : '#f59e0b'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: t.tokens.text.primary }}>
+                    {msLabel}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: t.tokens.text.muted, marginTop: 2 }}>
+                    Tap to settle your balance
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={20} color={t.tokens.text.muted} />
+              </View>
+            </Pressable>
+          </View>
+        )}
+
         {/* Quick links */}
-        <Text style={{ ...t.type.caption, color: t.tokens.text.muted, marginTop: spacing.lg, marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-          Quick actions
-        </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-          {QUICK_LINKS.map((link) => (
-            <Card
-              key={link.label}
-              onPress={() => router.push(link.route as any)}
-              style={{ flexBasis: '47%', flexGrow: 1 }}
-            >
-              <Text style={{ fontSize: 28, marginBottom: 8 }}>{link.emoji}</Text>
-              <Text style={{ ...t.type.bodyMedium, color: t.tokens.text.primary, fontSize: 13 }}>
-                {link.label}
-              </Text>
-            </Card>
-          ))}
+        <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.xl }}>
+          <Text
+            style={{
+              ...t.type.overline,
+              color: t.tokens.text.muted,
+              marginBottom: spacing.md,
+            }}
+          >
+            QUICK ACTIONS
+          </Text>
+          <View
+            style={{
+              backgroundColor: t.tokens.bg.surface,
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: t.tokens.border.subtle,
+              overflow: 'hidden',
+            }}
+          >
+            {QUICK_LINKS.map((link, i) => (
+              <Pressable
+                key={link.label}
+                onPress={() => router.push(link.route as any)}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                  paddingVertical: 14,
+                  paddingHorizontal: spacing.lg,
+                  borderTopWidth: i === 0 ? 0 : 0.5,
+                  borderTopColor: t.tokens.border.subtle,
+                  backgroundColor: pressed ? t.tokens.bg.surfaceAlt : 'transparent',
+                })}
+              >
+                <View
+                  style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    backgroundColor: link.tone === 'accent' ? t.tokens.bg.accentSoft : t.tokens.bg.surfaceAlt,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Icon
+                    name={link.icon}
+                    size={18}
+                    color={link.tone === 'accent' ? t.tokens.brand.accent : t.tokens.text.secondary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: t.tokens.text.primary }}>
+                    {link.label}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: t.tokens.text.muted, marginTop: 1 }}>
+                    {link.sublabel}
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={18} color={t.tokens.text.disabled} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* Academy footer */}
+        <View style={{ alignItems: 'center', marginTop: spacing.xl }}>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: t.tokens.text.muted, letterSpacing: 0.4 }}>
+            {(data?.academy?.name || me.academy?.name || 'Your academy').toUpperCase()}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
