@@ -6,10 +6,29 @@
  * - Surfaces a typed { ok, data, error } result so callers don't have to try/catch
  */
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { tokenStorage } from './storage';
 
-const API_BASE: string =
-  (Constants.expoConfig?.extra as any)?.apiBaseUrl || 'http://localhost:8080';
+/** API base URL.
+ *
+ * On web, the PWA is served by the same Flask process that hosts the API
+ * (see app.py /app/* + /api/v1/*). Using a relative URL means we hit the
+ * same origin → no CORS, works in production behind any domain.
+ *
+ * On native iOS/Android, Expo dev defaults to localhost which won't work
+ * from a phone — so we read from app.json `extra.apiBaseUrl` and fall back
+ * to a local network IP. In production native builds this should be set
+ * via EAS environment variables.
+ */
+const fromConfig = (Constants.expoConfig?.extra as any)?.apiBaseUrl as string | undefined;
+
+const API_BASE: string = (() => {
+  if (Platform.OS === 'web') {
+    // Same origin — works on Railway, localhost, or any deploy.
+    return '';
+  }
+  return fromConfig || 'http://localhost:8080';
+})();
 
 type Result<T> =
   | { ok: true; data: T }

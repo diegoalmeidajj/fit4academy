@@ -1,0 +1,35 @@
+# Railway build config — installs Python + Node, builds the Expo PWA into
+# mobile/dist/, then starts gunicorn. Flask serves the PWA at /app/* from
+# that directory (see app.py PWA_DIR).
+#
+# Railway uses this file via Nixpacks (its default builder). To switch to a
+# different builder, set RAILWAY_BUILD_TYPE in the Variables tab.
+
+[phases.setup]
+nixPkgs = ["python311", "python311Packages.pip", "nodejs_20"]
+
+[phases.install]
+# Backend deps (pip) + mobile deps (npm). `npm ci` is faster and reproducible
+# vs `npm install` because it pins to package-lock.json exactly.
+cmds = [
+  "python3.11 -m venv --copies /opt/venv",
+  ". /opt/venv/bin/activate && pip install --upgrade pip",
+  ". /opt/venv/bin/activate && pip install -r requirements.txt",
+  "cd mobile && npm ci"
+]
+
+[phases.build]
+# Static export of the Expo web bundle. Output lands in mobile/dist/.
+cmds = [
+  "cd mobile && npx expo export -p web"
+]
+
+[start]
+# Activate the venv (so gunicorn finds Flask + friends) then launch the app.
+cmd = ". /opt/venv/bin/activate && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 60"
+
+[variables]
+# Speed up npm and silence telemetry noise in CI logs.
+NPM_CONFIG_FUND = "false"
+NPM_CONFIG_AUDIT = "false"
+EXPO_NO_TELEMETRY = "1"
