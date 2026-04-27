@@ -183,6 +183,16 @@ def inject_globals():
         except Exception:
             pass
 
+    # Unified inbox unread (SMS / FB / IG / WhatsApp / email / app chat).
+    # Will be the dominant counter once external channels are connected.
+    unread_inbox = 0
+    if session.get('logged_in'):
+        try:
+            import inbox_lib as _ilib
+            unread_inbox = _ilib.total_unread(academy_id)
+        except Exception:
+            pass
+
     # Leads waiting 24h+ without contact (only 'new' stage leads)
     urgent_leads_count = 0
     if session.get('logged_in'):
@@ -214,6 +224,7 @@ def inject_globals():
         user_role=session.get('role', 'user'),
         unread_notifications=unread_count,
         unread_chats=unread_chats,
+        unread_inbox=unread_inbox,
         urgent_leads=urgent_leads_count,
         stripe_enabled=billing.is_enabled(),
         stripe_pk=billing.get_publishable_key(),
@@ -3733,6 +3744,8 @@ def prospects_list():
         programs=_enrich_programs(models.get_programs(academy_id)),
         membership_plans=models.get_all_membership_plans(academy_id),
         products=models.get_all_products(academy_id),
+        share_academy_id=academy_id,
+        share_base_url=request.url_root.rstrip('/'),
     )
 
 
@@ -5517,6 +5530,151 @@ def landing_page():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  PUBLIC LEAD CAPTURE — landing + embed widget
+# ═══════════════════════════════════════════════════════════════
+
+@app.route('/lead/<int:academy_id>')
+def public_lead_landing(academy_id):
+    """Public lead-capture page. Academy shares this link or QR; submissions
+    POST to /api/v1/public/leads."""
+    try:
+        academy = models.get_academy_by_id(academy_id)
+    except Exception:
+        academy = None
+    if not academy:
+        return "Academy not found.", 404
+    academy = dict(academy) if not isinstance(academy, dict) else academy
+
+    headline = request.args.get('headline', '').strip()
+    cta = request.args.get('cta', '').strip() or 'Get Started'
+    source = request.args.get('source', 'landing')
+
+    return render_template(
+        'lead_landing.html',
+        academy=academy,
+        academy_id=academy_id,
+        headline=headline or f"Train with {academy.get('name', 'us')}",
+        cta=cta,
+        source=source,
+    )
+
+
+@app.route('/embed/lead/<int:academy_id>.js')
+def embed_lead_widget(academy_id):
+    """JS snippet the academy pastes on their existing site. Renders a floating
+    'Free Trial' button that opens a Fit4Academy lead form modal posting to
+    /api/v1/public/leads."""
+    try:
+        academy = models.get_academy_by_id(academy_id)
+    except Exception:
+        academy = None
+    if not academy:
+        return "console.error('Fit4Academy embed: academy not found');", 404, {'Content-Type': 'application/javascript'}
+    academy = dict(academy) if not isinstance(academy, dict) else academy
+
+    base = request.url_root.rstrip('/')
+    academy_name = (academy.get('name') or 'Fit4Academy').replace("'", "\\'")
+    accent = '#00DC82'
+
+    js = f"""(function(){{
+  if (window.__f4a_embed_loaded) return; window.__f4a_embed_loaded = true;
+  var ACADEMY_ID = {academy_id};
+  var ACADEMY = '{academy_name}';
+  var BASE = '{base}';
+  var ACCENT = '{accent}';
+
+  var css = ''
+    + '.f4a-btn{{position:fixed;right:20px;bottom:20px;z-index:2147483646;background:linear-gradient(135deg,'+ACCENT+',#059669);color:#fff;border:none;border-radius:999px;padding:14px 20px;font:600 14px/1 Inter,system-ui,sans-serif;cursor:pointer;box-shadow:0 8px 24px rgba(0,220,130,.35);}}'
+    + '.f4a-btn:hover{{transform:translateY(-1px);}}'
+    + '.f4a-modal{{position:fixed;inset:0;background:rgba(10,15,26,.7);z-index:2147483647;display:none;align-items:center;justify-content:center;padding:16px;}}'
+    + '.f4a-modal.open{{display:flex;}}'
+    + '.f4a-card{{background:#0a0f1a;color:#e2e8f0;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:24px;max-width:420px;width:100%;font-family:Inter,system-ui,sans-serif;}}'
+    + '.f4a-card h3{{margin:0 0 4px;font-size:20px;font-weight:800;color:#fff;}}'
+    + '.f4a-card p{{margin:0 0 16px;font-size:13px;color:#94a3b8;}}'
+    + '.f4a-card label{{display:block;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px;font-weight:600;}}'
+    + '.f4a-card input,.f4a-card select,.f4a-card textarea{{width:100%;padding:11px 13px;border-radius:10px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);color:#fff;font:14px Inter,system-ui,sans-serif;outline:none;box-sizing:border-box;}}'
+    + '.f4a-card input:focus,.f4a-card select:focus,.f4a-card textarea:focus{{border-color:'+ACCENT+';}}'
+    + '.f4a-submit{{width:100%;margin-top:16px;padding:13px;border:none;border-radius:11px;background:linear-gradient(135deg,'+ACCENT+',#059669);color:#fff;font:700 15px Inter,system-ui,sans-serif;cursor:pointer;}}'
+    + '.f4a-submit:disabled{{opacity:.6;cursor:not-allowed;}}'
+    + '.f4a-x{{float:right;background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;margin:-8px -8px 0 0;}}'
+    + '.f4a-ok{{text-align:center;padding:20px 8px;}}'
+    + '.f4a-ok b{{color:'+ACCENT+';font-size:18px;display:block;margin-bottom:6px;}}'
+    + '.f4a-hp{{position:absolute;left:-9999px;top:-9999px;}}';
+  var s = document.createElement('style'); s.textContent = css; document.head.appendChild(s);
+
+  var btn = document.createElement('button');
+  btn.className = 'f4a-btn';
+  btn.textContent = 'Free Trial';
+  document.body.appendChild(btn);
+
+  var modal = document.createElement('div');
+  modal.className = 'f4a-modal';
+  modal.innerHTML = ''
+    + '<div class="f4a-card">'
+    +   '<button class="f4a-x" type="button" aria-label="Close">&times;</button>'
+    +   '<h3>Train with ' + ACADEMY + '</h3>'
+    +   '<p>Tell us a bit about you and we will get in touch.</p>'
+    +   '<form id="f4a-form" novalidate>'
+    +     '<label>Full name *</label><input name="name" required>'
+    +     '<label>Email *</label><input name="email" type="email" required>'
+    +     '<label>Phone</label><input name="phone" type="tel">'
+    +     '<label>What are you interested in?</label>'
+    +     '<select name="interested_in">'
+    +       '<option value="">Select…</option>'
+    +       '<option value="bjj">Brazilian Jiu-Jitsu</option>'
+    +       '<option value="mma">MMA</option>'
+    +       '<option value="muay-thai">Muay Thai</option>'
+    +       '<option value="boxing">Boxing</option>'
+    +       '<option value="kids">Kids classes</option>'
+    +       '<option value="other">Other</option>'
+    +     '</select>'
+    +     '<input class="f4a-hp" name="website_url" tabindex="-1" autocomplete="off">'
+    +     '<button class="f4a-submit" id="f4a-submit" type="submit">Send</button>'
+    +   '</form>'
+    +   '<div id="f4a-ok" class="f4a-ok" style="display:none;"><b>Got it!</b>We will reach out shortly.</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+
+  function open(){{ modal.classList.add('open'); }}
+  function close(){{ modal.classList.remove('open'); }}
+  btn.addEventListener('click', open);
+  modal.addEventListener('click', function(e){{ if (e.target === modal) close(); }});
+  modal.querySelector('.f4a-x').addEventListener('click', close);
+
+  modal.querySelector('#f4a-form').addEventListener('submit', function(e){{
+    e.preventDefault();
+    var f = e.target; var btn = f.querySelector('#f4a-submit');
+    var data = {{}};
+    Array.prototype.forEach.call(f.elements, function(el){{ if (el.name) data[el.name] = el.value; }});
+    data.academy_id = ACADEMY_ID; data.source = 'embed';
+    btn.disabled = true; btn.textContent = 'Sending…';
+    fetch(BASE + '/api/v1/public/leads', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify(data),
+    }}).then(function(r){{ return r.json(); }}).then(function(j){{
+      if (j && j.success) {{
+        f.style.display = 'none';
+        modal.querySelector('#f4a-ok').style.display = '';
+      }} else {{
+        btn.disabled = false; btn.textContent = 'Send';
+        alert((j && j.error) || 'Could not send. Try again.');
+      }}
+    }}).catch(function(){{
+      btn.disabled = false; btn.textContent = 'Send';
+      alert('Network error. Try again.');
+    }});
+  }});
+}})();
+"""
+    return js, 200, {
+        'Content-Type': 'application/javascript',
+        'Cache-Control': 'public, max-age=300',
+        'Access-Control-Allow-Origin': '*',
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
 #  API ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
 
@@ -5568,6 +5726,447 @@ def api_checkin_today():
         } for c in (checkins or [])])
     except Exception:
         return jsonify([])
+
+
+# ═══════════════════════════════════════════════════════════════
+#  UNIFIED INBOX — multi-channel comms (SMS, Email, FB, IG, WhatsApp,
+#  in-app chat) all aggregated into one screen.
+# ═══════════════════════════════════════════════════════════════
+
+import inbox_lib  # noqa: E402
+
+
+@app.route('/inbox')
+@login_required
+def inbox_page():
+    academy_id = _get_academy_id()
+    kind = request.args.get('kind') or None
+    archived = request.args.get('archived') == '1'
+
+    # Mirror app-chat into the inbox so threads show alongside SMS/email/etc.
+    try:
+        inbox_lib.sync_app_chat_threads(academy_id)
+    except Exception as e:
+        print(f"[inbox] app_chat sync failed: {e}")
+
+    threads = inbox_lib.list_threads(academy_id, kind=kind, archived=archived, limit=300)
+    channels = inbox_lib.list_channels(academy_id)
+
+    counts = {k: 0 for k in inbox_lib.CHANNEL_KINDS}
+    counts['all'] = 0
+    for t in threads:
+        counts['all'] += 1
+        ck = t.get('channel_kind')
+        if ck in counts:
+            counts[ck] += 1
+
+    return render_template('inbox.html',
+                           threads=threads,
+                           channels=channels,
+                           counts=counts,
+                           current_kind=kind,
+                           archived_view=archived,
+                           channel_labels=inbox_lib.CHANNEL_LABELS,
+                           channel_icons=inbox_lib.CHANNEL_ICONS,
+                           channel_colors=inbox_lib.CHANNEL_COLORS)
+
+
+@app.route('/inbox/<int:thread_id>')
+@login_required
+def inbox_thread(thread_id):
+    academy_id = _get_academy_id()
+    th = inbox_lib.get_thread(thread_id)
+    if not th or th.get('academy_id') != academy_id:
+        flash('Thread not found.', 'error')
+        return redirect(url_for('inbox_page'))
+    msgs = inbox_lib.list_thread_messages(thread_id)
+    inbox_lib.mark_thread_read(thread_id)
+
+    # Members list for "Link to member" picker when thread is unmatched.
+    members = []
+    if not th.get('member_id'):
+        try:
+            members = models.get_all_members(academy_id)
+        except Exception:
+            pass
+
+    return render_template('inbox_thread.html',
+                           thread=th,
+                           messages=msgs,
+                           members=members,
+                           channel_labels=inbox_lib.CHANNEL_LABELS,
+                           channel_icons=inbox_lib.CHANNEL_ICONS,
+                           channel_colors=inbox_lib.CHANNEL_COLORS)
+
+
+@app.route('/inbox/<int:thread_id>/reply', methods=['POST'])
+@login_required
+def inbox_thread_reply(thread_id):
+    if not validate_csrf():
+        return redirect(url_for('inbox_thread', thread_id=thread_id))
+    academy_id = _get_academy_id()
+    th = inbox_lib.get_thread(thread_id)
+    if not th or th.get('academy_id') != academy_id:
+        return redirect(url_for('inbox_page'))
+    body = (request.form.get('body') or '').strip()
+    ai_drafted = request.form.get('ai_drafted') == '1'
+    if not body:
+        flash('Message cannot be empty.', 'error')
+        return redirect(url_for('inbox_thread', thread_id=thread_id))
+
+    sender_label = session.get('display_name', 'Coach')
+    delivered = False
+    delivery_error = None
+
+    kind = th.get('channel_kind')
+    handle = th.get('contact_handle') or ''
+
+    try:
+        if kind == 'sms':
+            ok, err = notifications_lib.send_sms(handle, body)
+            delivered = bool(ok); delivery_error = err
+        elif kind == 'app_chat' and th.get('member_id'):
+            # Write into chat_messages so the PWA picks it up too.
+            models.create_chat_message(
+                academy_id=academy_id,
+                member_id=th['member_id'],
+                sender_type='staff',
+                sender_id=session.get('user_id'),
+                body=body,
+            )
+            delivered = True
+        elif kind == 'email':
+            # Outbound email via existing send_email helper.
+            ok = False
+            try:
+                ok = notifications_lib.send_email(handle, 'New message', body)
+            except Exception as e:
+                delivery_error = str(e)
+            delivered = bool(ok)
+        else:
+            # FB / IG / WhatsApp — needs adapter. Persist as draft + flag error
+            # so the coach knows it didn't actually go out.
+            delivery_error = f"Channel '{kind}' not yet connected. Message saved but not sent."
+    except Exception as e:
+        delivery_error = str(e)
+
+    inbox_lib.add_message(
+        thread_id=thread_id,
+        direction='out',
+        body=body,
+        sender_label=sender_label,
+        ai_drafted=ai_drafted,
+    )
+
+    if delivery_error:
+        flash(delivery_error, 'warning')
+    elif delivered:
+        flash('Reply sent.', 'success')
+    return redirect(url_for('inbox_thread', thread_id=thread_id))
+
+
+@app.route('/inbox/<int:thread_id>/archive', methods=['POST'])
+@login_required
+def inbox_thread_archive(thread_id):
+    if not validate_csrf():
+        return redirect(url_for('inbox_thread', thread_id=thread_id))
+    inbox_lib.archive_thread(thread_id, archived=request.form.get('unarchive') != '1')
+    return redirect(url_for('inbox_page'))
+
+
+@app.route('/inbox/<int:thread_id>/link-member', methods=['POST'])
+@login_required
+def inbox_thread_link_member(thread_id):
+    if not validate_csrf():
+        return redirect(url_for('inbox_thread', thread_id=thread_id))
+    member_id = request.form.get('member_id')
+    if member_id:
+        try:
+            inbox_lib.link_thread_to_member(thread_id, int(member_id))
+            flash('Thread linked to member.', 'success')
+        except Exception as e:
+            flash(f'Could not link: {e}', 'error')
+    return redirect(url_for('inbox_thread', thread_id=thread_id))
+
+
+@app.route('/api/inbox/<int:thread_id>/ai-suggest', methods=['POST'])
+@login_required
+def inbox_ai_suggest(thread_id):
+    """Have Marcos AI draft a reply for this thread."""
+    academy_id = _get_academy_id()
+    th = inbox_lib.get_thread(thread_id)
+    if not th or th.get('academy_id') != academy_id:
+        return jsonify({'error': 'thread_not_found'}), 404
+
+    msgs = inbox_lib.list_thread_messages(thread_id)
+    academy = models.get_academy_by_id(academy_id)
+    academy = dict(academy) if academy else {}
+
+    # Light data context — kept short to keep latency low.
+    try:
+        plans = models.get_all_membership_plans(academy_id) or []
+        pricing_text = ', '.join(
+            f"{p.get('name', '')}: ${p.get('price', 0):.0f}/{p.get('billing_cycle', 'mo')}"
+            for p in plans[:5]
+        ) or 'see /memberships'
+    except Exception:
+        pricing_text = 'see /memberships'
+
+    try:
+        progs = models.get_programs(academy_id) or []
+        programs_text = ', '.join(p.get('name', '') for p in progs[:8]) or 'BJJ'
+    except Exception:
+        programs_text = 'BJJ'
+
+    member_meta = {}
+    if th.get('member_id'):
+        try:
+            m = models.get_member_by_id(th['member_id'])
+            md = dict(m) if m else {}
+            member_meta = {
+                'member_belt': md.get('belt_name') or md.get('belt') or 'White',
+                'member_status': md.get('membership_status') or 'active',
+            }
+        except Exception:
+            pass
+
+    draft = marcos_ai.draft_inbox_reply(
+        thread_messages=msgs,
+        thread_meta={
+            'channel_kind': th.get('channel_kind'),
+            'contact_name': th.get('contact_name') or
+                            (f"{th.get('first_name', '')} {th.get('last_name', '')}").strip(),
+            'member_id': th.get('member_id'),
+            **member_meta,
+        },
+        academy_context={
+            'name': academy.get('name', 'Our academy'),
+            'programs_text': programs_text,
+            'pricing_text': pricing_text,
+            'schedule_text': 'see /schedule',
+        }
+    )
+    return jsonify({
+        'draft': draft,
+        'ai_enabled': bool(getattr(marcos_ai, 'AI_ENABLED', False)),
+    })
+
+
+# ─── Channel management ───────────────────────────────────────────
+
+@app.route('/inbox/channels')
+@login_required
+def inbox_channels_page():
+    academy_id = _get_academy_id()
+    channels = inbox_lib.list_channels(academy_id)
+
+    # What we know how to talk to (by env var presence).
+    integrations = {
+        'sms': bool(os.environ.get('TWILIO_ACCOUNT_SID') and os.environ.get('TWILIO_AUTH_TOKEN')),
+        'email': bool(os.environ.get('SMTP_HOST') and os.environ.get('SMTP_USER')),
+        'fb_messenger': bool(os.environ.get('META_PAGE_ACCESS_TOKEN')),
+        'ig_dm': bool(os.environ.get('META_PAGE_ACCESS_TOKEN')),
+        'whatsapp': bool(os.environ.get('META_WHATSAPP_TOKEN')),
+    }
+
+    # Webhook URLs the user copies into Meta/Twilio dashboards.
+    base_url = request.host_url.rstrip('/')
+    webhook_urls = {
+        'twilio_sms': f"{base_url}/webhooks/twilio/sms",
+        'meta_unified': f"{base_url}/webhooks/meta",
+    }
+
+    return render_template('inbox_channels.html',
+                           channels=channels,
+                           integrations=integrations,
+                           webhook_urls=webhook_urls,
+                           channel_labels=inbox_lib.CHANNEL_LABELS,
+                           channel_icons=inbox_lib.CHANNEL_ICONS,
+                           channel_colors=inbox_lib.CHANNEL_COLORS)
+
+
+@app.route('/inbox/channels/save', methods=['POST'])
+@login_required
+def inbox_channel_save():
+    if not validate_csrf():
+        return redirect(url_for('inbox_channels_page'))
+    academy_id = _get_academy_id()
+    kind = request.form.get('kind', '').strip()
+    name = request.form.get('name', '').strip()
+    config = {}
+    for k in ('access_token', 'page_id', 'phone_number_id', 'verify_token',
+              'imap_host', 'imap_user', 'imap_pass'):
+        v = request.form.get(k, '').strip()
+        if v:
+            config[k] = v
+    try:
+        inbox_lib.upsert_channel(academy_id, kind, name=name, config=config, active=True)
+        flash(f'{inbox_lib.CHANNEL_LABELS.get(kind, kind)} channel saved.', 'success')
+    except Exception as e:
+        flash(f'Could not save channel: {e}', 'error')
+    return redirect(url_for('inbox_channels_page'))
+
+
+@app.route('/inbox/channels/<int:channel_id>/delete', methods=['POST'])
+@login_required
+def inbox_channel_delete(channel_id):
+    if not validate_csrf():
+        return redirect(url_for('inbox_channels_page'))
+    inbox_lib.delete_channel(channel_id)
+    flash('Channel removed.', 'success')
+    return redirect(url_for('inbox_channels_page'))
+
+
+@app.route('/inbox/channels/sync-email', methods=['POST'])
+@login_required
+def inbox_channel_sync_email():
+    """On-demand IMAP fetch — pulls UNSEEN emails into the inbox. Cheap and
+    deterministic; no background scheduler so it survives restarts cleanly.
+    """
+    if not validate_csrf():
+        return redirect(url_for('inbox_channels_page'))
+    academy_id = _get_academy_id()
+    fetched, err = inbox_lib.sync_email_via_imap(academy_id)
+    if err:
+        flash(f'Email sync: {err}', 'warning')
+    else:
+        flash(f'Email sync: {fetched} new message{"s" if fetched != 1 else ""} fetched.', 'success')
+    return redirect(url_for('inbox_channels_page'))
+
+
+# ─── Webhooks (inbound from external channels) ────────────────────────
+
+@app.route('/webhooks/twilio/sms', methods=['POST', 'GET'])
+def webhook_twilio_sms():
+    """Twilio inbound SMS webhook. Configure this URL in your Twilio number's
+    Messaging webhook field. Twilio POSTs as application/x-www-form-urlencoded.
+    """
+    # Accept both POST (real) and GET (Twilio "test" pings)
+    from_number = request.values.get('From', '').strip()
+    body = request.values.get('Body', '').strip()
+    sid = request.values.get('MessageSid', '').strip()
+    to_number = request.values.get('To', '').strip()
+    if not from_number or not body:
+        # Reply with empty TwiML so Twilio doesn't retry.
+        return ('<?xml version="1.0" encoding="UTF-8"?><Response/>', 200,
+                {'Content-Type': 'application/xml'})
+
+    # Find the academy. For multi-tenant later we'd map the To-number to an
+    # academy; right now we default to academy_id=1.
+    academy_id = 1
+    try:
+        # If a Twilio channel is configured with an explicit academy in name,
+        # respect that. Otherwise default.
+        rows = models.get_db().execute(
+            "SELECT academy_id FROM inbox_channels WHERE kind = 'sms' LIMIT 1"
+        ).fetchone()
+        if rows:
+            academy_id = (rows['academy_id'] if isinstance(rows, dict) else rows[0]) or 1
+    except Exception:
+        pass
+
+    try:
+        tid = inbox_lib.upsert_thread(
+            academy_id=academy_id,
+            channel_kind='sms',
+            contact_handle=from_number,
+            contact_name=from_number,
+            external_thread_id=from_number,
+        )
+        inbox_lib.add_message(
+            thread_id=tid,
+            direction='in',
+            body=body,
+            external_id=sid,
+            sender_label=from_number,
+        )
+    except Exception as e:
+        print(f"[Twilio webhook] persistence error: {e}")
+
+    return ('<?xml version="1.0" encoding="UTF-8"?><Response/>', 200,
+            {'Content-Type': 'application/xml'})
+
+
+@app.route('/webhooks/meta', methods=['GET', 'POST'])
+def webhook_meta():
+    """Unified Meta webhook for Facebook Messenger, Instagram DM, and
+    WhatsApp Cloud API. The verify_token is configured per-page in
+    /inbox/channels.
+
+    GET = Meta verification handshake
+    POST = inbound message event
+    """
+    if request.method == 'GET':
+        # Verification handshake — Meta sends hub.mode, hub.verify_token, hub.challenge
+        mode = request.args.get('hub.mode', '')
+        token = request.args.get('hub.verify_token', '')
+        challenge = request.args.get('hub.challenge', '')
+        # Match against any configured channel's verify_token.
+        try:
+            chans = inbox_lib.list_channels(academy_id=1)  # multi-tenant later
+            for c in chans:
+                if c.get('config', {}).get('verify_token') == token and mode == 'subscribe':
+                    return challenge, 200
+        except Exception:
+            pass
+        return ('Verification failed', 403)
+
+    # POST: inbound event
+    payload = request.get_json(silent=True) or {}
+    print(f"[Meta webhook] payload (truncated): {json.dumps(payload)[:500]}")
+    try:
+        # Walk the standard Meta event shape: entry[].messaging[] OR entry[].changes[]
+        for entry in payload.get('entry', []) or []:
+            # Messenger / Instagram Direct
+            for ev in entry.get('messaging', []) or []:
+                msg = (ev.get('message') or {})
+                text = msg.get('text', '')
+                if not text:
+                    continue
+                sender_id = (ev.get('sender') or {}).get('id', '')
+                page_id = (ev.get('recipient') or {}).get('id', '')
+                external_id = msg.get('mid', '')
+                # Default kind to fb_messenger; can refine by inspecting page type
+                kind = 'fb_messenger'
+                tid = inbox_lib.upsert_thread(
+                    academy_id=1,
+                    channel_kind=kind,
+                    contact_handle=sender_id,
+                    external_thread_id=sender_id,
+                )
+                inbox_lib.add_message(
+                    thread_id=tid,
+                    direction='in',
+                    body=text,
+                    external_id=external_id,
+                    sender_label=sender_id,
+                )
+            # WhatsApp Cloud API
+            for change in entry.get('changes', []) or []:
+                value = change.get('value') or {}
+                for m in value.get('messages', []) or []:
+                    text = ((m.get('text') or {}).get('body') or '').strip()
+                    if not text:
+                        continue
+                    from_id = m.get('from', '')
+                    external_id = m.get('id', '')
+                    tid = inbox_lib.upsert_thread(
+                        academy_id=1,
+                        channel_kind='whatsapp',
+                        contact_handle=from_id,
+                        external_thread_id=from_id,
+                    )
+                    inbox_lib.add_message(
+                        thread_id=tid,
+                        direction='in',
+                        body=text,
+                        external_id=external_id,
+                        sender_label=from_id,
+                    )
+    except Exception as e:
+        print(f"[Meta webhook] parse error: {e}")
+
+    return jsonify({'received': True}), 200
 
 
 # ═══════════════════════════════════════════════════════════════

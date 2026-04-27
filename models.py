@@ -589,6 +589,54 @@ def init_db():
         "ALTER TABLE academies ADD COLUMN portal_welcome TEXT DEFAULT ''",
         "ALTER TABLE academies ADD COLUMN portal_price_display TEXT DEFAULT ''",
         "ALTER TABLE members ADD COLUMN portal_token TEXT DEFAULT ''",
+
+        # ─── Unified inbox (multi-channel comms) ───
+        # One row per connected channel — Twilio SMS account, Meta page, etc.
+        # `config_json` carries channel-specific tokens/IDs. We never read it
+        # except inside the channel adapter.
+        """CREATE TABLE IF NOT EXISTS inbox_channels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            kind TEXT NOT NULL,
+            name TEXT DEFAULT '',
+            config_json TEXT DEFAULT '{}',
+            active BOOLEAN DEFAULT TRUE,
+            last_synced_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        # One thread per (channel, contact). Threads roll up many messages
+        # and link back to a member if we matched the contact handle.
+        """CREATE TABLE IF NOT EXISTS inbox_threads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            channel_id INTEGER,
+            channel_kind TEXT NOT NULL,
+            external_thread_id TEXT DEFAULT '',
+            contact_name TEXT DEFAULT '',
+            contact_handle TEXT DEFAULT '',
+            member_id INTEGER,
+            last_message_at TIMESTAMP,
+            last_message_preview TEXT DEFAULT '',
+            unread_count INTEGER DEFAULT 0,
+            archived BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        # Direction: 'in' = inbound (member sent us), 'out' = outbound (we sent).
+        # `external_id` lets us de-duplicate webhook re-deliveries.
+        """CREATE TABLE IF NOT EXISTS inbox_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            thread_id INTEGER NOT NULL,
+            direction TEXT NOT NULL,
+            body TEXT DEFAULT '',
+            attachment_url TEXT DEFAULT '',
+            external_id TEXT DEFAULT '',
+            sender_label TEXT DEFAULT '',
+            ai_drafted BOOLEAN DEFAULT FALSE,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            read_at TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_inbox_threads_academy ON inbox_threads(academy_id, last_message_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_inbox_messages_thread ON inbox_messages(thread_id, sent_at)",
     ]:
         try:
             conn.execute(alter)
@@ -728,6 +776,17 @@ def get_user_by_id(user_id):
     row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     conn.close()
     return row
+
+
+def list_staff_users_for_academy(academy_id):
+    """All active staff/admin users in an academy. Used to fan-out notifications."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, name, email, phone, role FROM users WHERE academy_id = ? AND active = ?",
+        (academy_id, True)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def create_user(username, password, name='', email='', phone='', role='user', academy_id=1):

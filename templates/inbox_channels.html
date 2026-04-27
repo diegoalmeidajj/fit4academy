@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Channels{% endblock %}
+{% block content %}
+<style>
+.ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.ch-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.ch-card.connected { border-color: rgba(0,220,130,0.40); background: rgba(0,220,130,0.04); }
+.ch-card.deps-missing { opacity: 0.85; }
+.ch-head { display: flex; align-items: center; gap: 10px; }
+.ch-icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 18px;
+}
+.ch-name { font-family: 'Space Grotesk'; font-size: 15px; font-weight: 700; }
+.ch-tag { margin-left: auto; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; letter-spacing: 0.4px; }
+.ch-tag.connected { background: rgba(0,220,130,0.15); color: var(--primary); }
+.ch-tag.disabled { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.ch-tag.idle { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+.ch-desc { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+.ch-card form { display: flex; flex-direction: column; gap: 6px; }
+.ch-card input { padding: 7px 9px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-size: 12px; font-family: monospace; }
+.webhook-line {
+    background: #0a0f1a; border: 1px solid rgba(255,255,255,0.10);
+    padding: 7px 9px; border-radius: 6px;
+    font-family: monospace; font-size: 11px; color: var(--primary);
+    word-break: break-all;
+}
+.help {
+    background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.30);
+    border-radius: 10px; padding: 14px; margin-bottom: 18px;
+    font-size: 13px; line-height: 1.5;
+}
+.help h4 { color: #22d3ee; font-family: 'Space Grotesk'; margin-bottom: 6px; }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+    <div>
+        <h1 style="margin:0;font-family:'Space Grotesk';letter-spacing:-0.5px;">Channels</h1>
+        <div style="color:var(--text-muted);font-size:13px;margin-top:2px;">Hook external services into the unified inbox.</div>
+    </div>
+    <a href="/inbox" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to inbox</a>
+</div>
+
+<div class="help">
+    <h4><i class="bi bi-info-circle"></i> How this works</h4>
+    For each channel, you provide your tokens (we encrypt and store them) and copy the webhook URL we give you into your Twilio / Meta dashboard. Inbound messages start landing in the inbox immediately. Outbound replies go through the same channel.
+</div>
+
+<div class="ch-grid">
+
+    {# ─── In-app chat (always on) ─── #}
+    <div class="ch-card connected">
+        <div class="ch-head">
+            <div class="ch-icon" style="background: {{ channel_colors.app_chat }};"><i class="bi {{ channel_icons.app_chat }}"></i></div>
+            <div class="ch-name">{{ channel_labels.app_chat }}</div>
+            <div class="ch-tag connected">Built-in</div>
+        </div>
+        <div class="ch-desc">Members chat with the academy from the PWA. Messages auto-mirror into this inbox. No setup required.</div>
+    </div>
+
+    {# ─── SMS (Twilio) ─── #}
+    {% set sms_channel = (channels | selectattr('kind','equalto','sms') | list | first) %}
+    <div class="ch-card {% if sms_channel %}connected{% elif not integrations.sms %}deps-missing{% endif %}">
+        <div class="ch-head">
+            <div class="ch-icon" style="background: {{ channel_colors.sms }};"><i class="bi {{ channel_icons.sms }}"></i></div>
+            <div class="ch-name">SMS via Twilio</div>
+            <div class="ch-tag {% if sms_channel %}connected{% elif integrations.sms %}idle{% else %}disabled{% endif %}">
+                {% if sms_channel %}Connected{% elif integrations.sms %}Ready{% else %}Set Twilio env vars{% endif %}
+            </div>
+        </div>
+        <div class="ch-desc">
+            Inbound: members text your Twilio number, the message lands here. Outbound: replies go via your Twilio account.
+        </div>
+        <div>
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:0.4px;margin-bottom:4px;">WEBHOOK URL (paste in Twilio)</div>
+            <div class="webhook-line">{{ webhook_urls.twilio_sms }}</div>
+        </div>
+        <form method="POST" action="/inbox/channels/save">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind" value="sms">
+            <input type="text" name="name" placeholder="Account name (optional)" value="{{ sms_channel.name if sms_channel else '' }}">
+            <button class="btn btn-outline-primary btn-sm">
+                {% if sms_channel %}<i class="bi bi-check2-circle"></i> Update{% else %}<i class="bi bi-plug"></i> Activate{% endif %}
+            </button>
+        </form>
+        {% if not integrations.sms %}
+        <div style="font-size:11px;color:#f59e0b;">⚠️ Set <code>TWILIO_ACCOUNT_SID</code> and <code>TWILIO_AUTH_TOKEN</code> on Railway first.</div>
+        {% endif %}
+    </div>
+
+    {# ─── Email ─── #}
+    {% set email_channel = (channels | selectattr('kind','equalto','email') | list | first) %}
+    <div class="ch-card {% if email_channel %}connected{% elif not integrations.email %}deps-missing{% endif %}">
+        <div class="ch-head">
+            <div class="ch-icon" style="background: {{ channel_colors.email }};"><i class="bi {{ channel_icons.email }}"></i></div>
+            <div class="ch-name">Email</div>
+            <div class="ch-tag {% if email_channel %}connected{% elif integrations.email %}idle{% else %}disabled{% endif %}">
+                {% if email_channel %}Connected{% elif integrations.email %}Ready{% else %}Set SMTP env vars{% endif %}
+            </div>
+        </div>
+        <div class="ch-desc">
+            Outbound via your existing SMTP. Inbound via IMAP poll every 2 minutes (when enabled).
+        </div>
+        <form method="POST" action="/inbox/channels/save">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind" value="email">
+            <input type="text" name="imap_host" placeholder="IMAP host (e.g. imap.gmail.com)" value="{{ email_channel.config.imap_host if email_channel else '' }}">
+            <input type="text" name="imap_user" placeholder="IMAP user / email" value="{{ email_channel.config.imap_user if email_channel else '' }}">
+            <input type="password" name="imap_pass" placeholder="IMAP password / app password" value="{{ email_channel.config.imap_pass if email_channel else '' }}">
+            <button class="btn btn-outline-primary btn-sm">
+                {% if email_channel %}<i class="bi bi-check2-circle"></i> Update{% else %}<i class="bi bi-plug"></i> Connect{% endif %}
+            </button>
+        </form>
+        {% if email_channel %}
+        <form method="POST" action="/inbox/channels/sync-email" style="margin-top:6px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm" style="background:rgba(34,211,238,0.10);border:1px solid rgba(34,211,238,0.40);color:#22d3ee;width:100%;"><i class="bi bi-arrow-repeat"></i> Sync inbox now</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {# ─── Facebook Messenger ─── #}
+    {% set fb_channel = (channels | selectattr('kind','equalto','fb_messenger') | list | first) %}
+    <div class="ch-card {% if fb_channel %}connected{% endif %}">
+        <div class="ch-head">
+            <div class="ch-icon" style="background: {{ channel_colors.fb_messenger }};"><i class="bi {{ channel_icons.fb_messenger }}"></i></div>
+            <div class="ch-name">Facebook Messenger</div>
+            <div class="ch-tag {% if fb_channel %}connected{% else %}idle{% endif %}">{% if fb_channel %}Connected{% else %}Needs Meta App{% endif %}</div>
+        </div>
+        <div class="ch-desc">
+            Create a Meta Developer app, add Messenger product, subscribe your Page to webhooks. Paste credentials below.
+        </div>
+        <div>
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:0.4px;margin-bottom:4px;">WEBHOOK URL (paste in Meta)</div>
+            <div class="webhook-line">{{ webhook_urls.meta_unified }}</div>
+        </div>
+        <form method="POST" action="/inbox/channels/save">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind" value="fb_messenger">
+            <input type="text" name="name" placeholder="Page name" value="{{ fb_channel.name if fb_channel else '' }}">
+            <input type="text" name="page_id" placeholder="Page ID" value="{{ fb_channel.config.page_id if fb_channel else '' }}">
+            <input type="password" name="access_token" placeholder="Page access token" value="{{ fb_channel.config.access_token if fb_channel else '' }}">
+            <input type="text" name="verify_token" placeholder="Verify token (any string you choose)" value="{{ fb_channel.config.verify_token if fb_channel else '' }}">
+            <button class="btn btn-outline-primary btn-sm"><i class="bi bi-plug"></i> Save</button>
+        </form>
+    </div>
+
+    {# ─── Instagram DM ─── #}
+    {% set ig_channel = (channels | selectattr('kind','equalto','ig_dm') | list | first) %}
+    <div class="ch-card {% if ig_channel %}connected{% endif %}">
+        <div class="ch-head">
+            <div class="ch-icon" style="background: {{ channel_colors.ig_dm }};"><i class="bi {{ channel_icons.ig_dm }}"></i></div>
+            <div class="ch-name">Instagram DM</div>
+            <div class="ch-tag {% if ig_channel %}connected{% else %}idle{% endif %}">{% if ig_channel %}Connected{% else %}Needs Meta App{% endif %}</div>
+        </div>
+        <div class="ch-desc">
+            Same Meta App as Messenger. Connect your IG Business account to a Facebook Page first, then add <code>instagram_manage_messages</code> permission.
+        </div>
+        <form method="POST" action="/inbox/channels/save">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind" value="ig_dm">
+            <input type="text" name="name" placeholder="Instagram handle" value="{{ ig_channel.name if ig_channel else '' }}">
+            <input type="text" name="page_id" placeholder="IG-linked Page ID" value="{{ ig_channel.config.page_id if ig_channel else '' }}">
+            <input type="password" name="access_token" placeholder="Page access token" value="{{ ig_channel.config.access_token if ig_channel else '' }}">
+            <input type="text" name="verify_token" placeholder="Verify token" value="{{ ig_channel.config.verify_token if ig_channel else '' }}">
+            <button class="btn btn-outline-primary btn-sm"><i class="bi bi-plug"></i> Save</button>
+        </form>
+    </div>
+
+    {# ─── WhatsApp Business ─── #}
+    {% set wa_channel = (channels | selectattr('kind','equalto','whatsapp') | list | first) %}
+    <div class="ch-card {% if wa_channel %}connected{% endif %}">
+        <div class="ch-head">
+            <div class="ch-icon" style="background: {{ channel_colors.whatsapp }};"><i class="bi {{ channel_icons.whatsapp }}"></i></div>
+            <div class="ch-name">WhatsApp Business</div>
+            <div class="ch-tag {% if wa_channel %}connected{% else %}idle{% endif %}">{% if wa_channel %}Connected{% else %}Needs Meta Cloud API{% endif %}</div>
+        </div>
+        <div class="ch-desc">
+            Meta Cloud API. Verify a phone number on Meta side, then paste Phone Number ID + Permanent token.
+        </div>
+        <form method="POST" action="/inbox/channels/save">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind" value="whatsapp">
+            <input type="text" name="name" placeholder="Display name" value="{{ wa_channel.name if wa_channel else '' }}">
+            <input type="text" name="phone_number_id" placeholder="Phone Number ID" value="{{ wa_channel.config.phone_number_id if wa_channel else '' }}">
+            <input type="password" name="access_token" placeholder="Permanent token" value="{{ wa_channel.config.access_token if wa_channel else '' }}">
+            <input type="text" name="verify_token" placeholder="Verify token" value="{{ wa_channel.config.verify_token if wa_channel else '' }}">
+            <button class="btn btn-outline-primary btn-sm"><i class="bi bi-plug"></i> Save</button>
+        </form>
+    </div>
+
+</div>
+
+{% if channels %}
+<div style="margin-top:24px;">
+    <h4 style="font-family:'Space Grotesk';font-size:13px;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;">Connected channels</h4>
+    <table style="width:100%;margin-top:8px;border-collapse:collapse;font-size:13px;">
+        <tr style="background:var(--card-bg);">
+            <th style="text-align:left;padding:8px 10px;border-radius:8px 0 0 0;">Kind</th>
+            <th style="text-align:left;padding:8px 10px;">Name</th>
+            <th style="text-align:left;padding:8px 10px;">Status</th>
+            <th style="text-align:right;padding:8px 10px;border-radius:0 8px 0 0;"></th>
+        </tr>
+        {% for c in channels %}
+        <tr style="border-top:1px solid var(--border);">
+            <td style="padding:8px 10px;"><i class="bi {{ channel_icons[c.kind] }}" style="color: {{ channel_colors[c.kind] }};"></i> {{ channel_labels[c.kind] }}</td>
+            <td style="padding:8px 10px;">{{ c.name or '—' }}</td>
+            <td style="padding:8px 10px;">
+                {% if c.active %}<span style="color:var(--primary);font-weight:600;">Active</span>{% else %}<span style="color:var(--text-muted);">Disabled</span>{% endif %}
+            </td>
+            <td style="padding:8px 10px;text-align:right;">
+                <form method="POST" action="/inbox/channels/{{ c.id }}/delete" style="display:inline;" onsubmit="return confirm('Remove this channel?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-secondary" title="Remove"><i class="bi bi-trash3"></i></button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+{% endblock %}

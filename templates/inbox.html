@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<style>
+.inbox-shell { display: grid; grid-template-columns: 220px 1fr; gap: 18px; }
+.inbox-side .ch-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+}
+.inbox-side .ch-link.active { background: var(--card-bg); border-color: var(--border); color: var(--text); font-weight: 600; }
+.inbox-side .ch-link i { width: 16px; }
+.inbox-side .ch-count {
+    margin-left: auto;
+    background: rgba(255,255,255,0.04);
+    padding: 1px 8px; border-radius: 999px;
+    font-size: 11px; color: var(--text-muted);
+}
+.inbox-side .ch-link.active .ch-count { background: rgba(0,220,130,0.15); color: var(--primary); }
+
+.inbox-list { display: flex; flex-direction: column; gap: 6px; }
+.thread-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-decoration: none; color: inherit;
+    transition: all .15s;
+}
+.thread-row:hover { transform: translateY(-1px); border-color: rgba(0,220,130,0.30); }
+.thread-row.unread { border-left: 3px solid #f59e0b; background: linear-gradient(90deg, rgba(245,158,11,0.04), var(--card-bg) 30%); }
+.thread-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #00B368);
+    display: flex; align-items: center; justify-content: center;
+    color: #0f172a; font-weight: 800; font-size: 14px;
+    font-family: 'Space Grotesk', sans-serif; flex-shrink: 0;
+    position: relative;
+}
+.thread-avatar.unmatched {
+    background: rgba(255,255,255,0.06);
+    color: var(--text-muted);
+}
+.thread-avatar .ch-dot {
+    position: absolute; bottom: -2px; right: -2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px;
+}
+.thread-body { flex: 1; min-width: 0; }
+.thread-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.thread-name .channel-tag {
+    font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px;
+    background: rgba(255,255,255,0.06); color: var(--text-muted);
+    letter-spacing: 0.3px;
+}
+.thread-preview { font-size: 12px; color: var(--text-muted); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-meta { text-align: right; flex-shrink: 0; min-width: 60px; }
+.thread-time { font-size: 10px; color: var(--text-muted); }
+.thread-unread-pill {
+    background: #f59e0b; color: #0f172a;
+    font-size: 11px; font-weight: 800;
+    border-radius: 999px; padding: 2px 7px;
+    display: inline-block; margin-top: 4px;
+}
+.empty-inbox {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-muted);
+}
+.empty-inbox i { font-size: 56px; opacity: 0.4; margin-bottom: 12px; }
+.empty-inbox h3 { color: var(--text); margin-bottom: 6px; }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+    <div>
+        <h1 style="margin:0;font-family:'Space Grotesk';letter-spacing:-0.5px;">Inbox</h1>
+        <div style="color:var(--text-muted);font-size:13px;margin-top:2px;">All conversations from every connected channel.</div>
+    </div>
+    <a href="/inbox/channels" class="btn btn-outline-primary"><i class="bi bi-plug"></i> Manage channels</a>
+</div>
+
+<div class="inbox-shell">
+    <aside class="inbox-side">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:1px;margin:6px 6px 8px;">CHANNELS</div>
+        <a href="/inbox{% if archived_view %}?archived=1{% endif %}" class="ch-link {% if not current_kind %}active{% endif %}">
+            <i class="bi bi-inbox"></i> All <span class="ch-count">{{ counts.all }}</span>
+        </a>
+        {% for kind, label in channel_labels.items() %}
+        <a href="/inbox?kind={{ kind }}{% if archived_view %}&archived=1{% endif %}" class="ch-link {% if current_kind == kind %}active{% endif %}" style="--c: {{ channel_colors[kind] }};">
+            <i class="bi {{ channel_icons[kind] }}" style="color: {{ channel_colors[kind] }};"></i>
+            {{ label }}
+            <span class="ch-count">{{ counts[kind] or 0 }}</span>
+        </a>
+        {% endfor %}
+
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:1px;margin:18px 6px 8px;">VIEWS</div>
+        <a href="/inbox{% if current_kind %}?kind={{ current_kind }}{% endif %}" class="ch-link {% if not archived_view %}active{% endif %}">
+            <i class="bi bi-stack"></i> Active
+        </a>
+        <a href="/inbox?archived=1{% if current_kind %}&kind={{ current_kind }}{% endif %}" class="ch-link {% if archived_view %}active{% endif %}">
+            <i class="bi bi-archive"></i> Archived
+        </a>
+    </aside>
+
+    <main>
+        {% if threads %}
+        <div class="inbox-list">
+            {% for t in threads %}
+            <a href="/inbox/{{ t.id }}" class="thread-row {% if t.unread_count and t.unread_count > 0 %}unread{% endif %}">
+                <div class="thread-avatar {% if not t.member_id %}unmatched{% endif %}">
+                    {% if t.member_id and t.first_name %}
+                        {{ (t.first_name[0] or '?')|upper }}{{ (t.last_name[0] or '')|upper }}
+                    {% else %}
+                        ?
+                    {% endif %}
+                    <div class="ch-dot" style="background: {{ channel_colors[t.channel_kind] }};">
+                        <i class="bi {{ channel_icons[t.channel_kind] }}" style="font-size:8px;color:#fff;"></i>
+                    </div>
+                </div>
+                <div class="thread-body">
+                    <div class="thread-name">
+                        {% if t.member_id %}
+                            {{ t.first_name }} {{ t.last_name }}
+                        {% elif t.contact_name %}
+                            {{ t.contact_name }}
+                        {% else %}
+                            <span style="color:var(--text-muted);">{{ t.contact_handle }}</span>
+                        {% endif %}
+                        <span class="channel-tag" style="color: {{ channel_colors[t.channel_kind] }};">{{ channel_labels[t.channel_kind] }}</span>
+                    </div>
+                    <div class="thread-preview">{{ t.last_message_preview or '(no preview)' }}</div>
+                </div>
+                <div class="thread-meta">
+                    <div class="thread-time">{{ t.last_message_at|default('', true) | string | truncate(16, True, '') }}</div>
+                    {% if t.unread_count and t.unread_count > 0 %}
+                    <div class="thread-unread-pill">{{ t.unread_count }}</div>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-inbox">
+            <i class="bi bi-inbox"></i>
+            <h3>{% if archived_view %}No archived threads{% else %}No conversations yet{% endif %}</h3>
+            <p>
+                {% if not archived_view %}
+                Connect a channel and inbound messages will land here.<br>
+                <a href="/inbox/channels" style="color:var(--primary);">Manage channels →</a>
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

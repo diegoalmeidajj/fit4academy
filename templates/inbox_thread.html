@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Conversation{% endblock %}
+{% block content %}
+<style>
+.thread-shell { display: grid; grid-template-columns: 1fr 280px; gap: 18px; height: calc(100vh - 140px); }
+.thread-main { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.thread-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+}
+.thread-head .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #00B368);
+    display: flex; align-items: center; justify-content: center;
+    color: #0f172a; font-weight: 800; font-family: 'Space Grotesk';
+}
+.thread-head h2 { margin: 0; font-family: 'Space Grotesk'; font-size: 16px; }
+.thread-head .sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.channel-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+}
+
+.msg-list { flex: 1; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.msg-bubble {
+    max-width: 70%; padding: 10px 14px; border-radius: 14px;
+    font-size: 14px; line-height: 1.4; word-wrap: break-word;
+}
+.msg-in { align-self: flex-start; background: rgba(255,255,255,0.05); }
+.msg-out { align-self: flex-end; background: var(--primary); color: #0f172a; }
+.msg-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; padding: 0 8px; }
+.msg-meta.right { text-align: right; }
+.ai-flag { display: inline-block; background: rgba(99,102,241,0.15); color: #818cf8; padding: 1px 6px; border-radius: 999px; font-weight: 700; font-size: 9px; margin-left: 4px; }
+
+.compose {
+    border-top: 1px solid var(--border); padding: 12px;
+    display: flex; gap: 8px; align-items: flex-end;
+}
+.compose textarea {
+    flex: 1; resize: none; min-height: 48px; max-height: 160px;
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border); color: var(--text);
+    font-family: inherit; font-size: 14px; line-height: 1.4;
+}
+.compose .ai-btn {
+    background: linear-gradient(135deg, rgba(99,102,241,0.20), rgba(168,85,247,0.18));
+    border: 1px solid rgba(99,102,241,0.40);
+    color: #c4b5fd; padding: 8px 12px; border-radius: 10px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.compose .ai-btn:hover { background: linear-gradient(135deg, rgba(99,102,241,0.30), rgba(168,85,247,0.25)); }
+.compose .ai-btn.loading { opacity: 0.6; cursor: wait; }
+.compose .send-btn { background: var(--primary); color: #0f172a; padding: 10px 18px; font-weight: 700; }
+
+.thread-side {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px;
+    padding: 16px;
+    overflow-y: auto;
+}
+.thread-side h4 { font-family: 'Space Grotesk'; font-size: 11px; color: var(--text-muted); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 8px; }
+.thread-side .field { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.thread-side .field:last-child { border-bottom: 0; }
+.thread-side .field .lbl { color: var(--text-muted); font-size: 11px; }
+.thread-side .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+
+.match-form {
+    margin-top: 14px; padding: 12px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.30);
+    border-radius: 10px;
+}
+.match-form select { width: 100%; padding: 7px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text); font-size: 12px; }
+.match-form button { margin-top: 8px; width: 100%; }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <a href="/inbox" style="color:var(--text-muted);font-size:13px;text-decoration:none;"><i class="bi bi-arrow-left"></i> Back to inbox</a>
+</div>
+
+<div class="thread-shell">
+    <div class="thread-main">
+        <div class="thread-head">
+            <div class="avatar">
+                {% if thread.member_id and thread.first_name %}
+                    {{ (thread.first_name[0] or '?')|upper }}{{ (thread.last_name[0] or '')|upper }}
+                {% else %}?{% endif %}
+            </div>
+            <div style="flex:1;">
+                <h2>
+                    {% if thread.member_id %}{{ thread.first_name }} {{ thread.last_name }}{% elif thread.contact_name %}{{ thread.contact_name }}{% else %}{{ thread.contact_handle }}{% endif %}
+                </h2>
+                <div class="sub">
+                    <span class="channel-pill" style="background: {{ channel_colors[thread.channel_kind] }}26; color: {{ channel_colors[thread.channel_kind] }};">
+                        <i class="bi {{ channel_icons[thread.channel_kind] }}"></i>{{ channel_labels[thread.channel_kind] }}
+                    </span>
+                    {% if thread.contact_handle %}<span style="color:var(--text-muted);font-family:monospace;margin-left:8px;">{{ thread.contact_handle }}</span>{% endif %}
+                </div>
+            </div>
+            <form method="POST" action="/inbox/{{ thread.id }}/archive" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if thread.archived %}
+                <input type="hidden" name="unarchive" value="1">
+                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i> Unarchive</button>
+                {% else %}
+                <button class="btn btn-sm btn-outline-secondary" title="Archive"><i class="bi bi-archive"></i></button>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="msg-list" id="msg-list">
+            {% for m in messages %}
+            <div class="msg-bubble {% if m.direction == 'in' %}msg-in{% else %}msg-out{% endif %}">{{ m.body }}</div>
+            <div class="msg-meta {% if m.direction == 'out' %}right{% endif %}">
+                {% if m.direction == 'out' %}{{ m.sender_label or 'You' }}{% if m.ai_drafted %}<span class="ai-flag">Marcos AI</span>{% endif %}{% else %}{{ m.sender_label or 'Them' }}{% endif %}
+                · {{ (m.sent_at or '')|string|truncate(16, True, '') }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="/inbox/{{ thread.id }}/reply" class="compose" id="reply-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="ai_drafted" id="ai_drafted_flag" value="0">
+            <button type="button" class="ai-btn" id="ai-suggest-btn" title="Have Marcos AI draft a reply"><i class="bi bi-stars"></i> Marcos</button>
+            <textarea name="body" id="reply-body" placeholder="Type your reply…" required></textarea>
+            <button type="submit" class="btn send-btn"><i class="bi bi-send"></i> Send</button>
+        </form>
+    </div>
+
+    <aside class="thread-side">
+        <h4>Contact</h4>
+        <div class="field"><span class="lbl">Channel</span><span style="color: {{ channel_colors[thread.channel_kind] }};">{{ channel_labels[thread.channel_kind] }}</span></div>
+        <div class="field"><span class="lbl">Handle</span><span style="font-family:monospace;font-size:11px;">{{ thread.contact_handle or '—' }}</span></div>
+        <div class="field"><span class="lbl">Started</span><span>{{ (thread.created_at or '')|string|truncate(10, True, '') }}</span></div>
+        {% if thread.member_id %}
+        <h4 style="margin-top:18px;">Linked member</h4>
+        <div class="field"><span class="lbl">Name</span><span><a href="/members/{{ thread.member_id }}" style="color:var(--primary);">{{ thread.first_name }} {{ thread.last_name }}</a></span></div>
+        {% if thread.member_email %}<div class="field"><span class="lbl">Email</span><span style="font-size:11px;">{{ thread.member_email }}</span></div>{% endif %}
+        {% if thread.member_phone %}<div class="field"><span class="lbl">Phone</span><span style="font-size:11px;">{{ thread.member_phone }}</span></div>{% endif %}
+        {% else %}
+        <div class="match-form">
+            <h4 style="color:#f59e0b;margin-bottom:6px;">Not linked</h4>
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Match this conversation to an existing member so future messages auto-link.</p>
+            <form method="POST" action="/inbox/{{ thread.id }}/link-member">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="member_id" required>
+                    <option value="">— pick a member —</option>
+                    {% for m in members %}
+                    <option value="{{ m.id }}">{{ m.first_name }} {{ m.last_name }}{% if m.email %} · {{ m.email }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-sm btn-outline-primary"><i class="bi bi-link-45deg"></i> Link</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="actions">
+            {% if thread.member_id %}<a href="/members/{{ thread.member_id }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-person"></i> Open member</a>{% endif %}
+        </div>
+    </aside>
+</div>
+
+<script>
+// Scroll to bottom on load
+const list = document.getElementById('msg-list');
+if (list) list.scrollTop = list.scrollHeight;
+
+// Marcos AI suggest button
+const aiBtn = document.getElementById('ai-suggest-btn');
+const replyBody = document.getElementById('reply-body');
+const aiDraftFlag = document.getElementById('ai_drafted_flag');
+aiBtn?.addEventListener('click', async () => {
+    aiBtn.classList.add('loading');
+    aiBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Drafting…';
+    try {
+        const res = await fetch('/api/inbox/{{ thread.id }}/ai-suggest', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        if (data.draft) {
+            replyBody.value = data.draft;
+            aiDraftFlag.value = '1';
+            replyBody.focus();
+            if (!data.ai_enabled) {
+                replyBody.placeholder = 'Marcos AI not configured (no ANTHROPIC_API_KEY) — fallback used.';
+            }
+        }
+    } catch (e) {
+        alert('Could not draft a reply.');
+    } finally {
+        aiBtn.classList.remove('loading');
+        aiBtn.innerHTML = '<i class="bi bi-stars"></i> Marcos';
+    }
+});
+
+// User typing manually clears the AI-drafted flag
+replyBody?.addEventListener('input', () => { aiDraftFlag.value = '0'; });
+</script>
+{% endblock %}

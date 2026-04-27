@@ -119,6 +119,109 @@ TOP REVENUE SOURCES:
         return _fallback_advice(data_context)
 
 
+INBOX_REPLY_SYSTEM_PROMPT = """You are Marcos, helping a martial arts academy
+owner reply to messages from prospects, members, and parents. Draft a single
+reply — no greetings, no sign-offs unless they fit the existing thread tone.
+
+Rules:
+- Match the language of the most recent inbound message (Portuguese, English,
+  Spanish — whatever they wrote).
+- Match the thread's tone: warm but professional, never salesy.
+- Keep replies under 3 sentences unless the question genuinely needs more.
+- If the question is about pricing, schedule, or trial — answer directly using
+  the academy data provided. If you don't know, say so and suggest a phone
+  call or visit.
+- Never invent specifics like prices, instructor names, or class times that
+  aren't in the data.
+- Never use exclamation marks unless the inbound message used them.
+- Do not include "Sincerely, Marcos" or any AI-disclosure footer.
+
+Your output is the reply text only. The owner will review it before sending.
+"""
+
+
+def draft_inbox_reply(thread_messages, thread_meta=None, academy_context=None):
+    """Draft a reply to a conversation in the unified inbox.
+
+    thread_messages: list of dicts with {direction: 'in'|'out', body, sender_label}
+                     ordered chronologically (oldest first).
+    thread_meta:     {channel_kind, contact_name, member_belt, member_status, ...}
+    academy_context: {name, programs, schedule_summary, pricing_summary, ...}
+
+    Returns a draft reply string. Falls back to a polite generic ask when AI is
+    not configured.
+    """
+    if not AI_ENABLED:
+        return _fallback_inbox_reply(thread_messages)
+
+    try:
+        client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+
+        # Build a conversation summary for the prompt.
+        history_lines = []
+        for m in thread_messages[-15:]:  # last 15 turns is plenty
+            role = 'PROSPECT' if m.get('direction') == 'in' else 'COACH (us)'
+            label = m.get('sender_label', '')
+            body = (m.get('body') or '').strip()
+            if body:
+                history_lines.append(f"[{role}{' / ' + label if label else ''}] {body}")
+
+        meta = thread_meta or {}
+        ac = academy_context or {}
+
+        prompt = f"""You're drafting the next reply for the academy "{ac.get('name', 'our academy')}".
+
+CHANNEL: {meta.get('channel_kind', 'unknown')}
+CONTACT NAME: {meta.get('contact_name', 'unknown')}
+LINKED MEMBER: {('yes — ' + str(meta.get('member_belt', '?')) + ' belt, status ' + str(meta.get('member_status', '?'))) if meta.get('member_id') else 'no (this is a prospect or unmatched contact)'}
+
+ACADEMY CONTEXT:
+- Programs offered: {ac.get('programs_text', 'BJJ, Muay Thai, Kids')}
+- Schedule highlights: {ac.get('schedule_text', 'see /schedule')}
+- Pricing notes: {ac.get('pricing_text', 'see /memberships')}
+
+CONVERSATION SO FAR (oldest to newest):
+{chr(10).join(history_lines) if history_lines else '(no prior messages)'}
+
+Write the next reply for the COACH. Output the reply text only — no quotes,
+no labels, no preamble."""
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            system=INBOX_REPLY_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text.strip()
+    except Exception as e:
+        print(f"[Marcos AI] Inbox reply error: {e}")
+        return _fallback_inbox_reply(thread_messages)
+
+
+def _fallback_inbox_reply(thread_messages):
+    """Plain rule-based suggestion when AI isn't configured."""
+    last_in = next(
+        (m for m in reversed(thread_messages) if m.get('direction') == 'in'),
+        None
+    )
+    if not last_in:
+        return "Hi! Thanks for reaching out — how can I help?"
+    body = (last_in.get('body') or '').lower()
+    if any(k in body for k in ('price', 'preço', 'cost', 'how much', 'quanto', 'mensalidade')):
+        return ("Thanks for asking! Pricing depends on the program you choose. "
+                "Want to come by for a free trial class? I can show you everything in person.")
+    if any(k in body for k in ('trial', 'aula experimental', 'first class', 'visit')):
+        return ("Of course — you're welcome anytime. We have classes most evenings; "
+                "what time works best for you?")
+    if any(k in body for k in ('schedule', 'horário', 'time', 'when', 'quando')):
+        return ("Our full schedule is on the website. What program are you most "
+                "interested in? I can recommend a starting class.")
+    if any(k in body for k in ('cancel', 'cancelar', 'unsubscribe', 'pause')):
+        return ("Sorry to hear you're thinking about pausing. Can you tell me what's "
+                "going on? We might be able to find an option that works.")
+    return "Thanks for the message — I'll get back to you shortly."
+
+
 def _fallback_advice(data):
     """Rule-based advice when AI is not available."""
     tips = []
