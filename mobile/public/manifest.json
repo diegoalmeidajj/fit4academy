@@ -1,0 +1,20 @@
+{
+  "name": "Fit4Academy",
+  "short_name": "Fit4Academy",
+  "description": "Run your martial arts academy. Or use yours.",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#00DC82",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/app/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

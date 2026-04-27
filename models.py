@@ -499,6 +499,60 @@ def init_db():
         "ALTER TABLE event_registrations ADD COLUMN waiver_signed_at TIMESTAMP",
         "ALTER TABLE payments ADD COLUMN platform_fee REAL DEFAULT 0",
         "ALTER TABLE payments ADD COLUMN stripe_charge_id TEXT DEFAULT ''",
+        """CREATE TABLE IF NOT EXISTS password_resets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            used BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS member_credentials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id INTEGER NOT NULL UNIQUE,
+            email TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            biometric_enabled BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS device_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_type TEXT NOT NULL,
+            owner_id INTEGER NOT NULL,
+            expo_token TEXT NOT NULL UNIQUE,
+            platform TEXT DEFAULT '',
+            last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        "ALTER TABLE academies ADD COLUMN lat REAL DEFAULT 0",
+        "ALTER TABLE academies ADD COLUMN lng REAL DEFAULT 0",
+        "ALTER TABLE academies ADD COLUMN geofence_radius INTEGER DEFAULT 100",
+        """CREATE TABLE IF NOT EXISTS belt_promotion_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id INTEGER NOT NULL,
+            academy_id INTEGER DEFAULT 1,
+            current_belt TEXT DEFAULT '',
+            current_stripes INTEGER DEFAULT 0,
+            requested_belt TEXT DEFAULT '',
+            requested_stripes INTEGER DEFAULT 0,
+            message TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            decided_by INTEGER,
+            decided_at TIMESTAMP,
+            decision_note TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            member_id INTEGER NOT NULL,
+            sender_type TEXT NOT NULL,
+            sender_id INTEGER,
+            body TEXT NOT NULL DEFAULT '',
+            read_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
         "ALTER TABLE programs ADD COLUMN has_belts BOOLEAN DEFAULT FALSE",
         "ALTER TABLE programs ADD COLUMN sport_type TEXT DEFAULT 'other'",
         """CREATE TABLE IF NOT EXISTS programs (
@@ -565,6 +619,16 @@ def init_db():
     # Try to update photo (may fail if column doesn't exist yet)
     try:
         conn.execute("UPDATE users SET photo_url = '/static/logo-seeds13-sm.png' WHERE username = 'seeds13'")
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+    # Backfill trial_start for legacy users
+    try:
+        conn.execute("UPDATE users SET trial_start = CURRENT_TIMESTAMP WHERE trial_start IS NULL")
         conn.commit()
     except Exception:
         try:
@@ -670,7 +734,7 @@ def create_user(username, password, name='', email='', phone='', role='user', ac
     conn = get_db()
     try:
         cur = conn.execute(
-            "INSERT INTO users (username, password, name, email, phone, role, academy_id, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO users (username, password, name, email, phone, role, academy_id, active, trial_start) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
             (username, _hash_password(password), name, email, phone, role, academy_id, True)
         )
         conn.commit()
@@ -681,6 +745,458 @@ def create_user(username, password, name='', email='', phone='', role='user', ac
         print(f"[Users] Create error: {e}")
         conn.close()
         return None
+
+
+TRIAL_LENGTH_DAYS = 30
+
+
+def get_trial_days_remaining(user_id):
+    """Days remaining in user's trial. Returns 0 if expired or unknown."""
+    if not user_id:
+        return 0
+    from datetime import datetime, timedelta
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT trial_start FROM users WHERE id = ?", (user_id,)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return 0
+    row = dict(row) if hasattr(row, 'keys') else row
+    ts = row.get('trial_start') if isinstance(row, dict) else None
+    if not ts:
+        return TRIAL_LENGTH_DAYS  # legacy users without trial_start: treat as fresh
+    try:
+        if isinstance(ts, str):
+            start = datetime.strptime(ts[:19], '%Y-%m-%d %H:%M:%S')
+        else:
+            start = ts
+        elapsed = (datetime.utcnow() - start).total_seconds()
+        remaining = TRIAL_LENGTH_DAYS - int(elapsed // 86400)
+        return max(remaining, 0)
+    except Exception:
+        return 0
+
+
+# ═══════════════════════════════════════════════════════════════
+#  PASSWORD RESET
+# ═══════════════════════════════════════════════════════════════
+
+PASSWORD_RESET_TTL_HOURS = 1
+
+
+def get_user_by_email(email):
+    if not email:
+        return None
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND active = ?", (email, True)).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def create_password_reset(user_id):
+    """Create a one-time reset token. Returns the token string."""
+    import secrets
+    from datetime import datetime, timedelta
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.utcnow() + timedelta(hours=PASSWORD_RESET_TTL_HOURS)).strftime('%Y-%m-%d %H:%M:%S')
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO password_resets (user_id, token, expires_at, used) VALUES (?, ?, ?, ?)",
+            (user_id, token, expires_at, False)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return token
+
+
+def get_password_reset(token):
+    """Returns the reset record dict if token exists, unused, and not expired. Else None."""
+    if not token:
+        return None
+    from datetime import datetime
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM password_resets WHERE token = ?", (token,)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    rec = dict(row)
+    if rec.get('used'):
+        return None
+    exp = rec.get('expires_at')
+    try:
+        if isinstance(exp, str):
+            exp_dt = datetime.strptime(exp[:19], '%Y-%m-%d %H:%M:%S')
+        else:
+            exp_dt = exp
+        if exp_dt and datetime.utcnow() > exp_dt:
+            return None
+    except Exception:
+        return None
+    return rec
+
+
+def consume_password_reset(token, new_password):
+    """Validate token, set new password, mark token as used. Returns True on success."""
+    rec = get_password_reset(token)
+    if not rec:
+        return False
+    user_id = rec.get('user_id')
+    if not user_id:
+        return False
+    conn = get_db()
+    try:
+        conn.execute("UPDATE users SET password = ? WHERE id = ?", (_hash_password(new_password), user_id))
+        conn.execute("UPDATE password_resets SET used = ? WHERE token = ?", (True, token))
+        conn.commit()
+    finally:
+        conn.close()
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+#  MEMBER CREDENTIALS (mobile login)
+# ═══════════════════════════════════════════════════════════════
+
+def get_member_credential_by_email(email):
+    if not email:
+        return None
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM member_credentials WHERE LOWER(email) = LOWER(?)",
+            (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def get_member_credential_by_member_id(member_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM member_credentials WHERE member_id = ?",
+            (member_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def create_member_credential(member_id, email, password):
+    """Create a member credential. Returns the new id, or None on conflict."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO member_credentials (member_id, email, password) VALUES (?, ?, ?)",
+            (member_id, email, _hash_password(password))
+        )
+        conn.commit()
+        return cur.lastrowid
+    except Exception as e:
+        print(f"[MemberCredentials] Create error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
+    finally:
+        conn.close()
+
+
+def authenticate_member(email, password):
+    """Returns the member dict if credentials valid, else None."""
+    cred = get_member_credential_by_email(email)
+    if not cred:
+        return None
+    if not _check_password(password, cred['password']):
+        return None
+    member = get_member_by_id(cred['member_id'])
+    if not member:
+        return None
+    member = dict(member) if not isinstance(member, dict) else member
+    if not member.get('active', True) in (True, 1):
+        return None
+    # Best-effort touch last_login
+    try:
+        conn = get_db()
+        conn.execute("UPDATE member_credentials SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (cred['id'],))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+    return member
+
+
+def set_member_biometric_enabled(member_id, enabled):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE member_credentials SET biometric_enabled = ? WHERE member_id = ?",
+            (bool(enabled), member_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_member_credential_password(member_id, new_password):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE member_credentials SET password = ? WHERE member_id = ?",
+            (_hash_password(new_password), member_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  DEVICE TOKENS (push notifications)
+# ═══════════════════════════════════════════════════════════════
+
+def register_device_token(owner_type, owner_id, expo_token, platform=''):
+    """Insert or update a device token. Returns True on success."""
+    if owner_type not in ('member', 'staff'):
+        return False
+    if not expo_token:
+        return False
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM device_tokens WHERE expo_token = ?",
+            (expo_token,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE device_tokens SET owner_type = ?, owner_id = ?, platform = ?, last_seen = CURRENT_TIMESTAMP WHERE expo_token = ?",
+                (owner_type, owner_id, platform, expo_token)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO device_tokens (owner_type, owner_id, expo_token, platform) VALUES (?, ?, ?, ?)",
+                (owner_type, owner_id, expo_token, platform)
+            )
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"[DeviceTokens] Register error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False
+    finally:
+        conn.close()
+
+
+def list_device_tokens_for_owner(owner_type, owner_id):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT expo_token FROM device_tokens WHERE owner_type = ? AND owner_id = ?",
+            (owner_type, owner_id)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r)['expo_token'] for r in rows]
+
+
+def remove_device_token(expo_token):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM device_tokens WHERE expo_token = ?", (expo_token,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  BELT PROMOTION REQUESTS (member submits, staff approves)
+# ═══════════════════════════════════════════════════════════════
+
+def create_promotion_request(member_id, academy_id, **kwargs):
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """INSERT INTO belt_promotion_requests
+               (member_id, academy_id, current_belt, current_stripes,
+                requested_belt, requested_stripes, message, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (member_id, academy_id,
+             kwargs.get('current_belt', ''), kwargs.get('current_stripes', 0),
+             kwargs.get('requested_belt', ''), kwargs.get('requested_stripes', 0),
+             kwargs.get('message', ''), 'pending')
+        )
+        conn.commit()
+        return cur.lastrowid
+    except Exception as e:
+        print(f"[PromotionReq] Create error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
+    finally:
+        conn.close()
+
+
+def get_promotion_requests_by_member(member_id, limit=20):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM belt_promotion_requests WHERE member_id = ? ORDER BY created_at DESC LIMIT ?",
+            (member_id, limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_promotion_requests_for_academy(academy_id, status=None):
+    conn = get_db()
+    try:
+        if status:
+            rows = conn.execute(
+                """SELECT pr.*, m.first_name, m.last_name, m.email, m.photo_url
+                   FROM belt_promotion_requests pr
+                   JOIN members m ON pr.member_id = m.id
+                   WHERE pr.academy_id = ? AND pr.status = ?
+                   ORDER BY pr.created_at DESC""",
+                (academy_id, status)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT pr.*, m.first_name, m.last_name, m.email, m.photo_url
+                   FROM belt_promotion_requests pr
+                   JOIN members m ON pr.member_id = m.id
+                   WHERE pr.academy_id = ?
+                   ORDER BY pr.created_at DESC""",
+                (academy_id,)
+            ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_promotion_request_by_id(req_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM belt_promotion_requests WHERE id = ?",
+            (req_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def decide_promotion_request(req_id, decided_by_user_id, status, note=''):
+    """status: 'approved' or 'rejected'."""
+    if status not in ('approved', 'rejected'):
+        return False
+    conn = get_db()
+    try:
+        conn.execute(
+            """UPDATE belt_promotion_requests
+               SET status = ?, decided_by = ?, decided_at = CURRENT_TIMESTAMP, decision_note = ?
+               WHERE id = ?""",
+            (status, decided_by_user_id, note, req_id)
+        )
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"[PromotionReq] Decide error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False
+    finally:
+        conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  CHAT MESSAGES (1:1 between a member and the gym staff)
+# ═══════════════════════════════════════════════════════════════
+
+def create_chat_message(academy_id, member_id, sender_type, sender_id, body):
+    if sender_type not in ('member', 'staff'):
+        return None
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """INSERT INTO chat_messages (academy_id, member_id, sender_type, sender_id, body)
+               VALUES (?, ?, ?, ?, ?)""",
+            (academy_id, member_id, sender_type, sender_id, body)
+        )
+        conn.commit()
+        return cur.lastrowid
+    except Exception as e:
+        print(f"[Chat] Create error: {e}")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
+    finally:
+        conn.close()
+
+
+def get_chat_messages(member_id, limit=200):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM chat_messages WHERE member_id = ? ORDER BY created_at ASC LIMIT ?",
+            (member_id, limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def mark_chat_read(member_id, by_role):
+    """Mark all messages from the OTHER party as read.
+    by_role='member' marks staff-sent messages as read; by_role='staff' marks member-sent."""
+    other = 'staff' if by_role == 'member' else 'member'
+    conn = get_db()
+    try:
+        conn.execute(
+            """UPDATE chat_messages SET read_at = CURRENT_TIMESTAMP
+               WHERE member_id = ? AND sender_type = ? AND read_at IS NULL""",
+            (member_id, other)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_chat_threads_for_academy(academy_id, limit=50):
+    """Return last message per member-thread within academy."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT cm.*, m.first_name, m.last_name, m.photo_url
+               FROM chat_messages cm
+               JOIN members m ON cm.member_id = m.id
+               WHERE cm.academy_id = ? AND cm.id IN (
+                   SELECT MAX(id) FROM chat_messages WHERE academy_id = ? GROUP BY member_id
+               )
+               ORDER BY cm.created_at DESC
+               LIMIT ?""",
+            (academy_id, academy_id, limit)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
 
 
 def update_user(user_id, **kwargs):

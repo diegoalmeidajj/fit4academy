@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "Fit4Academy",
+    "slug": "fit4academy",
+    "version": "0.1.0",
+    "scheme": "fit4academy",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fit4academy.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Used to detect when you arrive at your academy so you can check in instantly.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Used to send a check-in reminder when you arrive at your academy. Location is only checked near the academy and never stored.",
+        "NSFaceIDUsageDescription": "Used to sign you into your academy account quickly and securely."
+      }
+    },
+    "android": {
+      "package": "com.fit4academy.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "POST_NOTIFICATIONS"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#00DC82"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png",
+      "name": "Fit4Academy",
+      "shortName": "Fit4Academy",
+      "themeColor": "#00DC82",
+      "backgroundColor": "#0f172a",
+      "display": "standalone",
+      "orientation": "portrait",
+      "lang": "en"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication",
+      [
+        "expo-location",
+        {
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8080",
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

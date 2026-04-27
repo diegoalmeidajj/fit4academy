@@ -39,3 +39,18 @@ Thumbs.db
 # Byte-compiled
 *.pyc
 *.pyo
+
+# Mobile (Expo)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/ios/
+mobile/android/
+
+# Generated brand artifacts (regenerate via scripts/build_playbook_pdf.py)
+BRAND_PLAYBOOK.html
+BRAND_PLAYBOOK.pdf
+
+# macOS duplicate file artifacts
+BRAND_PLAYBOOK.md.zip

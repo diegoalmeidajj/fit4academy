@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Chat with {{ member.first_name }}{% endblock %}
+
+{% block extra_css %}
+.chat-wrap { max-width: 760px; margin: 0 auto; }
+
+.chat-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 18px 18px 0 0; border-bottom: none;
+}
+.chat-avatar {
+  width: 48px; height: 48px; border-radius: 14px;
+  background: linear-gradient(135deg, #00DC82, #00B368);
+  color: #fff; font-family: 'Space Grotesk', sans-serif;
+  font-weight: 800; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.chat-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; margin: 0; color: var(--text); }
+.chat-sub { font-size: 12px; color: var(--text-muted); margin: 2px 0 0; }
+
+.chat-area {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0; padding: 20px; min-height: 50vh; max-height: 60vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.bubble {
+  max-width: 78%; padding: 10px 14px; border-radius: 16px;
+  font-size: 14px; line-height: 1.4; word-wrap: break-word;
+}
+.bubble.them { background: rgba(0,0,0,0.04); color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; }
+.bubble.me { background: linear-gradient(135deg, #00DC82, #00B368); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.bubble-time { font-size: 10px; opacity: 0.7; display: block; margin-top: 4px; text-align: right; }
+
+.chat-empty {
+  text-align: center; color: var(--text-muted); padding: 40px 20px;
+  font-style: italic; font-size: 14px;
+}
+
+.chat-form {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0 0 18px 18px; border-top: none;
+  padding: 16px 20px; display: flex; gap: 10px; align-items: flex-end;
+}
+.chat-form textarea {
+  flex: 1; padding: 12px 14px; border-radius: 12px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  color: var(--text); font-size: 14px; font-family: inherit;
+  resize: none; min-height: 44px; max-height: 120px;
+}
+.chat-form textarea:focus { border-color: #00DC82; outline: none; box-shadow: 0 0 0 3px rgba(0,220,130,0.1); }
+.chat-send {
+  background: linear-gradient(135deg, #00DC82, #00B368); color: #fff;
+  border: none; padding: 12px 20px; border-radius: 12px;
+  font-weight: 700; font-size: 14px; cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  box-shadow: 0 4px 12px rgba(0,220,130,0.25);
+}
+.chat-send:hover { transform: translateY(-1px); }
+{% endblock %}
+
+{% block content %}
+<div class="topbar" style="margin-bottom: 16px;">
+  <a href="/notifications" style="color: #00DC82; text-decoration: none; font-weight: 600; font-size: 14px;">
+    <i class="bi bi-arrow-left"></i> Back to inbox
+  </a>
+</div>
+
+<div class="chat-wrap">
+
+  <div class="chat-header">
+    <div class="chat-avatar">{{ ((member.first_name or 'F')[0] ~ (member.last_name or '4')[0])|upper }}</div>
+    <div style="flex:1;">
+      <h2 class="chat-name">{{ member.first_name }} {{ member.last_name }}</h2>
+      <p class="chat-sub">
+        {{ member.belt_name or member.belt or 'White' }}{% if member.stripes %} · {{ member.stripes }} stripe{% if member.stripes != 1 %}s{% endif %}{% endif %}
+        {% if member.email %} · {{ member.email }}{% endif %}
+      </p>
+    </div>
+    <a href="/members/{{ member.id }}" class="btn btn-secondary" style="font-size:12px; padding: 6px 12px;">
+      View profile
+    </a>
+  </div>
+
+  <div class="chat-area" id="chatArea">
+    {% if not messages %}
+      <div class="chat-empty">
+        <i class="bi bi-chat-dots" style="font-size:32px; display:block; margin-bottom:8px;"></i>
+        No messages yet. Start the conversation.
+      </div>
+    {% else %}
+      {% for m in messages %}
+        <div class="bubble {{ 'me' if m.sender_type == 'staff' else 'them' }}">
+          {{ m.body }}
+          <span class="bubble-time">{{ (m.created_at or '')[11:16] }}</span>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <form method="post" action="/staff-chat/{{ member.id }}/reply" class="chat-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="body" placeholder="Type your reply…" required maxlength="4000"
+              onkeydown="if(event.key==='Enter' && !event.shiftKey){this.form.submit();event.preventDefault();}"></textarea>
+    <button type="submit" class="chat-send"><i class="bi bi-send"></i> Send</button>
+  </form>
+
+</div>
+
+<script>
+// Scroll chat to bottom on load
+window.addEventListener('load', () => {
+  const area = document.getElementById('chatArea');
+  if (area) area.scrollTop = area.scrollHeight;
+});
+</script>
+{% endblock %}

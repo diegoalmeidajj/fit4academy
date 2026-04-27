@@ -11,6 +11,7 @@ import config
 import models
 import billing
 import marcos_ai
+import notifications_lib
 from i18n import get_text
 import os
 import json
@@ -34,6 +35,65 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Initialize database on startup
 models.init_db()
+
+# Mobile API (JSON, JWT-authenticated). Web admin keeps using session cookies.
+try:
+    from flask_cors import CORS
+    from api import api_v1
+    CORS(app, resources={r"/api/v1/*": {"origins": "*"}}, supports_credentials=False)
+    app.register_blueprint(api_v1)
+    print("[API] /api/v1 blueprint registered with CORS")
+except Exception as _api_err:
+    print(f"[API] Failed to register /api/v1: {_api_err}")
+
+
+# ═══════════════════════════════════════════════════════════════
+#  PWA HOST — serves the Expo web build (mobile/dist) at /app/*
+#  so members and staff can use the app at https://<domain>/app/
+#  without needing the App Store. Expo builds with `npx expo export -p web`.
+# ═══════════════════════════════════════════════════════════════
+
+PWA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mobile', 'dist')
+
+
+def _serve_pwa(subpath=''):
+    """Serve a static file from mobile/dist, or fall back to index.html for SPA routing."""
+    if not os.path.isdir(PWA_DIR):
+        return ("PWA build not found. Run `cd mobile && npx expo export -p web` "
+                "to produce `mobile/dist`."), 503
+    if subpath:
+        candidate = os.path.join(PWA_DIR, subpath)
+        if os.path.isfile(candidate):
+            return send_from_directory(PWA_DIR, subpath)
+    index_path = os.path.join(PWA_DIR, 'index.html')
+    if os.path.isfile(index_path):
+        return send_from_directory(PWA_DIR, 'index.html')
+    return "PWA index not found.", 503
+
+
+@app.route('/app')
+@app.route('/app/')
+@app.route('/app/<path:subpath>')
+def pwa_serve(subpath=''):
+    """Serve the PWA at /app/* (preferred entry point)."""
+    return _serve_pwa(subpath)
+
+
+# The Expo build hard-codes asset paths to root (e.g. /_expo/static/..., /assets/...).
+# Mirror those paths so the bundle loads regardless of how the user reaches the app.
+@app.route('/_expo/<path:subpath>')
+def pwa_expo_assets(subpath):
+    return _serve_pwa(os.path.join('_expo', subpath))
+
+
+@app.route('/assets/<path:subpath>')
+def pwa_other_assets(subpath):
+    return _serve_pwa(os.path.join('assets', subpath))
+
+
+@app.route('/manifest.json')
+def pwa_manifest():
+    return _serve_pwa('manifest.json')
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -91,8 +151,13 @@ def inject_globals():
     except Exception:
         pass
 
-    # Trial days remaining (placeholder — 30 day trial)
-    trial_days = 30
+    # Trial days remaining (computed from users.trial_start)
+    trial_days = 0
+    if session.get('logged_in'):
+        try:
+            trial_days = models.get_trial_days_remaining(session.get('user_id'))
+        except Exception:
+            trial_days = 0
 
     # Unread notification count
     unread_count = 0
@@ -270,6 +335,7 @@ def login():
         try:
             user = models.authenticate_user(username, password)
             if user:
+                session.permanent = True
                 session['logged_in'] = True
                 session['user_id'] = user['id']
                 session['username'] = user['username']
@@ -303,8 +369,11 @@ def register():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
 
-        if not all([academy_name, full_name, username, password]):
+        if not all([academy_name, full_name, username, email, password]):
             return render_template('register.html', error='All fields are required.')
+        import re
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            return render_template('register.html', error='Please enter a valid email address.')
         if len(password) < 8:
             return render_template('register.html', error='Password must be at least 8 characters.')
 
@@ -332,6 +401,7 @@ def register():
                 models.update_user(user_id, academy_id=academy_id)
 
             # Auto-login
+            session.permanent = True
             session['logged_in'] = True
             session['user_id'] = user_id
             session['username'] = username
@@ -353,6 +423,69 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        # Always show the same success message to avoid leaking whether an email is registered.
+        generic_msg = 'If that email is in our system, a reset link is on its way.'
+        if email:
+            try:
+                user = models.get_user_by_email(email)
+            except Exception as e:
+                print(f"[ForgotPassword] Lookup error: {e}")
+                user = None
+            if user:
+                try:
+                    token = models.create_password_reset(user['id'])
+                    base_url = request.host_url.rstrip('/')
+                    reset_url = f"{base_url}/reset-password/{token}"
+                    subject = 'Reset your Fit4Academy password'
+                    body = (
+                        f"Hi {user.get('name') or user.get('username') or 'there'},\n\n"
+                        f"We received a request to reset your password. Click the link below to set a new one:\n"
+                        f"{reset_url}\n\n"
+                        f"This link expires in {models.PASSWORD_RESET_TTL_HOURS} hour(s). "
+                        f"If you didn't ask for this, you can safely ignore this email.\n\n"
+                        f"— Fit4Academy"
+                    )
+                    notifications_lib.send_email(user.get('email', ''), subject, body)
+                except Exception as e:
+                    print(f"[ForgotPassword] Send error: {e}")
+        return render_template('forgot_password.html', message=generic_msg, error=None)
+    return render_template('forgot_password.html', message=None, error=None)
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    rec = None
+    try:
+        rec = models.get_password_reset(token)
+    except Exception as e:
+        print(f"[ResetPassword] Lookup error: {e}")
+    if not rec:
+        return render_template('reset_password.html', token=None, error='This reset link is invalid or has expired.')
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm', '')
+        if len(password) < 8:
+            return render_template('reset_password.html', token=token, error='Password must be at least 8 characters.')
+        if password != confirm:
+            return render_template('reset_password.html', token=token, error='Passwords do not match.')
+        try:
+            ok = models.consume_password_reset(token, password)
+        except Exception as e:
+            print(f"[ResetPassword] Consume error: {e}")
+            ok = False
+        if not ok:
+            return render_template('reset_password.html', token=None, error='This reset link is invalid or has expired.')
+        flash('Password updated. Please sign in with your new password.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', token=token, error=None)
 
 
 @app.route('/set-lang/<lang>')
@@ -2960,8 +3093,33 @@ def api_send_receipt(payment_id):
     base_url = request.host_url.rstrip('/')
     receipt_url = f"{base_url}/receipt/{payment_id}"
 
-    # TODO: Send actual email via SMTP/SendGrid/etc
-    # For now return the receipt URL
+    member_name = (payment.get('first_name', '') + ' ' + payment.get('last_name', '')).strip() or 'there'
+    academy_id = _get_academy_id()
+    academy = None
+    try:
+        academy = models.get_academy_by_id(academy_id)
+    except Exception:
+        pass
+    academy_name = (academy.get('name') if academy else None) or 'Fit4Academy'
+
+    amount = payment.get('amount', 0)
+    subject = f"Receipt from {academy_name}"
+    body = (
+        f"Hi {member_name},\n\n"
+        f"Thanks for your payment of ${amount:.2f}.\n"
+        f"View your receipt online: {receipt_url}\n\n"
+        f"— {academy_name}"
+    )
+    html_body = (
+        f"<p>Hi {member_name},</p>"
+        f"<p>Thanks for your payment of <strong>${amount:.2f}</strong>.</p>"
+        f"<p><a href=\"{receipt_url}\">View your receipt</a></p>"
+        f"<p>— {academy_name}</p>"
+    )
+
+    ok, err = notifications_lib.send_email(email, subject, body, html_body=html_body)
+    if not ok:
+        return jsonify({'success': False, 'error': err or 'Email send failed', 'receipt_url': receipt_url, 'email': email}), 502
     return jsonify({'success': True, 'receipt_url': receipt_url, 'email': email})
 
 
@@ -3234,13 +3392,14 @@ def api_finance_send_report():
     lines.append(f"Generated by {academy_name} on Fit4Academy")
     report_text = '\n'.join(lines)
 
-    # TODO: Send via email (SMTP/SendGrid integration)
-    # For now, return the report text
+    subject = f"{academy_name} — Finance Report ({month_name} {year})"
+    ok, err = notifications_lib.send_email(owner_email, subject, report_text)
     return jsonify({
-        'success': True,
+        'success': ok,
         'email': owner_email,
         'report': report_text,
-        'note': 'Email delivery coming with SendGrid integration.',
+        'sent': ok,
+        'error': err if not ok else None,
     })
 
 
@@ -3940,9 +4099,10 @@ def api_create_payment_link():
     link = f"{base_url}/pay/{token}"
 
     # Send SMS if requested
+    sms_sent = False
+    sms_error = None
     if send_sms and member.get('phone'):
         phone = member['phone']
-        member_name = f"{member.get('first_name', '')} {member.get('last_name', '')}"
         academy = None
         try:
             academy = models.get_academy_by_id(academy_id)
@@ -3950,8 +4110,7 @@ def api_create_payment_link():
             pass
         academy_name = academy.get('name', 'Fit4Academy') if academy else 'Fit4Academy'
         sms_text = f"Hi {member.get('first_name', '')}! {academy_name} sent you a payment request for ${amount:.2f}. Pay securely here: {link}"
-        # TODO: Integrate with Twilio or SMS provider
-        # For now, return the link for manual sending
+        sms_sent, sms_error = notifications_lib.send_sms(phone, sms_text)
 
     return jsonify({
         'success': True,
@@ -3959,6 +4118,8 @@ def api_create_payment_link():
         'token': token,
         'amount': amount,
         'total': amount + billing.PLATFORM_FEE,
+        'sms_sent': sms_sent,
+        'sms_error': sms_error,
     })
 
 
@@ -4985,6 +5146,21 @@ def notifications_page():
     academy_id = _get_academy_id()
     try:
         notifications = models.get_all_notifications(academy_id, limit=100)
+        # Enrich each notification with relevant context for inline actions
+        for n in (notifications or []):
+            ntype = n.get('notification_type', '')
+            n['_kind'] = ntype
+            if ntype == 'promotion_request' and n.get('member_id'):
+                # Find latest pending request for this member
+                try:
+                    reqs = models.get_promotion_requests_by_member(n['member_id'], limit=5) or []
+                    pending = next((r for r in reqs if r.get('status') == 'pending'), None)
+                    n['_promotion'] = pending
+                except Exception:
+                    n['_promotion'] = None
+            elif ntype == 'chat_message' and n.get('member_id'):
+                n['_chat_member_id'] = n['member_id']
+
         # Mark displayed notifications as read
         for n in (notifications or []):
             if not n.get('read'):
@@ -4995,7 +5171,166 @@ def notifications_page():
     except Exception:
         notifications = []
 
-    return render_template('notifications.html', notifications=notifications)
+    # Pending promotion requests highlight (for the top of the page)
+    try:
+        pending_promotions = models.get_promotion_requests_for_academy(academy_id, status='pending')
+    except Exception:
+        pending_promotions = []
+
+    # Chat threads: ONE row per member with last message + unread flag.
+    # Beats showing N notification rows for N messages.
+    try:
+        chat_threads = models.get_chat_threads_for_academy(academy_id, limit=50) or []
+    except Exception:
+        chat_threads = []
+
+    # Filter out any legacy 'chat_message' notification rows so the inbox doesn't
+    # double up. Older versions used to create one per chat message.
+    notifications = [n for n in (notifications or [])
+                     if (n.get('notification_type') or '') != 'chat_message']
+
+    return render_template(
+        'notifications.html',
+        notifications=notifications,
+        pending_promotions=pending_promotions,
+        chat_threads=chat_threads,
+        today_str=str(date.today()),
+    )
+
+
+@app.route('/promotion-requests/<int:req_id>/decide', methods=['POST'])
+@login_required
+def staff_decide_promotion(req_id):
+    """Approve or reject a member's promotion request from the admin web."""
+    if not validate_csrf():
+        return redirect(url_for('notifications_page'))
+    academy_id = _get_academy_id()
+    user_id = session.get('user_id')
+    decision = request.form.get('decision', '').strip()
+    note = request.form.get('note', '').strip()[:500]
+    if decision not in ('approved', 'rejected'):
+        flash('Invalid decision.', 'error')
+        return redirect(url_for('notifications_page'))
+
+    req = models.get_promotion_request_by_id(req_id)
+    if not req:
+        flash('Request not found.', 'error')
+        return redirect(url_for('notifications_page'))
+    if req.get('academy_id') != academy_id:
+        flash('Request belongs to another academy.', 'error')
+        return redirect(url_for('notifications_page'))
+    if req.get('status') != 'pending':
+        flash('Request was already decided.', 'warning')
+        return redirect(url_for('notifications_page'))
+
+    ok = models.decide_promotion_request(req_id, user_id, decision, note)
+    if not ok:
+        flash('Could not save decision.', 'error')
+        return redirect(url_for('notifications_page'))
+
+    # If approved, update the member's belt + stripes
+    if decision == 'approved':
+        try:
+            update = {}
+            if req.get('requested_belt'):
+                update['belt_name'] = req['requested_belt']
+            if req.get('requested_stripes') is not None:
+                update['stripes'] = req['requested_stripes']
+            if update:
+                models.update_member(req['member_id'], **update)
+        except Exception as e:
+            print(f"[Promotion] Update member error: {e}")
+
+    # Notify the member (push + add a notification entry for their app feed if we ever build one)
+    try:
+        title = 'Promotion approved!' if decision == 'approved' else 'Promotion request reviewed'
+        body = (
+            f"You're now {req.get('requested_belt') or 'promoted'}!"
+            if decision == 'approved'
+            else (note or "Talk to your coach on the mat.")
+        )
+        notifications_lib.send_push('member', req['member_id'], title, body,
+            data={'type': 'promotion_decision', 'status': decision})
+    except Exception:
+        pass
+
+    flash(
+        f"Promotion {'approved' if decision == 'approved' else 'rejected'}.",
+        'success' if decision == 'approved' else 'info',
+    )
+    return redirect(url_for('notifications_page'))
+
+
+@app.route('/staff-chat/<int:member_id>')
+@login_required
+def staff_chat_thread(member_id):
+    """Show full chat thread between staff and a single member."""
+    academy_id = _get_academy_id()
+    member = models.get_member_by_id(member_id)
+    if not member:
+        flash('Member not found.', 'error')
+        return redirect(url_for('notifications_page'))
+    member = dict(member) if not isinstance(member, dict) else member
+    if member.get('academy_id') != academy_id:
+        flash('Member is not in your academy.', 'error')
+        return redirect(url_for('notifications_page'))
+
+    try:
+        messages = models.get_chat_messages(member_id, limit=200)
+    except Exception:
+        messages = []
+
+    # Mark member-sent messages as read by staff
+    try:
+        models.mark_chat_read(member_id, 'staff')
+    except Exception:
+        pass
+
+    return render_template('staff_chat_thread.html', member=member, messages=messages)
+
+
+@app.route('/staff-chat/<int:member_id>/reply', methods=['POST'])
+@login_required
+def staff_chat_reply(member_id):
+    if not validate_csrf():
+        return redirect(url_for('staff_chat_thread', member_id=member_id))
+    academy_id = _get_academy_id()
+    user_id = session.get('user_id')
+
+    member = models.get_member_by_id(member_id)
+    if not member:
+        flash('Member not found.', 'error')
+        return redirect(url_for('notifications_page'))
+    member = dict(member) if not isinstance(member, dict) else member
+    if member.get('academy_id') != academy_id:
+        flash('Member is not in your academy.', 'error')
+        return redirect(url_for('notifications_page'))
+
+    body = request.form.get('body', '').strip()
+    if not body:
+        flash('Type a message first.', 'warning')
+        return redirect(url_for('staff_chat_thread', member_id=member_id))
+
+    new_id = models.create_chat_message(
+        academy_id=academy_id,
+        member_id=member_id,
+        sender_type='staff',
+        sender_id=user_id,
+        body=body[:4000],
+    )
+    if not new_id:
+        flash('Could not send message.', 'error')
+        return redirect(url_for('staff_chat_thread', member_id=member_id))
+
+    # Notify member
+    try:
+        preview = body[:80] + ('…' if len(body) > 80 else '')
+        notifications_lib.send_push('member', member_id, 'Message from your coach', preview,
+            data={'type': 'chat', 'message_id': new_id})
+    except Exception:
+        pass
+
+    return redirect(url_for('staff_chat_thread', member_id=member_id))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -5225,9 +5560,9 @@ def messaging_send():
 
     # Send SMS
     if channel in ('sms', 'both'):
-        twilio_sid = os.environ.get('TWILIO_SID', '')
-        twilio_token = os.environ.get('TWILIO_TOKEN', '')
-        twilio_from = os.environ.get('TWILIO_FROM', '')
+        twilio_sid = os.environ.get('TWILIO_ACCOUNT_SID') or os.environ.get('TWILIO_SID', '')
+        twilio_token = os.environ.get('TWILIO_AUTH_TOKEN') or os.environ.get('TWILIO_TOKEN', '')
+        twilio_from = os.environ.get('TWILIO_PHONE') or os.environ.get('TWILIO_FROM', '')
 
         if twilio_sid and twilio_token and twilio_from:
             try:

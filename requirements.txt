@@ -9,3 +9,7 @@ bcrypt
 stripe
 qrcode
 Pillow
+twilio
+anthropic
+pyjwt
+flask-cors
