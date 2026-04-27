@@ -82,6 +82,30 @@ def member_dashboard():
     # Total check-ins
     total_checkins = _safe(lambda: len(models.get_checkins_by_member(member_id, limit=9999)), default=0)
 
+    # Unread chat: staff messages to this member that haven't been marked read.
+    # Cheap to compute since chat_messages is small per-member.
+    def _count_unread_chat():
+        rows = models.get_chat_messages(member_id, limit=200) or []
+        return sum(1 for r in rows
+                   if (dict(r) if not isinstance(r, dict) else r).get('sender_type') == 'staff'
+                   and not (dict(r) if not isinstance(r, dict) else r).get('read_at'))
+    unread_chat_count = _safe(_count_unread_chat, default=0) or 0
+
+    last_unread_preview = None
+    if unread_chat_count:
+        try:
+            rows = models.get_chat_messages(member_id, limit=200) or []
+            for r in reversed(rows):
+                rd = dict(r) if not isinstance(r, dict) else r
+                if rd.get('sender_type') == 'staff' and not rd.get('read_at'):
+                    last_unread_preview = {
+                        'body': (rd.get('body') or '')[:140],
+                        'created_at': str(rd.get('created_at', ''))[:19],
+                    }
+                    break
+        except Exception:
+            pass
+
     return jsonify({
         'member': {
             'id': member.get('id'),
@@ -112,6 +136,8 @@ def member_dashboard():
             'method': last_checkin.get('method', ''),
         } if last_checkin else None,
         'total_checkins': total_checkins,
+        'unread_chat_count': unread_chat_count,
+        'last_unread_chat': last_unread_preview,
     })
 
 

@@ -168,6 +168,21 @@ def inject_globals():
         except Exception:
             pass
 
+    # Unread chat threads — counted separately so the navbar can highlight
+    # member-sent messages with their own colored badge. We surface chat as a
+    # distinct signal because it's a person waiting for a reply, not a system
+    # event.
+    unread_chats = 0
+    if session.get('logged_in'):
+        try:
+            threads = models.get_chat_threads_for_academy(academy_id, limit=200) or []
+            for th in threads:
+                tdct = th if isinstance(th, dict) else dict(th)
+                if tdct.get('sender_type') == 'member' and not tdct.get('read_at'):
+                    unread_chats += 1
+        except Exception:
+            pass
+
     # Leads waiting 24h+ without contact (only 'new' stage leads)
     urgent_leads_count = 0
     if session.get('logged_in'):
@@ -198,6 +213,7 @@ def inject_globals():
         user_name=session.get('display_name', ''),
         user_role=session.get('role', 'user'),
         unread_notifications=unread_count,
+        unread_chats=unread_chats,
         urgent_leads=urgent_leads_count,
         stripe_enabled=billing.is_enabled(),
         stripe_pk=billing.get_publishable_key(),
@@ -696,6 +712,24 @@ def dashboard():
     except Exception:
         pass
 
+    # Unread chat threads — show prominently on the dashboard so a coach
+    # who logs in sees pending member messages without clicking around.
+    unread_chats_list = []
+    try:
+        threads = models.get_chat_threads_for_academy(academy_id, limit=200) or []
+        for th in threads:
+            tdct = th if isinstance(th, dict) else dict(th)
+            if tdct.get('sender_type') == 'member' and not tdct.get('read_at'):
+                unread_chats_list.append({
+                    'member_id': tdct.get('member_id'),
+                    'first_name': tdct.get('first_name', ''),
+                    'last_name': tdct.get('last_name', ''),
+                    'preview': (tdct.get('body') or '')[:120],
+                    'created_at': str(tdct.get('created_at', ''))[:19],
+                })
+    except Exception:
+        pass
+
     return render_template('dashboard.html',
         greeting=greeting,
         stats=stats,
@@ -707,6 +741,7 @@ def dashboard():
         at_risk=at_risk,
         schedule_days=schedule_days,
         today_tasks=today_tasks,
+        unread_chats_list=unread_chats_list,
         total_revenue=total_revenue,
         total_expenses=total_expenses_dash,
         total_payroll=total_payroll_dash,

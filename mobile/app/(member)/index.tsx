@@ -39,6 +39,8 @@ type Dashboard = {
   };
   last_checkin: { id: number; created_at: string; class_name: string; method: string } | null;
   total_checkins: number;
+  unread_chat_count?: number;
+  last_unread_chat?: { body: string; created_at: string } | null;
 };
 
 function getGreeting(): string {
@@ -216,11 +218,79 @@ export default function MemberHome() {
             hitSlop={8}
           >
             <Icon name="bell" size={20} color={t.tokens.text.secondary} />
+            {!!data?.unread_chat_count && data.unread_chat_count > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: '#f59e0b',
+                  borderWidth: 2,
+                  borderColor: t.tokens.bg.canvas,
+                }}
+              />
+            )}
           </Pressable>
         </View>
 
         {/* Install / push opt-in prompt — only renders on web outside standalone PWA */}
         <InstallPrompt />
+
+        {/* Unread chat alert — shows when staff sent a message the member hasn't read.
+            Tapping sends them to chat where the read marker auto-fires. */}
+        {!!data?.unread_chat_count && data.unread_chat_count > 0 && (
+          <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.md }}>
+            <Pressable
+              onPress={() => router.push('/(member)/chat' as any)}
+              style={({ pressed }) => ({
+                borderRadius: radius.lg,
+                padding: spacing.lg,
+                backgroundColor: 'rgba(245,158,11,0.10)',
+                borderWidth: 1,
+                borderColor: 'rgba(245,158,11,0.45)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.md,
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <View
+                style={{
+                  width: 40, height: 40, borderRadius: 20,
+                  backgroundColor: '#f59e0b',
+                  alignItems: 'center', justifyContent: 'center',
+                  shadowColor: '#f59e0b',
+                  shadowOpacity: 0.4,
+                  shadowRadius: 12,
+                  shadowOffset: { width: 0, height: 4 },
+                  elevation: 4,
+                }}
+              >
+                <Icon name="message" size={20} color="#0f172a" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#f59e0b', letterSpacing: 0.3 }}>
+                  {data.unread_chat_count} NEW MESSAGE{data.unread_chat_count > 1 ? 'S' : ''}
+                </Text>
+                <Text
+                  numberOfLines={2}
+                  style={{
+                    fontSize: 14,
+                    color: t.tokens.text.primary,
+                    marginTop: 2,
+                    lineHeight: 19,
+                  }}
+                >
+                  {data.last_unread_chat?.body || 'Tap to open the chat'}
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={20} color="#f59e0b" />
+            </Pressable>
+          </View>
+        )}
 
         {/* Hero rank card */}
         <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.sm }}>
@@ -382,45 +452,71 @@ export default function MemberHome() {
               overflow: 'hidden',
             }}
           >
-            {QUICK_LINKS.map((link, i) => (
-              <Pressable
-                key={link.label}
-                onPress={() => router.push(link.route as any)}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.md,
-                  paddingVertical: 14,
-                  paddingHorizontal: spacing.lg,
-                  borderTopWidth: i === 0 ? 0 : 0.5,
-                  borderTopColor: t.tokens.border.subtle,
-                  backgroundColor: pressed ? t.tokens.bg.surfaceAlt : 'transparent',
-                })}
-              >
-                <View
-                  style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    backgroundColor: link.tone === 'accent' ? t.tokens.bg.accentSoft : t.tokens.bg.surfaceAlt,
-                    alignItems: 'center', justifyContent: 'center',
-                  }}
+            {QUICK_LINKS.map((link, i) => {
+              const unread = link.icon === 'message' ? (data?.unread_chat_count || 0) : 0;
+              return (
+                <Pressable
+                  key={link.label}
+                  onPress={() => router.push(link.route as any)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.md,
+                    paddingVertical: 14,
+                    paddingHorizontal: spacing.lg,
+                    borderTopWidth: i === 0 ? 0 : 0.5,
+                    borderTopColor: t.tokens.border.subtle,
+                    backgroundColor: pressed ? t.tokens.bg.surfaceAlt : 'transparent',
+                  })}
                 >
-                  <Icon
-                    name={link.icon}
-                    size={18}
-                    color={link.tone === 'accent' ? t.tokens.brand.accent : t.tokens.text.secondary}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: t.tokens.text.primary }}>
-                    {link.label}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: t.tokens.text.muted, marginTop: 1 }}>
-                    {link.sublabel}
-                  </Text>
-                </View>
-                <Icon name="chevron-right" size={18} color={t.tokens.text.disabled} />
-              </Pressable>
-            ))}
+                  <View
+                    style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      backgroundColor: link.tone === 'accent' ? t.tokens.bg.accentSoft : t.tokens.bg.surfaceAlt,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Icon
+                      name={link.icon}
+                      size={18}
+                      color={link.tone === 'accent' ? t.tokens.brand.accent : t.tokens.text.secondary}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: t.tokens.text.primary }}>
+                      {link.label}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: t.tokens.text.muted, marginTop: 1 }}>
+                      {link.sublabel}
+                    </Text>
+                  </View>
+                  {unread > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: '#f59e0b',
+                        minWidth: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        paddingHorizontal: 7,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 6,
+                        shadowColor: '#f59e0b',
+                        shadowOpacity: 0.5,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 2 },
+                        elevation: 3,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#0f172a' }}>
+                        {unread > 99 ? '99+' : unread}
+                      </Text>
+                    </View>
+                  )}
+                  <Icon name="chevron-right" size={18} color={t.tokens.text.disabled} />
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
