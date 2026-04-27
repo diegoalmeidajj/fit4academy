@@ -637,6 +637,18 @@ def init_db():
         )""",
         "CREATE INDEX IF NOT EXISTS idx_inbox_threads_academy ON inbox_threads(academy_id, last_message_at DESC)",
         "CREATE INDEX IF NOT EXISTS idx_inbox_messages_thread ON inbox_messages(thread_id, sent_at)",
+
+        # ─── Saved message templates for /messaging campaigns ───
+        """CREATE TABLE IF NOT EXISTS message_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            name TEXT NOT NULL,
+            channel TEXT DEFAULT 'both',
+            subject TEXT DEFAULT '',
+            body TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
     ]:
         try:
             conn.execute(alter)
@@ -2778,6 +2790,116 @@ def create_message(academy_id=1, **kwargs):
     new_id = cur.lastrowid
     conn.close()
     return new_id
+
+
+# ─── Message templates ──────────────────────────────────────────
+
+def get_message_templates(academy_id=1):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM message_templates WHERE academy_id = ? ORDER BY name",
+            (academy_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_message_template(template_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM message_templates WHERE id = ?",
+            (template_id,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_message_template(academy_id, name, channel='both', subject='', body=''):
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO message_templates (academy_id, name, channel, subject, body) VALUES (?,?,?,?,?)",
+            (academy_id, name, channel, subject, body)
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def update_message_template(template_id, **kwargs):
+    fields, vals = [], []
+    for k in ('name', 'channel', 'subject', 'body'):
+        if k in kwargs:
+            fields.append(f"{k} = ?")
+            vals.append(kwargs[k])
+    if not fields:
+        return False
+    fields.append("updated_at = CURRENT_TIMESTAMP")
+    vals.append(template_id)
+    conn = get_db()
+    try:
+        conn.execute(
+            f"UPDATE message_templates SET {', '.join(fields)} WHERE id = ?",
+            vals
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def delete_message_template(template_id):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM message_templates WHERE id = ?", (template_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ─── Token rendering for messaging ─────────────────────────────
+# Substitutes {{first_name}}, {{last_name}}, {{full_name}}, {{email}},
+# {{academy_name}}, {{belt}} in subject/body. Missing tokens render as empty
+# string so a poorly-tokenized message doesn't ship literal {{x}} to a member.
+
+def render_message_tokens(text, member=None, academy=None):
+    if not text:
+        return text
+    m = member or {}
+    a = academy or {}
+    if not isinstance(m, dict):
+        try:
+            m = dict(m)
+        except Exception:
+            m = {}
+    if not isinstance(a, dict):
+        try:
+            a = dict(a)
+        except Exception:
+            a = {}
+    first = (m.get('first_name') or '').strip()
+    last = (m.get('last_name') or '').strip()
+    full = (first + ' ' + last).strip()
+    repl = {
+        '{{first_name}}': first,
+        '{{last_name}}': last,
+        '{{full_name}}': full,
+        '{{name}}': first or full,
+        '{{email}}': (m.get('email') or '').strip(),
+        '{{phone}}': (m.get('phone') or '').strip(),
+        '{{belt}}': (m.get('belt_name') or m.get('belt') or '').strip(),
+        '{{academy_name}}': (a.get('name') or '').strip(),
+        '{{academy}}': (a.get('name') or '').strip(),
+    }
+    out = text
+    for k, v in repl.items():
+        out = out.replace(k, v)
+    return out
 
 
 def get_messaging_stats(academy_id=1):

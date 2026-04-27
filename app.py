@@ -5843,10 +5843,11 @@ def inbox_thread_reply(thread_id):
             except Exception as e:
                 delivery_error = str(e)
             delivered = bool(ok)
+        elif kind in ('fb_messenger', 'ig_dm', 'whatsapp'):
+            ok, err = inbox_lib.send_via_meta(academy_id, kind, handle, body)
+            delivered = bool(ok); delivery_error = err
         else:
-            # FB / IG / WhatsApp — needs adapter. Persist as draft + flag error
-            # so the coach knows it didn't actually go out.
-            delivery_error = f"Channel '{kind}' not yet connected. Message saved but not sent."
+            delivery_error = f"Channel '{kind}' not yet supported."
     except Exception as e:
         delivery_error = str(e)
 
@@ -6199,6 +6200,11 @@ def messaging_page():
     except Exception:
         stats = {}
 
+    try:
+        templates = models.get_message_templates(academy_id)
+    except Exception:
+        templates = []
+
     programs = _enrich_programs(models.get_programs(academy_id))
     return render_template('messaging.html',
                            members=members,
@@ -6206,7 +6212,63 @@ def messaging_page():
                            messages=messages,
                            belts=belts,
                            stats=stats,
-                           programs=programs)
+                           programs=programs,
+                           templates=templates)
+
+
+@app.route('/messaging/templates/save', methods=['POST'])
+@login_required
+def messaging_template_save():
+    if not validate_csrf():
+        return redirect(url_for('messaging_page'))
+    academy_id = _get_academy_id()
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        flash('Template name is required.', 'error')
+        return redirect(url_for('messaging_page'))
+    template_id = request.form.get('template_id')
+    payload = {
+        'name': name,
+        'channel': request.form.get('channel', 'both'),
+        'subject': request.form.get('subject', ''),
+        'body': request.form.get('body', ''),
+    }
+    try:
+        if template_id:
+            models.update_message_template(int(template_id), **payload)
+            flash(f'Template "{name}" updated.', 'success')
+        else:
+            models.create_message_template(academy_id, **payload)
+            flash(f'Template "{name}" saved.', 'success')
+    except Exception as e:
+        flash(f'Could not save template: {e}', 'error')
+    return redirect(url_for('messaging_page'))
+
+
+@app.route('/messaging/templates/<int:template_id>/delete', methods=['POST'])
+@login_required
+def messaging_template_delete(template_id):
+    if not validate_csrf():
+        return redirect(url_for('messaging_page'))
+    models.delete_message_template(template_id)
+    flash('Template deleted.', 'success')
+    return redirect(url_for('messaging_page'))
+
+
+@app.route('/api/messaging/templates/<int:template_id>')
+@login_required
+def messaging_template_api(template_id):
+    """JSON shape used by the compose form to reload a template."""
+    tpl = models.get_message_template(template_id)
+    if not tpl:
+        return jsonify({'error': 'not_found'}), 404
+    return jsonify({
+        'id': tpl.get('id'),
+        'name': tpl.get('name'),
+        'channel': tpl.get('channel'),
+        'subject': tpl.get('subject'),
+        'body': tpl.get('body'),
+    })
 
 
 @app.route('/messaging/send', methods=['POST'])
@@ -6237,6 +6299,13 @@ def messaging_send():
         flash(get_text(session.get('ui_lang', 'en'), 'msg_no_recipients'), 'warning')
         return redirect(url_for('messaging_page'))
 
+    # Academy context once — used by every recipient's token render.
+    try:
+        academy = models.get_academy_by_id(academy_id)
+        academy = dict(academy) if academy else {}
+    except Exception:
+        academy = {}
+
     email_sent = 0
     email_failed = 0
     sms_sent = 0
@@ -6263,11 +6332,13 @@ def messaging_send():
                 for member in recipients:
                     if member.get('email'):
                         try:
+                            personal_subject = models.render_message_tokens(subject, member, academy)
+                            personal_body = models.render_message_tokens(body, member, academy)
                             msg = MIMEMultipart()
                             msg['From'] = smtp_from
                             msg['To'] = member['email']
-                            msg['Subject'] = subject
-                            msg.attach(MIMEText(body, 'plain'))
+                            msg['Subject'] = personal_subject
+                            msg.attach(MIMEText(personal_body, 'plain'))
                             server.sendmail(smtp_from, member['email'], msg.as_string())
                             email_sent += 1
                         except Exception as e:
@@ -6292,10 +6363,12 @@ def messaging_send():
                 from twilio.rest import Client
                 client = Client(twilio_sid, twilio_token)
 
-                sms_body = f"{subject}\n\n{body}" if subject else body
                 for member in recipients:
                     if member.get('phone'):
                         try:
+                            personal_subject = models.render_message_tokens(subject, member, academy)
+                            personal_body = models.render_message_tokens(body, member, academy)
+                            sms_body = f"{personal_subject}\n\n{personal_body}" if personal_subject else personal_body
                             client.messages.create(
                                 body=sms_body,
                                 from_=twilio_from,

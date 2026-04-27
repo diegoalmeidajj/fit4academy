@@ -374,6 +374,83 @@ def delete_channel(channel_id):
 
 # ─── App-chat surfacing ────────────────────────────────────────────────
 
+def send_via_meta(academy_id, channel_kind, recipient_id, body):
+    """Send an outbound message via Meta Graph API.
+
+    Uses the channel record's stored access_token and (for WhatsApp) the
+    phone_number_id, or (for FB/IG) the page_id. Returns (ok: bool,
+    error: str | None).
+
+    Endpoints:
+    - Messenger / Instagram Direct: POST /<page_id>/messages
+    - WhatsApp Cloud API: POST /<phone_number_id>/messages
+    """
+    if channel_kind not in ('fb_messenger', 'ig_dm', 'whatsapp'):
+        return False, f"Unsupported channel: {channel_kind}"
+    if not recipient_id or not body:
+        return False, "Missing recipient or body"
+
+    chans = list_channels(academy_id)
+    chan = next((c for c in chans if c.get('kind') == channel_kind and c.get('active')), None)
+    if not chan:
+        return False, f"No {channel_kind} channel configured."
+    cfg = chan.get('config') or {}
+    token = cfg.get('access_token')
+    if not token:
+        return False, "Channel access token missing."
+
+    try:
+        import requests
+    except ImportError:
+        return False, "requests library not installed."
+
+    api_version = 'v19.0'
+
+    try:
+        if channel_kind == 'whatsapp':
+            phone_number_id = cfg.get('phone_number_id')
+            if not phone_number_id:
+                return False, "WhatsApp phone_number_id missing."
+            url = f'https://graph.facebook.com/{api_version}/{phone_number_id}/messages'
+            payload = {
+                'messaging_product': 'whatsapp',
+                'to': recipient_id,
+                'type': 'text',
+                'text': {'body': body},
+            }
+        else:
+            # Messenger and Instagram Direct share the page-scoped Send API.
+            page_id = cfg.get('page_id')
+            if not page_id:
+                return False, "Page ID missing."
+            url = f'https://graph.facebook.com/{api_version}/{page_id}/messages'
+            payload = {
+                'recipient': {'id': recipient_id},
+                'message': {'text': body},
+                'messaging_type': 'RESPONSE',
+            }
+            # IG vs FB is determined by which account the page is linked to —
+            # the API endpoint shape is identical.
+
+        r = requests.post(
+            url,
+            params={'access_token': token},
+            json=payload,
+            timeout=10,
+        )
+        if r.ok:
+            return True, None
+        try:
+            err = r.json().get('error', {}).get('message', r.text[:200])
+        except Exception:
+            err = r.text[:200]
+        return False, f'{r.status_code}: {err}'
+    except requests.exceptions.RequestException as e:
+        return False, f'Network error: {e}'
+    except Exception as e:
+        return False, f'Send error: {e}'
+
+
 def sync_email_via_imap(academy_id):
     """Pull recent UNSEEN emails from the configured IMAP channel into the
     inbox. Returns (fetched, error) where error is None on success.
