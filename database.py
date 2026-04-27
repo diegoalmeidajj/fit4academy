@@ -157,6 +157,13 @@ class PGCursor:
 
 def _convert_sql(sql):
     """Convert SQLite SQL to PostgreSQL."""
+    # Auto-increment integer primary key — SQLite uses AUTOINCREMENT, Postgres uses SERIAL.
+    # Without this, every CREATE TABLE run via execute() (the alter-loop in init_db)
+    # silently fails on Postgres, leaving tables like member_credentials, chat_messages,
+    # device_tokens, belt_promotion_requests etc. uncreated. executescript also does this
+    # replacement; we duplicate it here so single-statement execute() calls behave the same.
+    sql = sql.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+
     # Parameter placeholders
     sql = sql.replace('?', '%s')
 
