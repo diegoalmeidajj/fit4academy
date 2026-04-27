@@ -1,6 +1,9 @@
 node_modules/
 .expo/
-dist/
+# dist/ is intentionally NOT ignored right now — the Railway nixpacks build
+# isn't producing mobile/dist on deploy, so we ship the pre-exported bundle
+# from this repo. Re-enable this rule once the nixpacks build is fixed.
+# dist/
 web-build/
 *.log
 .env

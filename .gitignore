@@ -4,8 +4,8 @@ __pycache__/
 *$py.class
 *.so
 *.egg-info/
-dist/
-build/
+/dist/
+/build/
 *.egg
 
 # Virtual environment
@@ -43,7 +43,10 @@ Thumbs.db
 # Mobile (Expo)
 mobile/node_modules/
 mobile/.expo/
-mobile/dist/
+# mobile/dist/ is intentionally NOT ignored right now — we ship the
+# pre-exported bundle from this repo since Railway nixpacks isn't producing
+# it at deploy time. Re-enable once the build is fixed.
+# mobile/dist/
 mobile/web-build/
 mobile/ios/
 mobile/android/
