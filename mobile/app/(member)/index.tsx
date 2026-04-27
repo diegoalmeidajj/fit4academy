@@ -17,6 +17,7 @@ import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { Icon, IconName } from '@/components/Icon';
+import { InstallPrompt } from '@/components/InstallPrompt';
 
 type Dashboard = {
   member: {
@@ -217,6 +218,9 @@ export default function MemberHome() {
             <Icon name="bell" size={20} color={t.tokens.text.secondary} />
           </Pressable>
         </View>
+
+        {/* Install / push opt-in prompt — only renders on web outside standalone PWA */}
+        <InstallPrompt />
 
         {/* Hero rank card */}
         <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.sm }}>
