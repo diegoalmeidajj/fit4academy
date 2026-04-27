@@ -4123,47 +4123,116 @@ def api_create_payment_link():
     })
 
 
+def _ensure_payment_link_stripe_column(conn):
+    """Idempotently add stripe_payment_intent_id column to payment_links."""
+    try:
+        conn.execute("ALTER TABLE payment_links ADD COLUMN stripe_payment_intent_id TEXT")
+    except Exception:
+        pass
+
+
 @app.route('/pay/<token>')
 def public_payment_page(token):
-    """Public payment page — no login required. Secure via token."""
+    """Public payment page — no login required. Secure via token.
+
+    Card/bank details are collected by Stripe Elements and never reach our
+    server. We create a PaymentIntent here and pass its client_secret to the
+    template so Stripe.js can drive the confirmation flow.
+    """
     try:
         conn = models.get_db()
+        _ensure_payment_link_stripe_column(conn)
         link = conn.execute("SELECT * FROM payment_links WHERE token = ?", (token,)).fetchone()
-        conn.close()
         if not link:
+            conn.close()
             return "Payment link not found or expired.", 404
         link = dict(link)
-        if link.get('status') == 'paid':
-            return render_template('payment_link.html',
-                token=token, member_name='', amount=link['amount'],
-                platform_fee=link['platform_fee'], description=link['description'],
-                academy_name='Fit4Academy', paid=True)
-
-        member = models.get_member_by_id(link['member_id'])
-        member_name = f"{member.get('first_name', '')} {member.get('last_name', '')}" if member else 'Member'
 
         academy = None
         try:
-            academy = models.get_academy_by_id(link.get('academy_id', 1))
+            academy_row = models.get_academy_by_id(link.get('academy_id', 1))
+            if academy_row:
+                academy = dict(academy_row)
         except Exception:
             pass
-        academy_name = academy.get('name', 'Fit4Academy') if academy else 'Fit4Academy'
+        academy_name = (academy.get('name') or 'Fit4Academy') if academy else 'Fit4Academy'
+
+        if link.get('status') == 'paid':
+            conn.close()
+            return render_template('payment_link.html',
+                token=token, member_name='', amount=link['amount'],
+                platform_fee=link['platform_fee'], description=link['description'],
+                academy_name=academy_name, paid=True,
+                stripe_publishable_key='', client_secret='', stripe_enabled=False)
+
+        member_row = models.get_member_by_id(link['member_id'])
+        member = dict(member_row) if member_row else None
+        member_name = f"{member.get('first_name', '')} {member.get('last_name', '')}".strip() if member else 'Member'
+
+        if not billing.is_enabled():
+            conn.close()
+            return render_template('payment_link.html',
+                token=token, member_name=member_name,
+                amount=link['amount'], platform_fee=link['platform_fee'],
+                description=link['description'], academy_name=academy_name, paid=False,
+                stripe_publishable_key='', client_secret='', stripe_enabled=False)
+
+        # Reuse an existing PaymentIntent for this link if we already created one;
+        # otherwise create a fresh one. Stripe lets us confirm the same PI multiple
+        # times until it succeeds, so this is safe across reloads.
+        pi_id = link.get('stripe_payment_intent_id')
+        client_secret = ''
+        if pi_id:
+            existing = billing.retrieve_payment_intent(pi_id)
+            if existing and existing.status not in ('succeeded', 'canceled'):
+                client_secret = existing.client_secret
+        if not client_secret:
+            pi = billing.create_link_payment_intent(
+                amount=link['amount'],
+                description=link.get('description', 'Payment'),
+                metadata={
+                    'payment_link_token': token,
+                    'member_id': str(link['member_id']),
+                    'academy_id': str(link.get('academy_id', 1)),
+                },
+            )
+            if not pi:
+                conn.close()
+                return "Unable to initialize payment. Please contact your gym.", 500
+            client_secret = pi['client_secret']
+            conn.execute(
+                "UPDATE payment_links SET stripe_payment_intent_id = ? WHERE token = ?",
+                (pi['id'], token),
+            )
+            conn.commit()
+        conn.close()
 
         return render_template('payment_link.html',
             token=token, member_name=member_name,
             amount=link['amount'], platform_fee=link['platform_fee'],
-            description=link['description'], academy_name=academy_name, paid=False)
+            description=link['description'], academy_name=academy_name, paid=False,
+            stripe_publishable_key=billing.get_publishable_key(),
+            client_secret=client_secret, stripe_enabled=True)
     except Exception as e:
         return f"Error: {e}", 500
 
 
 @app.route('/api/payment-link/process', methods=['POST'])
 def api_process_payment_link():
-    """Process payment from the public payment page."""
+    """Verify a Stripe PaymentIntent and mark the payment link paid.
+
+    The browser already confirmed the PaymentIntent via Stripe.js. This route
+    only trusts Stripe's server-side status — never the client's claim — so a
+    tampered request can't mark a link as paid without real money moving.
+    """
     data = request.get_json() or {}
     token = data.get('token')
-    if not token:
-        return jsonify({'error': 'Invalid payment link'}), 400
+    payment_intent_id = (data.get('payment_intent_id') or '').strip()
+    if not token or not payment_intent_id:
+        return jsonify({'error': 'token_and_payment_intent_required'}), 400
+
+    if not billing.is_enabled():
+        return jsonify({'error': 'stripe_not_configured'}), 503
 
     try:
         conn = models.get_db()
@@ -4175,54 +4244,74 @@ def api_process_payment_link():
         link = dict(link)
         if link.get('status') == 'paid':
             conn.close()
-            return jsonify({'error': 'Already paid'}), 400
+            return jsonify({'success': True, 'already_paid': True})
 
-        method = data.get('method', 'bank')
+        # The client must reference the same PaymentIntent we created server-side.
+        if link.get('stripe_payment_intent_id') and link['stripe_payment_intent_id'] != payment_intent_id:
+            conn.close()
+            return jsonify({'error': 'payment_intent_mismatch'}), 400
+
+        intent = billing.retrieve_payment_intent(payment_intent_id)
+        if not intent:
+            conn.close()
+            return jsonify({'error': 'payment_intent_not_found'}), 404
+
+        # `succeeded` = card cleared. `processing` = ACH initiated, settles in
+        # 4-7 business days; we currently treat that as not-yet-paid (a future
+        # webhook will flip the row when Stripe sends payment_intent.succeeded).
+        if intent.status != 'succeeded':
+            conn.close()
+            return jsonify({
+                'success': False,
+                'status': intent.status,
+                'error': 'payment_not_succeeded',
+            }), 402
+
         amount = link['amount']
         platform_fee = link.get('platform_fee', 0.30)
         member_id = link['member_id']
         academy_id = link.get('academy_id', 1)
 
-        # If Stripe is enabled, process through Stripe
-        if billing.is_enabled():
-            # Create Stripe payment with bank/card details
-            # This would use Stripe's ACH or card payment flow
-            # For now, mark as completed (Stripe integration will handle actual charging)
+        charges = getattr(intent, 'charges', None)
+        pm_type = ''
+        last4 = ''
+        brand = ''
+        try:
+            if charges and charges.data:
+                pm_details = charges.data[0].payment_method_details
+                pm_type = getattr(pm_details, 'type', '') or ''
+                if pm_type == 'card' and getattr(pm_details, 'card', None):
+                    last4 = pm_details.card.last4 or ''
+                    brand = pm_details.card.brand or ''
+                elif pm_type == 'us_bank_account' and getattr(pm_details, 'us_bank_account', None):
+                    last4 = pm_details.us_bank_account.last4 or ''
+                    brand = pm_details.us_bank_account.bank_name or 'Bank'
+        except Exception:
             pass
 
-        # Record payment
+        method = 'ach_bank' if pm_type == 'us_bank_account' else 'debit_card'
+
         payment_id = models.create_payment(
             member_id=member_id,
             amount=amount,
             academy_id=academy_id,
-            method='ach_bank' if method == 'bank' else 'debit_card',
+            method=method,
             status='completed',
             platform_fee=platform_fee,
-            notes=f"Payment link: {link['description']} (paid via {method})",
+            notes=f"Payment link: {link['description']} (Stripe PI {payment_intent_id})",
             payment_date=str(date.today()),
         )
 
-        # Mark link as paid
         conn.execute("UPDATE payment_links SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE token = ?", (token,))
         conn.commit()
         conn.close()
 
-        # Save payment method for future charges
-        if method == 'bank':
-            last4 = data.get('account', '')[-4:] if data.get('account') else ''
+        if last4:
             models.create_payment_method(
                 member_id,
-                method_type='bank_account',
+                method_type='bank_account' if pm_type == 'us_bank_account' else 'debit_card',
                 last4=last4,
-                brand=data.get('bank_name', 'Bank'),
-            )
-        else:
-            last4 = data.get('card_number', '')[-4:] if data.get('card_number') else ''
-            models.create_payment_method(
-                member_id,
-                method_type='debit_card',
-                last4=last4,
-                brand=data.get('card_name', 'Card'),
+                brand=brand,
             )
 
         return jsonify({'success': True, 'payment_id': payment_id})

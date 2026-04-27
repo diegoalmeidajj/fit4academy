@@ -15,7 +15,11 @@ try:
     import stripe
     stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
     STRIPE_ENABLED = bool(stripe.api_key)
-    STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+    # Accept either env var name — Stripe docs use "publishable", config.py uses "public".
+    STRIPE_PUBLISHABLE_KEY = (
+        os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+        or os.environ.get('STRIPE_PUBLIC_KEY', '')
+    )
 except ImportError:
     STRIPE_ENABLED = False
     STRIPE_PUBLISHABLE_KEY = ''
@@ -157,6 +161,42 @@ def charge(customer_id, payment_method_id, amount, description='', metadata=None
     except Exception as e:
         print(f"[Stripe] Charge error: {e}")
         return {'success': False, 'error': str(e)}
+
+
+def create_link_payment_intent(amount, description='', metadata=None):
+    """Create a one-time PaymentIntent for a public payment link.
+    Returns {'client_secret', 'id'} on success, None otherwise.
+
+    The card/bank details never touch our server — Stripe.js collects them
+    directly via Payment Element using the returned client_secret. We only
+    verify the resulting PaymentIntent's status before marking the link paid.
+    """
+    if not STRIPE_ENABLED:
+        return None
+    try:
+        total_cents = int((amount + PLATFORM_FEE) * 100)
+        intent = stripe.PaymentIntent.create(
+            amount=total_cents,
+            currency='usd',
+            description=description,
+            metadata=metadata or {},
+            automatic_payment_methods={'enabled': True},
+        )
+        return {'client_secret': intent.client_secret, 'id': intent.id}
+    except Exception as e:
+        print(f"[Stripe] PaymentIntent error: {e}")
+        return None
+
+
+def retrieve_payment_intent(payment_intent_id):
+    """Fetch a PaymentIntent for server-side verification of payment status."""
+    if not STRIPE_ENABLED or not payment_intent_id:
+        return None
+    try:
+        return stripe.PaymentIntent.retrieve(payment_intent_id)
+    except Exception as e:
+        print(f"[Stripe] Retrieve PaymentIntent error: {e}")
+        return None
 
 
 def charge_one_time(amount, token_or_source, description='', metadata=None):
