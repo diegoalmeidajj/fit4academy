@@ -156,7 +156,7 @@ details.reject-form textarea {
       <div>
         <div class="promo-head">
           <h3 class="promo-name">{{ p.first_name }} {{ p.last_name }}</h3>
-          <span class="promo-time">{{ p.created_at[:16] if p.created_at else '' }}</span>
+          <span class="promo-time">{{ (p.created_at|string)[:16] if p.created_at else '' }}</span>
         </div>
         <div class="promo-belts">
           <span class="promo-pill">
@@ -210,7 +210,7 @@ details.reject-form textarea {
       <div style="flex:1; min-width: 0;">
         <div class="conv-head">
           <span class="conv-name">{{ c.first_name }} {{ c.last_name }}</span>
-          <span class="conv-time">{{ (c.created_at or '')[11:16] if (c.created_at or '')[:10] == today_str else (c.created_at or '')[:10] }}</span>
+          {% set _cdt = (c.created_at|string) if c.created_at else '' %}<span class="conv-time">{{ _cdt[11:16] if _cdt[:10] == today_str else _cdt[:10] }}</span>
         </div>
         <div class="conv-preview">
           {% if c.last_sender == 'staff' %}<span style="color: var(--text-muted); font-weight: 600;">You:</span> {% endif %}{{ c.last_message }}
@@ -265,7 +265,7 @@ details.reject-form textarea {
             <p class="inbox-title">{{ n.title or 'Update' }}</p>
             <p class="inbox-msg">{{ n.message or '' }}</p>
           </div>
-          <div class="inbox-meta">{{ (n.created_at or '')[:16] }}</div>
+          <div class="inbox-meta">{{ ((n.created_at|string) if n.created_at else '')[:16] }}</div>
         </a>
       </div>
       {% endfor %}
