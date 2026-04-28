@@ -5862,9 +5862,9 @@ def api_admin_landing_generate():
     except Exception as e:
         msg = str(e)
         if 'AINotConfigured' in repr(type(e)) or 'ANTHROPIC_API_KEY' in msg:
-            return jsonify({'error': 'ai_not_configured'}), 503
+            return jsonify({'error': 'ai_not_configured', 'detail': msg[:300]}), 503
         print(f"[landing-ai] generate failed: {e}")
-        return jsonify({'error': 'generate_failed', 'detail': msg[:200]}), 500
+        return jsonify({'error': 'generate_failed', 'detail': msg[:300]}), 500
 
     try:
         models.update_academy(academy_id,
@@ -5978,6 +5978,29 @@ def api_admin_landing_reset():
         print(f"[landing-ai] reset failed: {e}")
         return jsonify({'error': 'reset_failed'}), 500
     return jsonify({'success': True})
+
+
+@app.route('/api/admin/landing/diag', methods=['GET'])
+@login_required
+def api_admin_landing_diag():
+    """Diagnostic — reports what the Flask process sees in the env, without
+    leaking the secret. Use this to debug 'AI not configured' in production."""
+    raw = os.environ.get('ANTHROPIC_API_KEY', '') or ''
+    sanitized = raw.strip().strip('"').strip("'").strip()
+
+    # Only the prefix (first 8 chars) is shown — that's already public-ish info
+    # ("sk-ant-a"). Never echo the full key.
+    return jsonify({
+        'env_var_present': 'ANTHROPIC_API_KEY' in os.environ,
+        'raw_length': len(raw),
+        'sanitized_length': len(sanitized),
+        'differs_after_strip': len(raw) != len(sanitized),
+        'starts_with_sk_ant': sanitized.startswith('sk-ant-'),
+        'first_8_chars': sanitized[:8] if sanitized else '',
+        'last_4_chars': sanitized[-4:] if len(sanitized) > 12 else '',
+        'has_whitespace': any(c.isspace() for c in raw),
+        'has_quotes': any(c in raw for c in '"\''),
+    })
 
 
 # ═══════════════════════════════════════════════════════════════

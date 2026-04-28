@@ -294,7 +294,8 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
     document.getElementById('previewFrame').src = '{{ public_url }}?_=' + Date.now();
   } catch (e) {
     if (e.code === 'ai_not_configured') {
-      setStatus('AI not configured (set ANTHROPIC_API_KEY)', 'error');
+      setStatus('AI not configured', 'error');
+      alert('AI not configured.\n\n' + (e.detail || 'ANTHROPIC_API_KEY env var is missing on the server.') + '\n\nVisit /api/admin/landing/diag (when logged in) to inspect what the server sees.');
     } else {
       setStatus('Failed: ' + e.message, 'error');
       if (e.detail) alert('Generate failed.\n\nReason: ' + e.detail);
@@ -319,6 +320,7 @@ document.querySelectorAll('.lb-regen[data-regen]').forEach(btn => {
     } catch (e) {
       if (e.code === 'ai_not_configured') {
         setStatus('AI not configured', 'error');
+        alert('AI not configured.\n\n' + (e.detail || 'ANTHROPIC_API_KEY env var is missing on the server.'));
       } else {
         setStatus('Failed: ' + e.message, 'error');
         if (e.detail) alert('Regenerate failed.\n\nReason: ' + e.detail);
