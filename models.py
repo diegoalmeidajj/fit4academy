@@ -772,6 +772,29 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
+
+        # ─── Lead capture: ad pixels + waiver ───
+        "ALTER TABLE academies ADD COLUMN meta_pixel_id TEXT DEFAULT ''",
+        "ALTER TABLE academies ADD COLUMN google_ads_id TEXT DEFAULT ''",
+        "ALTER TABLE academies ADD COLUMN google_ads_label TEXT DEFAULT ''",
+        "ALTER TABLE academies ADD COLUMN google_analytics_id TEXT DEFAULT ''",
+        "ALTER TABLE academies ADD COLUMN waiver_required BOOLEAN DEFAULT 0",
+        "ALTER TABLE academies ADD COLUMN waiver_text TEXT DEFAULT ''",
+        # AI-generated landing page content (JSON blob) and the brief used to create it.
+        "ALTER TABLE academies ADD COLUMN landing_content_json TEXT DEFAULT ''",
+        "ALTER TABLE academies ADD COLUMN landing_brief TEXT DEFAULT ''",
+        # Captured signature for legal record. One row per prospect that signed.
+        """CREATE TABLE IF NOT EXISTS lead_waivers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            prospect_id INTEGER NOT NULL,
+            signature_name TEXT NOT NULL,
+            waiver_text TEXT DEFAULT '',
+            ip_address TEXT DEFAULT '',
+            user_agent TEXT DEFAULT '',
+            signed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_lead_waivers_prospect ON lead_waivers(prospect_id)",
     ]:
         try:
             conn.execute(alter)
@@ -922,6 +945,24 @@ def list_staff_users_for_academy(academy_id):
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def create_lead_waiver(academy_id, prospect_id, signature_name, waiver_text='', ip_address='', user_agent=''):
+    """Persist a signed waiver row tied to a prospect."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """INSERT INTO lead_waivers
+               (academy_id, prospect_id, signature_name, waiver_text, ip_address, user_agent)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (academy_id, prospect_id, signature_name[:200], (waiver_text or '')[:20000],
+             (ip_address or '')[:64], (user_agent or '')[:300])
+        )
+        conn.commit()
+        new_id = cur.lastrowid
+    finally:
+        conn.close()
+    return new_id
 
 
 def create_user(username, password, name='', email='', phone='', role='user', academy_id=1):
@@ -1465,7 +1506,10 @@ def update_academy(academy_id, **kwargs):
     allowed = ['name', 'logo', 'address', 'city', 'state', 'zip_code', 'country',
                'phone', 'email', 'website', 'timezone', 'currency', 'language', 'theme',
                'media_portal_enabled', 'portal_primary_color', 'portal_welcome',
-               'portal_price_display']
+               'portal_price_display',
+               'meta_pixel_id', 'google_ads_id', 'google_ads_label', 'google_analytics_id',
+               'waiver_required', 'waiver_text',
+               'landing_content_json', 'landing_brief']
     fields = []
     values = []
     for k, v in kwargs.items():
@@ -2311,6 +2355,20 @@ def create_payment(member_id, amount, academy_id=1, **kwargs):
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
+
+    # Fire member_payment_received automations + flows when the payment was
+    # actually completed (not just recorded as pending).
+    try:
+        if (kwargs.get('status', 'completed')) == 'completed':
+            member = get_member_by_id(member_id)
+            if member:
+                md = dict(member)
+                md['_payment_amount'] = amount  # available to template authors via {{_payment_amount}} if they want
+                fire_automation_trigger('member_payment_received', member=md, academy_id=academy_id)
+                start_flows_for_trigger('member_payment_received', member=md, academy_id=academy_id)
+    except Exception as _e:
+        print(f"[create_payment] automation hook error: {_e}")
+
     return new_id
 
 
@@ -3219,28 +3277,66 @@ def fire_automation_trigger(trigger_type, member=None, prospect=None, academy_id
     return sent
 
 
+def _send_automation(automation, recipient, academy):
+    """Render + dispatch one automation to one recipient. Records the run."""
+    subj = render_message_tokens(automation.get('subject') or '', recipient, academy)
+    body = render_message_tokens(automation.get('body') or '', recipient, academy)
+    channel = automation.get('channel') or 'both'
+    try:
+        import notifications_lib
+        if channel in ('email', 'both') and recipient.get('email'):
+            notifications_lib.send_email(recipient['email'], subj or '(no subject)', body)
+        if channel in ('sms', 'both') and recipient.get('phone'):
+            sms_body = (subj + '\n\n' + body) if subj else body
+            notifications_lib.send_sms(recipient['phone'], sms_body[:1500])
+    except Exception as e:
+        print(f"[Automation {automation.get('id')}] send error: {e}")
+        return False
+    _record_automation_run(automation['id'], 'member', recipient['id'])
+    return True
+
+
 def run_due_delayed_automations(academy_id=1):
-    """Run automations that need to fire on a schedule (delay_minutes > 0).
+    """Run automations that need to fire on a schedule.
 
-    Currently handles:
+    Handles:
     - member_inactive_15d: members with no check-in in 15+ days
-    - payment_failed: skip for now (Stripe webhook will trigger directly)
+    - member_birthday: members whose date_of_birth (MM-DD) matches today
+    - member_membership_expiring_7d: memberships with end_date == today + 7
+    - payment_failed: skipped — fired directly from Stripe webhook in
+      production when wired
 
-    Designed to be called from a Railway cron job hitting an authenticated
-    endpoint, OR from a "Run now" button in the /messaging Automations tab.
+    Designed to be called from a Railway cron job hitting the authenticated
+    endpoint /automations/run-now, OR from a "Run now" button in the UI.
     """
+    from datetime import date as _date, timedelta as _td, datetime as _dt
     fired = 0
     automations = get_automated_messages(academy_id, active_only=True)
+    if not automations:
+        return 0
 
-    inactive_autos = [a for a in automations if a.get('trigger_type') == 'member_inactive_15d']
-    if inactive_autos:
-        try:
-            members = get_all_members(academy_id) or []
-        except Exception:
-            members = []
+    academy = get_academy_by_id(academy_id)
+    academy = dict(academy) if academy else {}
+
+    today = _date.today()
+    today_mmdd = today.strftime('%m-%d')
+
+    by_trigger = {}
+    for a in automations:
+        by_trigger.setdefault(a['trigger_type'], []).append(a)
+
+    try:
+        members = get_all_members(academy_id) or []
+    except Exception:
+        members = []
+
+    # ── member_inactive_15d ──
+    for a in by_trigger.get('member_inactive_15d', []):
         for m in members:
             md = m if isinstance(m, dict) else dict(m)
             if not md.get('active'):
+                continue
+            if _has_automation_fired(a['id'], 'member', md['id']):
                 continue
             try:
                 checkins = get_checkins_by_member(md['id'], limit=1) or []
@@ -3248,35 +3344,64 @@ def run_due_delayed_automations(academy_id=1):
                 checkins = []
             if checkins:
                 last_at = str(checkins[0].get('created_at', ''))[:10]
-                from datetime import date as _date, timedelta as _td
                 try:
-                    from datetime import datetime as _dt
                     last_dt = _dt.strptime(last_at, '%Y-%m-%d').date()
-                    days_since = (_date.today() - last_dt).days
+                    days_since = (today - last_dt).days
                     if days_since < 15:
                         continue
                 except Exception:
                     continue
-            for a in inactive_autos:
-                if _has_automation_fired(a['id'], 'member', md['id']):
-                    continue
-                academy = get_academy_by_id(academy_id)
-                academy = dict(academy) if academy else {}
-                subj = render_message_tokens(a.get('subject') or '', md, academy)
-                body = render_message_tokens(a.get('body') or '', md, academy)
-                channel = a.get('channel') or 'both'
-                try:
-                    import notifications_lib
-                    if channel in ('email', 'both') and md.get('email'):
-                        notifications_lib.send_email(md['email'], subj or '(no subject)', body)
-                    if channel in ('sms', 'both') and md.get('phone'):
-                        sms_body = (subj + '\n\n' + body) if subj else body
-                        notifications_lib.send_sms(md['phone'], sms_body[:1500])
-                except Exception as e:
-                    print(f"[Automation inactive {a['id']}] error: {e}")
-                    continue
-                _record_automation_run(a['id'], 'member', md['id'])
+            if _send_automation(a, md, academy):
                 fired += 1
+
+    # ── member_birthday ── fires once per year per (automation, member) since
+    # the idempotency key includes year via record_automation_run timestamp;
+    # _has_automation_fired returns true if EVER fired, so we'd only fire
+    # once total — instead we annotate the run with year by passing a
+    # year-suffixed automation_id virtual key.
+    for a in by_trigger.get('member_birthday', []):
+        for m in members:
+            md = m if isinstance(m, dict) else dict(m)
+            dob = str(md.get('date_of_birth') or '')[:10]
+            if not dob or len(dob) < 5:
+                continue
+            mmdd = dob[5:10] if len(dob) >= 10 else dob[-5:]
+            if mmdd != today_mmdd:
+                continue
+            # Year-scoped idempotency: encode year into the recipient_id key
+            # so next year's birthday fires again. We hash member_id with year.
+            virtual_recipient = int(f"{today.year}{md['id']:07d}")
+            if _has_automation_fired(a['id'], 'member_yearly', virtual_recipient):
+                continue
+            if _send_automation(a, md, academy):
+                _record_automation_run(a['id'], 'member_yearly', virtual_recipient)
+                fired += 1
+
+    # ── member_membership_expiring_7d ──
+    target_date = today + _td(days=7)
+    target_str = target_date.strftime('%Y-%m-%d')
+    for a in by_trigger.get('member_membership_expiring_7d', []):
+        for m in members:
+            md = m if isinstance(m, dict) else dict(m)
+            if not md.get('active'):
+                continue
+            try:
+                memberships = get_memberships_by_member(md['id']) or []
+            except Exception:
+                memberships = []
+            matched = False
+            for ms in memberships:
+                msd = ms if isinstance(ms, dict) else dict(ms)
+                if (msd.get('status') == 'active'
+                    and str(msd.get('end_date') or '')[:10] == target_str):
+                    matched = True; break
+            if not matched:
+                continue
+            if _has_automation_fired(a['id'], 'member', md['id']):
+                continue
+            if _send_automation(a, md, academy):
+                fired += 1
+
     return fired
 
 

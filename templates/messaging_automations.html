@@ -115,7 +115,10 @@
                 {% set triggers = [
                     ('member_created', 'New student joined', 'Fires the moment a new member is added.'),
                     ('prospect_created', 'New lead captured', 'Fires when a prospect/lead is added.'),
-                    ('member_inactive_15d', 'Student inactive 15+ days', 'Fires when a member hasn’t checked in for 15 days. Runs on the “Run delayed” button or via a cron.'),
+                    ('member_inactive_15d', 'Student inactive 15+ days', 'Fires when a member hasn’t checked in for 15 days.'),
+                    ('member_birthday', 'Member birthday', 'Fires once a year on the member’s birthday (date_of_birth match).'),
+                    ('member_membership_expiring_7d', 'Membership expiring 7 days', 'Fires 7 days before the membership end_date.'),
+                    ('member_payment_received', 'Payment received', 'Fires the moment a payment is recorded as completed.'),
                     ('payment_failed', 'Payment failed', 'Fires when a Stripe charge fails.')
                 ] %}
                 {% for tk, label, helpt in triggers %}

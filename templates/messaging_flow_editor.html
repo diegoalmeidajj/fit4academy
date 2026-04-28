@@ -69,6 +69,9 @@
                     <option value="prospect_created" {% if flow and flow.trigger_type == 'prospect_created' %}selected{% endif %}>When a prospect is added</option>
                     <option value="member_created" {% if flow and flow.trigger_type == 'member_created' %}selected{% endif %}>When a member joins</option>
                     <option value="member_inactive_15d" {% if flow and flow.trigger_type == 'member_inactive_15d' %}selected{% endif %}>When a member goes inactive 15+ days</option>
+                    <option value="member_birthday" {% if flow and flow.trigger_type == 'member_birthday' %}selected{% endif %}>On member birthday</option>
+                    <option value="member_membership_expiring_7d" {% if flow and flow.trigger_type == 'member_membership_expiring_7d' %}selected{% endif %}>7 days before membership expires</option>
+                    <option value="member_payment_received" {% if flow and flow.trigger_type == 'member_payment_received' %}selected{% endif %}>When a payment is received</option>
                 </select>
             </div>
         </div>

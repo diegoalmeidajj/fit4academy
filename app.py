@@ -5109,6 +5109,12 @@ def settings_page():
             'currency': request.form.get('currency', 'USD'),
             'language': request.form.get('language', 'en'),
             'theme': request.form.get('theme', 'dark'),
+            'meta_pixel_id': request.form.get('meta_pixel_id', '').strip()[:50],
+            'google_analytics_id': request.form.get('google_analytics_id', '').strip()[:50],
+            'google_ads_id': request.form.get('google_ads_id', '').strip()[:50],
+            'google_ads_label': request.form.get('google_ads_label', '').strip()[:80],
+            'waiver_required': bool(request.form.get('waiver_required')),
+            'waiver_text': request.form.get('waiver_text', '')[:20000],
         }
 
         # Logo upload
@@ -5577,13 +5583,24 @@ def public_lead_landing(academy_id):
     cta = request.args.get('cta', '').strip() or 'Get Started'
     source = request.args.get('source', 'landing')
 
+    # If the academy has used the AI builder, render the rich content blob.
+    ai_content = None
+    raw = academy.get('landing_content_json') or ''
+    if raw:
+        try:
+            ai_content = json.loads(raw)
+        except Exception as e:
+            print(f"[lead landing] invalid landing_content_json: {e}")
+            ai_content = None
+
     return render_template(
         'lead_landing.html',
         academy=academy,
         academy_id=academy_id,
-        headline=headline or f"Train with {academy.get('name', 'us')}",
-        cta=cta,
+        headline=(ai_content or {}).get('hero_headline') or headline or f"Train with {academy.get('name', 'us')}",
+        cta=(ai_content or {}).get('cta_label') or cta,
         source=source,
+        ai_content=ai_content,
     )
 
 
@@ -5700,6 +5717,192 @@ def embed_lead_widget(academy_id):
         'Cache-Control': 'public, max-age=300',
         'Access-Control-Allow-Origin': '*',
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  AI LANDING-PAGE BUILDER (admin)
+# ═══════════════════════════════════════════════════════════════
+
+import json as _json_landing  # local alias to avoid colliding with existing imports
+
+
+def _load_landing_content(academy):
+    if not academy:
+        return None
+    raw = (academy.get('landing_content_json') if isinstance(academy, dict) else None) or ''
+    if not raw:
+        return None
+    try:
+        return _json_landing.loads(raw)
+    except Exception:
+        return None
+
+
+@app.route('/landing-builder')
+@login_required
+def landing_builder_page():
+    academy_id = _get_academy_id()
+    try:
+        academy = models.get_academy_by_id(academy_id)
+        academy = dict(academy) if academy else None
+    except Exception:
+        academy = None
+    content = _load_landing_content(academy)
+    return render_template(
+        'landing_editor.html',
+        academy=academy,
+        content=content,
+        brief=(academy or {}).get('landing_brief', '') if academy else '',
+        ai_enabled=bool(os.environ.get('ANTHROPIC_API_KEY', '')),
+        public_url=f"{request.url_root.rstrip('/')}/lead/{academy_id}",
+    )
+
+
+@app.route('/api/admin/landing/generate', methods=['POST'])
+@login_required
+def api_admin_landing_generate():
+    academy_id = _get_academy_id()
+    data = request.get_json(silent=True) or {}
+    brief = (data.get('brief') or '').strip()[:1500]
+    vibe = (data.get('vibe') or '').strip()[:80]
+
+    if not brief:
+        return jsonify({'error': 'brief_required'}), 400
+
+    try:
+        academy = models.get_academy_by_id(academy_id)
+        academy = dict(academy) if academy else None
+    except Exception:
+        academy = None
+    if not academy:
+        return jsonify({'error': 'academy_not_found'}), 404
+
+    try:
+        import landing_ai
+        content = landing_ai.generate_full(
+            academy_name=academy.get('name', 'the academy'),
+            brief=brief,
+            vibe=vibe,
+        )
+    except Exception as e:
+        msg = str(e)
+        if 'AINotConfigured' in repr(type(e)) or 'ANTHROPIC_API_KEY' in msg:
+            return jsonify({'error': 'ai_not_configured'}), 503
+        print(f"[landing-ai] generate failed: {e}")
+        return jsonify({'error': 'generate_failed', 'detail': msg[:200]}), 500
+
+    try:
+        models.update_academy(academy_id,
+            landing_content_json=_json_landing.dumps(content),
+            landing_brief=brief,
+        )
+    except Exception as e:
+        print(f"[landing-ai] save after generate failed: {e}")
+
+    return jsonify({'success': True, 'content': content})
+
+
+@app.route('/api/admin/landing/regenerate-section', methods=['POST'])
+@login_required
+def api_admin_landing_regenerate_section():
+    academy_id = _get_academy_id()
+    data = request.get_json(silent=True) or {}
+    section = (data.get('section') or '').strip()
+    vibe = (data.get('vibe') or '').strip()[:80]
+
+    import landing_ai
+    if section not in landing_ai.SECTIONS:
+        return jsonify({'error': 'invalid_section'}), 400
+
+    try:
+        academy = models.get_academy_by_id(academy_id)
+        academy = dict(academy) if academy else None
+    except Exception:
+        academy = None
+    if not academy:
+        return jsonify({'error': 'academy_not_found'}), 404
+
+    brief = (data.get('brief') or academy.get('landing_brief', '') or '').strip()[:1500]
+    if not brief:
+        return jsonify({'error': 'brief_required'}), 400
+
+    current = _load_landing_content(academy) or {}
+
+    try:
+        fresh = landing_ai.regenerate_section(
+            section=section,
+            academy_name=academy.get('name', 'the academy'),
+            brief=brief,
+            vibe=vibe,
+        )
+    except Exception as e:
+        msg = str(e)
+        if 'AINotConfigured' in repr(type(e)) or 'ANTHROPIC_API_KEY' in msg:
+            return jsonify({'error': 'ai_not_configured'}), 503
+        print(f"[landing-ai] regen failed: {e}")
+        return jsonify({'error': 'regenerate_failed', 'detail': msg[:200]}), 500
+
+    # Merge only the requested section's keys back into current content.
+    section_keys = {
+        'hero': ['hero_headline', 'hero_subheadline'],
+        'perks': ['perks'],
+        'about': ['about_paragraph'],
+        'faqs': ['faqs'],
+        'cta': ['cta_label', 'urgency_line'],
+        'social_proof': ['social_proof_line'],
+    }[section]
+    for k in section_keys:
+        if k in fresh:
+            current[k] = fresh[k]
+
+    try:
+        models.update_academy(academy_id,
+            landing_content_json=_json_landing.dumps(current),
+            landing_brief=brief,
+        )
+    except Exception as e:
+        print(f"[landing-ai] save after regen failed: {e}")
+
+    return jsonify({'success': True, 'content': current, 'section': section})
+
+
+@app.route('/api/admin/landing/save', methods=['POST'])
+@login_required
+def api_admin_landing_save():
+    """Persist manual edits to the landing content blob."""
+    academy_id = _get_academy_id()
+    data = request.get_json(silent=True) or {}
+    content = data.get('content')
+    if not isinstance(content, dict):
+        return jsonify({'error': 'content_required'}), 400
+
+    # Light validation — keep only known top-level keys, cap sizes.
+    allowed = {'hero_headline', 'hero_subheadline', 'perks', 'about_paragraph',
+               'faqs', 'cta_label', 'urgency_line', 'social_proof_line'}
+    cleaned = {k: v for k, v in content.items() if k in allowed}
+
+    try:
+        models.update_academy(academy_id,
+            landing_content_json=_json_landing.dumps(cleaned),
+        )
+    except Exception as e:
+        print(f"[landing-ai] save failed: {e}")
+        return jsonify({'error': 'save_failed'}), 500
+
+    return jsonify({'success': True, 'content': cleaned})
+
+
+@app.route('/api/admin/landing/reset', methods=['POST'])
+@login_required
+def api_admin_landing_reset():
+    """Clear the AI-generated content; /lead/<id> falls back to the simple template."""
+    academy_id = _get_academy_id()
+    try:
+        models.update_academy(academy_id, landing_content_json='', landing_brief='')
+    except Exception as e:
+        print(f"[landing-ai] reset failed: {e}")
+        return jsonify({'error': 'reset_failed'}), 500
+    return jsonify({'success': True})
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -6286,7 +6489,12 @@ def messaging_automation_save():
         'active': request.form.get('active') == 'on',
     }
     trigger_type = request.form.get('trigger_type', '').strip()
-    valid = ('member_created', 'prospect_created', 'member_inactive_15d', 'payment_failed')
+    valid = (
+        'member_created', 'prospect_created',
+        'member_inactive_15d', 'member_birthday',
+        'member_membership_expiring_7d', 'member_payment_received',
+        'payment_failed',
+    )
     if trigger_type not in valid:
         flash('Invalid trigger type.', 'error')
         return redirect(url_for('messaging_automations_page'))
@@ -6320,6 +6528,154 @@ def messaging_automations_run_now():
     fired = models.run_due_delayed_automations(academy_id)
     flash(f'{fired} automation message{"s" if fired != 1 else ""} fired.', 'success')
     return redirect(url_for('messaging_automations_page'))
+
+
+# ─── /automations hub (GoHighLevel-style central place) ────────
+
+QUICKSTART_AUTOMATIONS = [
+    {
+        'key': 'welcome_lead',
+        'icon': 'bi-funnel',
+        'color': '#22d3ee',
+        'title': 'Welcome new leads',
+        'description': 'When someone fills out a landing page or is added as a prospect, send them a welcome.',
+        'trigger_type': 'prospect_created',
+        'name': 'Welcome new lead',
+        'channel': 'both',
+        'subject': 'Welcome to {{academy_name}}!',
+        'body': "Hi {{first_name}}, thanks for reaching out — we're excited to meet you on the mats. When works for a free trial class? Just reply to this message.",
+    },
+    {
+        'key': 'welcome_member',
+        'icon': 'bi-person-plus',
+        'color': '#00DC82',
+        'title': 'Welcome new members',
+        'description': 'Fire the moment a member is added to the roster — set expectations and link to schedule.',
+        'trigger_type': 'member_created',
+        'name': 'Welcome new member',
+        'channel': 'both',
+        'subject': 'Welcome to {{academy_name}}, {{first_name}}!',
+        'body': "We're stoked to have you. Bring loose clothes for your first class — we'll provide the gi. See you on the mats!",
+    },
+    {
+        'key': 'win_back',
+        'icon': 'bi-person-dash',
+        'color': '#f59e0b',
+        'title': 'Win back inactive members',
+        'description': "Fire when a member hasn't checked in for 15+ days. Keep retention high.",
+        'trigger_type': 'member_inactive_15d',
+        'name': "We miss you on the mats",
+        'channel': 'both',
+        'subject': 'We miss you, {{first_name}}!',
+        'body': "Never miss twice. Missing once is an accident — missing twice is the start of a new habit. See you this week?",
+    },
+    {
+        'key': 'birthday',
+        'icon': 'bi-cake2',
+        'color': '#a855f7',
+        'title': 'Birthday wishes',
+        'description': 'Send a personal birthday message to every member on their birthday — runs daily via cron.',
+        'trigger_type': 'member_birthday',
+        'name': 'Happy birthday',
+        'channel': 'both',
+        'subject': 'Happy birthday from {{academy_name}}!',
+        'body': "Happy birthday, {{first_name}}! Treat yourself today — and we'll see you on the mats this week.",
+    },
+    {
+        'key': 'membership_expiring',
+        'icon': 'bi-calendar-x',
+        'color': '#ef4444',
+        'title': 'Membership expiring soon',
+        'description': 'Fires 7 days before a membership end_date so members renew before lapsing.',
+        'trigger_type': 'member_membership_expiring_7d',
+        'name': 'Membership expiring soon',
+        'channel': 'email',
+        'subject': 'Your {{academy_name}} membership renews soon',
+        'body': "Hi {{first_name}}, your membership renews in 7 days. Reply to this email if anything's changed and you'd like to update your plan.",
+    },
+    {
+        'key': 'payment_thanks',
+        'icon': 'bi-credit-card',
+        'color': '#0ea5e9',
+        'title': 'Thank-you on payment',
+        'description': 'When a member pays, send a quick thank-you note to reinforce the relationship.',
+        'trigger_type': 'member_payment_received',
+        'name': 'Thank you for your payment',
+        'channel': 'email',
+        'subject': 'Thanks for your payment',
+        'body': "Got it, {{first_name}} — thanks for keeping things smooth. See you on the mats!",
+    },
+]
+
+
+@app.route('/automations')
+@login_required
+def automations_hub():
+    academy_id = _get_academy_id()
+    automations = models.get_automated_messages(academy_id)
+    flows = models.get_flows(academy_id)
+    smart_groups = models.get_smart_groups(academy_id)
+    templates = []
+    try:
+        templates = models.get_message_templates(academy_id)
+    except Exception:
+        pass
+
+    existing_triggers = {a['trigger_type'] for a in automations}
+    quickstarts = []
+    for q in QUICKSTART_AUTOMATIONS:
+        item = dict(q)
+        item['installed'] = q['trigger_type'] in existing_triggers
+        quickstarts.append(item)
+
+    return render_template('automations_hub.html',
+                           quickstarts=quickstarts,
+                           automations=automations,
+                           flows=flows,
+                           smart_groups=smart_groups,
+                           templates=templates)
+
+
+@app.route('/automations/quickstart/<key>', methods=['POST'])
+@login_required
+def automations_quickstart(key):
+    """Spin up an automation from a quickstart template, then go to its editor."""
+    if not validate_csrf():
+        return redirect(url_for('automations_hub'))
+    academy_id = _get_academy_id()
+    qs = next((q for q in QUICKSTART_AUTOMATIONS if q['key'] == key), None)
+    if not qs:
+        flash('Unknown quickstart.', 'error')
+        return redirect(url_for('automations_hub'))
+
+    existing = models.get_automated_messages(academy_id, trigger_type=qs['trigger_type'])
+    if existing:
+        return redirect(url_for('messaging_automations_page', edit=existing[0]['id']))
+
+    automation_id = models.upsert_automated_message(
+        academy_id, qs['trigger_type'],
+        name=qs['name'], channel=qs.get('channel', 'both'),
+        subject=qs.get('subject', ''), body=qs.get('body', ''),
+        delay_minutes=0, active=True,
+    )
+    flash(f'Created automation: {qs["title"]}', 'success')
+    return redirect(url_for('messaging_automations_page', edit=automation_id))
+
+
+@app.route('/automations/run-now', methods=['POST'])
+@login_required
+def automations_run_now_hub():
+    """Fire all due time-based automations + advance flow steps in one click."""
+    if not validate_csrf():
+        return redirect(url_for('automations_hub'))
+    academy_id = _get_academy_id()
+    fired = 0; advanced = 0
+    try: fired = models.run_due_delayed_automations(academy_id)
+    except Exception as e: print(f"[Run automations] {e}")
+    try: advanced = models.advance_flow_executions(academy_id)
+    except Exception as e: print(f"[Advance flows] {e}")
+    flash(f'Fired {fired} automation message{"s" if fired != 1 else ""} and advanced {advanced} flow step{"s" if advanced != 1 else ""}.', 'success')
+    return redirect(url_for('automations_hub'))
 
 
 # ─── Smart Groups ──────────────────────────────────────────────

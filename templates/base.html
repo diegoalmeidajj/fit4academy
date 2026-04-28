@@ -357,9 +357,10 @@
                 <a href="/" class="{{ 'active' if request.path == '/' }}"><i class="bi bi-grid-1x2"></i> {{ t('nav_dashboard') }}</a>
                 <a href="/inbox" class="{{ 'active' if request.path.startswith('/inbox') }}"><i class="bi bi-inbox"></i> Inbox{% if unread_inbox and unread_inbox > 0 %}<span class="nav-badge" style="background:rgba(245,158,11,.22);color:#f59e0b;border:1px solid rgba(245,158,11,.4);">{{ unread_inbox }}</span>{% endif %}</a>
                 <a href="/members" class="{{ 'active' if request.path.startswith('/members') }}"><i class="bi bi-people"></i> {{ t('nav_members') }}</a>
+                <a href="/automations" class="{{ 'active' if request.path == '/automations' }}"><i class="bi bi-stars"></i> Automations</a>
                 <a href="/messaging" class="{{ 'active' if request.path.startswith('/messaging') }}"><i class="bi bi-megaphone"></i> {{ t('nav_messaging') }}</a>
                 <a href="/lp" class="{{ 'active' if request.path.startswith('/lp') }}"><i class="bi bi-globe"></i> Landing Pages</a>
-                <a href="/smart-groups" class="{{ 'active' if request.path.startswith('/smart-groups') }}"><i class="bi bi-funnel"></i> Smart Groups</a>
+                <a href="/smart-groups" class="{{ 'active' if request.path.startswith('/smart-groups') }}"><i class="bi bi-funnel"></i> Listas inteligentes</a>
                 <a href="/checkin" class="{{ 'active' if request.path == '/checkin' }}"><i class="bi bi-qr-code-scan"></i> {{ t('nav_checkin') }}</a>
             </div>
             <div class="nav-section">
