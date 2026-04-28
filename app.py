@@ -5414,28 +5414,44 @@ def staff_decide_promotion(req_id):
 @login_required
 def staff_chat_thread(member_id):
     """Show full chat thread between staff and a single member."""
-    academy_id = _get_academy_id()
-    member = models.get_member_by_id(member_id)
-    if not member:
-        flash('Member not found.', 'error')
-        return redirect(url_for('notifications_page'))
-    member = dict(member) if not isinstance(member, dict) else member
-    if member.get('academy_id') != academy_id:
-        flash('Member is not in your academy.', 'error')
-        return redirect(url_for('notifications_page'))
-
     try:
-        messages = models.get_chat_messages(member_id, limit=200)
-    except Exception:
+        academy_id = _get_academy_id()
+        member = models.get_member_by_id(member_id)
+        if not member:
+            flash('Member not found.', 'error')
+            return redirect(url_for('notifications_page'))
+        member = dict(member) if not isinstance(member, dict) else member
+        if member.get('academy_id') != academy_id:
+            flash('Member is not in your academy.', 'error')
+            return redirect(url_for('notifications_page'))
+
+        try:
+            messages_raw = models.get_chat_messages(member_id, limit=200)
+        except Exception:
+            messages_raw = []
+
+        # Coerce datetime fields to plain strings up front so the template
+        # never has to worry about Postgres returning datetime vs SQLite
+        # returning a string.
         messages = []
+        for m in messages_raw or []:
+            md = m if isinstance(m, dict) else dict(m)
+            md['created_at'] = str(md.get('created_at') or '')
+            md['read_at'] = str(md.get('read_at') or '') if md.get('read_at') else None
+            messages.append(md)
 
-    # Mark member-sent messages as read by staff
-    try:
-        models.mark_chat_read(member_id, 'staff')
-    except Exception:
-        pass
+        try:
+            models.mark_chat_read(member_id, 'staff')
+        except Exception:
+            pass
 
-    return render_template('staff_chat_thread.html', member=member, messages=messages)
+        return render_template('staff_chat_thread.html', member=member, messages=messages)
+    except Exception as _err:
+        import traceback
+        print(f"[/staff-chat] ERROR: {_err}")
+        traceback.print_exc()
+        flash(f'Could not load conversation: {_err}', 'error')
+        return redirect(url_for('notifications_page'))
 
 
 @app.route('/staff-chat/<int:member_id>/reply', methods=['POST'])
