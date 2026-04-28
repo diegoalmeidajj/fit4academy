@@ -10,6 +10,6 @@ stripe
 qrcode
 Pillow
 twilio
-anthropic
+anthropic>=0.40
 pyjwt
 flask-cors

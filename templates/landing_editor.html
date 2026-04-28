@@ -269,7 +269,15 @@ async function api(path, body) {
     body: JSON.stringify(body || {}),
   });
   let j; try { j = await r.json(); } catch { j = {}; }
-  if (!r.ok) throw new Error(j.error || ('http_' + r.status));
+  if (!r.ok) {
+    // Surface server-side detail so we can debug remote failures.
+    const code = j.error || ('http_' + r.status);
+    const detail = j.detail ? ' — ' + j.detail : '';
+    const err = new Error(code + detail);
+    err.code = code;
+    err.detail = j.detail || '';
+    throw err;
+  }
   return j;
 }
 
@@ -285,8 +293,12 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
     setStatus('Generated and saved', 'saved');
     document.getElementById('previewFrame').src = '{{ public_url }}?_=' + Date.now();
   } catch (e) {
-    if (String(e.message).includes('ai_not_configured')) setStatus('AI not configured (set ANTHROPIC_API_KEY)', 'error');
-    else setStatus('Failed: ' + e.message, 'error');
+    if (e.code === 'ai_not_configured') {
+      setStatus('AI not configured (set ANTHROPIC_API_KEY)', 'error');
+    } else {
+      setStatus('Failed: ' + e.message, 'error');
+      if (e.detail) alert('Generate failed.\n\nReason: ' + e.detail);
+    }
   } finally {
     btn.disabled = false; btn.innerHTML = '<i class="bi bi-sparkles"></i> Generate';
   }
@@ -305,8 +317,12 @@ document.querySelectorAll('.lb-regen[data-regen]').forEach(btn => {
       setStatus(`Regenerated ${section}`, 'saved');
       document.getElementById('previewFrame').src = '{{ public_url }}?_=' + Date.now();
     } catch (e) {
-      if (String(e.message).includes('ai_not_configured')) setStatus('AI not configured', 'error');
-      else setStatus('Failed: ' + e.message, 'error');
+      if (e.code === 'ai_not_configured') {
+        setStatus('AI not configured', 'error');
+      } else {
+        setStatus('Failed: ' + e.message, 'error');
+        if (e.detail) alert('Regenerate failed.\n\nReason: ' + e.detail);
+      }
     } finally {
       btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Regenerate';
     }
