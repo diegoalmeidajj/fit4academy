@@ -3420,9 +3420,17 @@ def get_flows(academy_id=1, active_only=False):
         out = []
         for r in rows:
             d = dict(r)
-            d['step_count'] = conn.execute(
-                "SELECT COUNT(*) FROM flow_steps WHERE flow_id = ?", (d['id'],)
-            ).fetchone()[0]
+            # AS-alias the count and read by name so this works under both
+            # sqlite3 (Row supports [0]) AND psycopg2 RealDictCursor (dict).
+            count_row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM flow_steps WHERE flow_id = ?", (d['id'],)
+            ).fetchone()
+            if count_row is None:
+                d['step_count'] = 0
+            elif isinstance(count_row, dict):
+                d['step_count'] = count_row.get('cnt') or 0
+            else:
+                d['step_count'] = count_row[0] or 0
             out.append(d)
         return out
     finally:
