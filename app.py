@@ -5828,7 +5828,7 @@ def landing_builder_page():
         academy=academy,
         content=content,
         brief=(academy or {}).get('landing_brief', '') if academy else '',
-        ai_enabled=bool(os.environ.get('ANTHROPIC_API_KEY', '')),
+        ai_enabled=bool((os.environ.get('ANTHROPIC_API_KEY', '') or '').strip().strip('"').strip("'").strip()),
         public_url=f"{request.url_root.rstrip('/')}/lead/{academy_id}",
     )
 

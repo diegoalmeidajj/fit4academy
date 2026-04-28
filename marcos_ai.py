@@ -12,13 +12,22 @@ Marcos analyzes your academy's real data and gives actionable advice on:
 import os
 import json
 
+def _sanitized_key() -> str:
+    """Strip whitespace + accidental quote chars from the env value.
+    Common Railway/console copy-paste bugs include trailing newlines and
+    surrounding quotes that the Anthropic API rejects with 401."""
+    raw = os.environ.get('ANTHROPIC_API_KEY', '') or ''
+    return raw.strip().strip('"').strip("'").strip()
+
+
 try:
     import anthropic
-    ANTHROPIC_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+    ANTHROPIC_KEY = _sanitized_key()
     AI_ENABLED = bool(ANTHROPIC_KEY)
 except ImportError:
     AI_ENABLED = False
     anthropic = None
+    ANTHROPIC_KEY = ''
 
 MARCOS_SYSTEM_PROMPT = """You are Marcos, an AI business advisor specialized in martial arts academies, fitness studios, and gyms. You work inside Fit4Academy, a CRM platform for academy owners.
 
