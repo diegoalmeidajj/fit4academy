@@ -17,9 +17,16 @@ import json
 import os
 import re
 
+def _api_key() -> str:
+    """Read and sanitize the API key. Strips whitespace and quote characters
+    that frequently get copy-pasted from the Anthropic console / Railway UI."""
+    raw = os.environ.get('ANTHROPIC_API_KEY', '') or ''
+    return raw.strip().strip('"').strip("'").strip()
+
+
 try:
     import anthropic
-    AI_ENABLED = bool(os.environ.get('ANTHROPIC_API_KEY', ''))
+    AI_ENABLED = bool(_api_key())
 except ImportError:
     anthropic = None
     AI_ENABLED = False
@@ -82,9 +89,17 @@ class AINotConfigured(RuntimeError):
 
 
 def _client():
-    if not AI_ENABLED or not anthropic:
+    if not anthropic:
+        raise AINotConfigured("anthropic SDK not installed")
+    key = _api_key()
+    if not key:
         raise AINotConfigured("ANTHROPIC_API_KEY is not set; landing AI is disabled")
-    return anthropic.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'])
+    if not key.startswith('sk-ant-'):
+        raise AINotConfigured(
+            f"ANTHROPIC_API_KEY does not look like an Anthropic key "
+            f"(starts with {key[:7]!r}; expected 'sk-ant-')"
+        )
+    return anthropic.Anthropic(api_key=key)
 
 
 def _user_prompt(academy_name: str, brief: str, vibe: str = '', regenerate_section: str | None = None) -> str:
