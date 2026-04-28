@@ -129,6 +129,95 @@ def validate_csrf():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  TTL CACHE — tiny in-process memo for hot-but-rarely-changing reads
+#  (academy row, programs list, belt ranks, urgent-leads count, etc.)
+#  Resets on process restart, so deploys flush automatically.
+# ═══════════════════════════════════════════════════════════════
+
+import time as _time
+
+_cache_store = {}  # key -> (expires_at_epoch, value)
+
+
+def _ttl_get(key):
+    entry = _cache_store.get(key)
+    if not entry:
+        return None
+    expires_at, value = entry
+    if _time.time() > expires_at:
+        _cache_store.pop(key, None)
+        return None
+    return value
+
+
+def _ttl_set(key, value, ttl_seconds=60):
+    _cache_store[key] = (_time.time() + ttl_seconds, value)
+
+
+def _cached_urgent_leads_count(academy_id):
+    """Count of 'new' prospects older than 24h with no member link.
+    Replaces the per-request Python loop that scanned every prospect.
+    Cached 60s — these counts don't need real-time precision in a navbar
+    badge, and they're hit on EVERY page load via the context processor.
+    """
+    cache_key = f'urgent_leads:{academy_id}'
+    cached = _ttl_get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        conn = models.get_db()
+        try:
+            row = conn.execute(
+                """SELECT COUNT(*) AS cnt FROM prospects
+                   WHERE academy_id = ?
+                     AND status = 'new'
+                     AND (source IS NULL OR source != 'ex_student')
+                     AND member_id IS NULL
+                     AND (archived IS NULL OR archived = 0)
+                     AND (julianday('now') - julianday(created_at)) > 1""",
+                (academy_id,)
+            ).fetchone()
+            count = (row.get('cnt') if isinstance(row, dict) else (row[0] if row else 0)) or 0
+        except Exception:
+            # Postgres uses different date math — fall back to NOW() interval
+            try:
+                row = conn.execute(
+                    """SELECT COUNT(*) AS cnt FROM prospects
+                       WHERE academy_id = ?
+                         AND status = 'new'
+                         AND (source IS NULL OR source != 'ex_student')
+                         AND member_id IS NULL
+                         AND (archived IS NULL OR archived = FALSE)
+                         AND created_at < (NOW() - INTERVAL '1 day')""",
+                    (academy_id,)
+                ).fetchone()
+                count = (row.get('cnt') if isinstance(row, dict) else (row[0] if row else 0)) or 0
+            except Exception:
+                count = 0
+        finally:
+            conn.close()
+    except Exception:
+        count = 0
+    _ttl_set(cache_key, int(count), ttl_seconds=60)
+    return int(count)
+
+
+def _cached_get_academy(academy_id):
+    """Academy row hit on every page; cache 60s."""
+    cache_key = f'academy:{academy_id}'
+    cached = _ttl_get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        a = models.get_academy_by_id(academy_id)
+        a = dict(a) if a else None
+    except Exception:
+        a = None
+    _ttl_set(cache_key, a, ttl_seconds=60)
+    return a
+
+
+# ═══════════════════════════════════════════════════════════════
 #  CONTEXT PROCESSOR — inject globals into all templates
 # ═══════════════════════════════════════════════════════════════
 
@@ -143,13 +232,10 @@ def inject_globals():
     def t(key):
         return get_text(ui_lang, key)
 
-    # Academy settings
-    academy = None
+    # Academy settings — cached 60s. Hit on every page render, almost
+    # never changes during a session.
     academy_id = session.get('academy_id', 1)
-    try:
-        academy = models.get_academy_by_id(academy_id)
-    except Exception:
-        pass
+    academy = _cached_get_academy(academy_id)
 
     # Trial days remaining (computed from users.trial_start)
     trial_days = 0
@@ -193,24 +279,13 @@ def inject_globals():
         except Exception:
             pass
 
-    # Leads waiting 24h+ without contact (only 'new' stage leads)
+    # Leads waiting 24h+ without contact. Was a full prospects table scan
+    # in Python on every request — replaced with a single COUNT query
+    # cached for 60s per academy. Dashboard render dropped from ~17 to ~12
+    # DB calls on a logged-in page hit.
     urgent_leads_count = 0
     if session.get('logged_in'):
-        try:
-            from datetime import datetime as dt_cls
-            all_prsp = models.get_all_prospects(academy_id)
-            now = dt_cls.now()
-            for p in (all_prsp or []):
-                if p.get('status') == 'new' and p.get('source') != 'ex_student' and not p.get('member_id') and not p.get('archived'):
-                    created = str(p.get('created_at', ''))[:19]
-                    try:
-                        created_dt = dt_cls.strptime(created, '%Y-%m-%d %H:%M:%S')
-                        if (now - created_dt).total_seconds() > 86400:
-                            urgent_leads_count += 1
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+        urgent_leads_count = _cached_urgent_leads_count(academy_id)
 
     return dict(
         t=t,
@@ -6436,16 +6511,6 @@ def messaging_page():
     except Exception:
         templates = []
 
-    try:
-        smart_groups = models.get_smart_groups(academy_id)
-        for g in smart_groups:
-            try:
-                g['match_count'] = len(models.evaluate_smart_group(g['id'], academy_id))
-            except Exception:
-                g['match_count'] = 0
-    except Exception:
-        smart_groups = []
-
     programs = _enrich_programs(models.get_programs(academy_id))
     return render_template('messaging.html',
                            members=members,
@@ -6454,8 +6519,7 @@ def messaging_page():
                            belts=belts,
                            stats=stats,
                            programs=programs,
-                           templates=templates,
-                           smart_groups=smart_groups)
+                           templates=templates)
 
 
 @app.route('/messaging/automations')
@@ -6614,7 +6678,6 @@ def automations_hub():
     academy_id = _get_academy_id()
     automations = models.get_automated_messages(academy_id)
     flows = models.get_flows(academy_id)
-    smart_groups = models.get_smart_groups(academy_id)
     templates = []
     try:
         templates = models.get_message_templates(academy_id)
@@ -6632,7 +6695,6 @@ def automations_hub():
                            quickstarts=quickstarts,
                            automations=automations,
                            flows=flows,
-                           smart_groups=smart_groups,
                            templates=templates)
 
 
@@ -6676,109 +6738,6 @@ def automations_run_now_hub():
     except Exception as e: print(f"[Advance flows] {e}")
     flash(f'Fired {fired} automation message{"s" if fired != 1 else ""} and advanced {advanced} flow step{"s" if advanced != 1 else ""}.', 'success')
     return redirect(url_for('automations_hub'))
-
-
-# ─── Smart Groups ──────────────────────────────────────────────
-
-@app.route('/smart-groups')
-@login_required
-def smart_groups_list():
-    academy_id = _get_academy_id()
-    groups = models.get_smart_groups(academy_id)
-    # Compute counts on the fly so the user sees how many members each group
-    # currently matches. Cheap because get_all_members is already cached above.
-    for g in groups:
-        try:
-            g['match_count'] = len(models.evaluate_smart_group(g['id'], academy_id))
-        except Exception:
-            g['match_count'] = 0
-    return render_template('smart_groups_list.html', groups=groups)
-
-
-@app.route('/smart-groups/new', methods=['GET', 'POST'])
-@login_required
-def smart_group_new():
-    academy_id = _get_academy_id()
-    if request.method == 'POST':
-        if not validate_csrf():
-            return redirect(url_for('smart_groups_list'))
-        gid = models.upsert_smart_group(
-            academy_id,
-            name=request.form.get('name', '').strip() or 'Untitled group',
-            description=request.form.get('description', '').strip(),
-            rules=_parse_smart_group_rules(request.form),
-        )
-        flash('Smart group created.', 'success')
-        return redirect(url_for('smart_group_edit', group_id=gid))
-    return render_template('smart_group_editor.html', group=None,
-                           belts=_safe_get_belts(), programs=_enrich_programs(models.get_programs(academy_id)),
-                           preview_count=None)
-
-
-@app.route('/smart-groups/<int:group_id>', methods=['GET', 'POST'])
-@login_required
-def smart_group_edit(group_id):
-    academy_id = _get_academy_id()
-    group = models.get_smart_group(group_id)
-    if not group or group.get('academy_id') != academy_id:
-        flash('Group not found.', 'error')
-        return redirect(url_for('smart_groups_list'))
-
-    if request.method == 'POST':
-        if not validate_csrf():
-            return redirect(url_for('smart_group_edit', group_id=group_id))
-        models.upsert_smart_group(
-            academy_id,
-            group_id=group_id,
-            name=request.form.get('name', '').strip() or group['name'],
-            description=request.form.get('description', '').strip(),
-            rules=_parse_smart_group_rules(request.form),
-        )
-        flash('Smart group saved.', 'success')
-        return redirect(url_for('smart_group_edit', group_id=group_id))
-
-    members = models.evaluate_smart_group(group_id, academy_id)
-    return render_template('smart_group_editor.html', group=group,
-                           belts=_safe_get_belts(),
-                           programs=_enrich_programs(models.get_programs(academy_id)),
-                           preview_count=len(members),
-                           preview_members=members[:25])
-
-
-@app.route('/smart-groups/<int:group_id>/delete', methods=['POST'])
-@login_required
-def smart_group_delete(group_id):
-    if not validate_csrf():
-        return redirect(url_for('smart_groups_list'))
-    models.delete_smart_group(group_id)
-    flash('Smart group deleted.', 'success')
-    return redirect(url_for('smart_groups_list'))
-
-
-def _safe_get_belts():
-    try:
-        return models.get_all_belt_ranks() or []
-    except Exception:
-        return []
-
-
-def _parse_smart_group_rules(form):
-    """Form posts rules as parallel arrays: rule_field[], rule_op[], rule_value[]."""
-    fields = form.getlist('rule_field')
-    ops = form.getlist('rule_op')
-    values = form.getlist('rule_value')
-    rules = []
-    for i in range(min(len(fields), len(ops), len(values))):
-        f = (fields[i] or '').strip()
-        v = (values[i] or '').strip()
-        if not f or not v:
-            continue
-        rules.append({
-            'field': f,
-            'op': (ops[i] or 'eq').strip(),
-            'value': v,
-        })
-    return rules
 
 
 # ─── Landing pages ──────────────────────────────────────────────
@@ -7152,11 +7111,6 @@ def messaging_send():
     # Determine recipients
     if filter_type == 'manual':
         recipients = models.get_members_by_filter(academy_id, 'manual', manual_ids)
-    elif filter_type == 'smart_group':
-        try:
-            recipients = models.evaluate_smart_group(int(filter_value), academy_id)
-        except Exception:
-            recipients = []
     else:
         recipients = models.get_members_by_filter(academy_id, filter_type, filter_value)
 

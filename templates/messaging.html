@@ -222,27 +222,11 @@
                         <button type="button" class="recipient-tab" onclick="switchFilter('program', this)"><i class="bi bi-collection"></i> Program</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('former', this)"><i class="bi bi-person-dash"></i> Ex-Members</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('leads', this)"><i class="bi bi-funnel"></i> Leads</button>
-                        <button type="button" class="recipient-tab" onclick="switchFilter('smart_group', this)"><i class="bi bi-stars"></i> Smart Group</button>
                         <button type="button" class="recipient-tab" onclick="switchFilter('manual', this)">{{ t('msg_manual') }}</button>
                     </div>
 
                     <!-- Filter: All (nothing needed) -->
                     <div class="filter-panel active" id="panel-all"></div>
-
-                    <!-- Filter: Smart Group -->
-                    <div class="filter-panel" id="panel-smart_group">
-                        {% if smart_groups %}
-                        <select class="form-select" id="smartGroupSelect" onchange="updateFilterValue('smart_group'); updatePreview();">
-                            <option value="">— pick a smart group —</option>
-                            {% for g in smart_groups %}
-                            <option value="{{ g.id }}">{{ g.name }} ({{ g.match_count }} member{% if g.match_count != 1 %}s{% endif %})</option>
-                            {% endfor %}
-                        </select>
-                        <small style="color:var(--text-muted);font-size:11px;margin-top:4px;display:block;"><a href="/smart-groups" style="color:var(--primary);">Manage smart groups →</a></small>
-                        {% else %}
-                        <div style="padding:14px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:13px;color:var(--text-muted);">No smart groups yet. <a href="/smart-groups/new" style="color:var(--primary);">Create one →</a></div>
-                        {% endif %}
-                    </div>
 
                     <!-- Filter: Status -->
                     <div class="filter-panel" id="panel-status">
@@ -776,4 +760,27 @@ function insertToken(token) {
         </div>
     </form>
 </div>
+
+<script>
+// Pre-select a member when arriving from /members?member=<id> (Send icon
+// in the members list). Picks the manual filter and ticks the checkbox.
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const preMember = params.get('member');
+    if (!preMember) return;
+    setTimeout(() => {
+        const tab = Array.from(document.querySelectorAll('.recipient-tab'))
+            .find(b => b.textContent.includes("{{ t('msg_manual') }}") || b.getAttribute('onclick')?.includes("'manual'"));
+        if (tab) tab.click();
+        const cb = document.querySelector(`#memberPicker input[value="${preMember}"]`);
+        if (cb) {
+            cb.checked = true;
+            if (typeof updateManualIds === 'function') updateManualIds();
+            if (typeof updatePreview === 'function') updatePreview();
+            cb.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+        document.getElementById('msgSubject')?.focus();
+    }, 100);
+})();
+</script>
 {% endblock %}

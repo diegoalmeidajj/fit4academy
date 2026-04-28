@@ -193,9 +193,11 @@
                     <td>{{ member.membership_name|default('—') }}</td>
                     <td>{{ member.phone|default('—') }}</td>
                     <td>{{ member.last_checkin|default('—') }}</td>
-                    <td>
-                        <a href="/members/{{ member.id }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
-                        <a href="/members/{{ member.id }}/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                    <td style="white-space:nowrap;">
+                        <a href="/members/{{ member.id }}" class="btn btn-sm btn-outline-primary" title="View profile"><i class="bi bi-eye"></i></a>
+                        <a href="/staff-chat/{{ member.id }}" class="btn btn-sm btn-outline-secondary" title="Open chat" style="color:#22d3ee;border-color:rgba(34,211,238,0.40);"><i class="bi bi-chat-dots"></i></a>
+                        <a href="/messaging?member={{ member.id }}" class="btn btn-sm btn-outline-secondary" title="Send email/SMS" style="color:#a78bfa;border-color:rgba(167,139,250,0.40);"><i class="bi bi-send"></i></a>
+                        <a href="/members/{{ member.id }}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
                     </td>
                 </tr>
                 {% endfor %}
