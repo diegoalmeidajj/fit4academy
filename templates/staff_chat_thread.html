@@ -93,7 +93,7 @@
       {% for m in messages %}
         <div class="bubble {{ 'me' if m.sender_type == 'staff' else 'them' }}">
           {{ m.body }}
-          <span class="bubble-time">{{ (m.created_at or '')[11:16] }}</span>
+          <span class="bubble-time">{{ ((m.created_at|string) if m.created_at else '')[11:16] }}</span>
         </div>
       {% endfor %}
     {% endif %}
