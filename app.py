@@ -6283,6 +6283,105 @@ def messaging_automations_run_now():
     return redirect(url_for('messaging_automations_page'))
 
 
+@app.route('/messaging/flows')
+@login_required
+def messaging_flows_page():
+    academy_id = _get_academy_id()
+    flows = models.get_flows(academy_id)
+    return render_template('messaging_flows.html', flows=flows)
+
+
+@app.route('/messaging/flows/new', methods=['GET', 'POST'])
+@login_required
+def messaging_flow_new():
+    academy_id = _get_academy_id()
+    if request.method == 'POST':
+        if not validate_csrf():
+            return redirect(url_for('messaging_flows_page'))
+        name = (request.form.get('name') or '').strip()
+        if not name:
+            flash('Flow name is required.', 'error')
+            return redirect(url_for('messaging_flow_new'))
+        flow_id = models.upsert_flow(
+            academy_id,
+            name=name,
+            audience=request.form.get('audience', 'prospects'),
+            trigger_type=request.form.get('trigger_type', 'prospect_created'),
+            active=request.form.get('active') == 'on',
+        )
+        return redirect(url_for('messaging_flow_edit', flow_id=flow_id))
+    return render_template('messaging_flow_editor.html', flow=None, steps=[])
+
+
+@app.route('/messaging/flows/<int:flow_id>', methods=['GET', 'POST'])
+@login_required
+def messaging_flow_edit(flow_id):
+    academy_id = _get_academy_id()
+    flow = models.get_flow(flow_id)
+    if not flow or flow.get('academy_id') != academy_id:
+        flash('Flow not found.', 'error')
+        return redirect(url_for('messaging_flows_page'))
+
+    if request.method == 'POST':
+        if not validate_csrf():
+            return redirect(url_for('messaging_flow_edit', flow_id=flow_id))
+        # Update flow metadata
+        models.upsert_flow(
+            academy_id,
+            flow_id=flow_id,
+            name=(request.form.get('name') or flow['name']).strip(),
+            audience=request.form.get('audience', flow.get('audience')),
+            trigger_type=request.form.get('trigger_type', flow.get('trigger_type')),
+            active=request.form.get('active') == 'on',
+        )
+        # Steps come in as parallel arrays: step_delay[], step_channel[], step_subject[], step_body[]
+        delays = request.form.getlist('step_delay')
+        channels = request.form.getlist('step_channel')
+        subjects = request.form.getlist('step_subject')
+        bodies = request.form.getlist('step_body')
+        steps = []
+        for i in range(max(len(delays), len(bodies))):
+            body = (bodies[i] if i < len(bodies) else '').strip()
+            if not body:
+                continue
+            steps.append({
+                'delay_days': int(delays[i] or 0) if i < len(delays) else 0,
+                'channel': channels[i] if i < len(channels) else 'both',
+                'subject': subjects[i] if i < len(subjects) else '',
+                'body': body,
+            })
+        models.set_flow_steps(flow_id, steps)
+        flash('Flow saved.', 'success')
+        return redirect(url_for('messaging_flow_edit', flow_id=flow_id))
+
+    steps = models.get_flow_steps(flow_id)
+    return render_template('messaging_flow_editor.html', flow=flow, steps=steps)
+
+
+@app.route('/messaging/flows/<int:flow_id>/delete', methods=['POST'])
+@login_required
+def messaging_flow_delete(flow_id):
+    if not validate_csrf():
+        return redirect(url_for('messaging_flows_page'))
+    models.delete_flow(flow_id)
+    flash('Flow deleted.', 'success')
+    return redirect(url_for('messaging_flows_page'))
+
+
+@app.route('/messaging/flows/run-now', methods=['POST'])
+@login_required
+def messaging_flows_run_now():
+    """Manually advance flow executions whose next step is due. Useful for
+    testing — Railway Cron will hit a different endpoint on a schedule.
+    """
+    if not validate_csrf():
+        return redirect(url_for('messaging_flows_page'))
+    academy_id = _get_academy_id()
+    sent = models.advance_flow_executions(academy_id)
+    flash(f'{sent} flow step{"s" if sent != 1 else ""} sent.', 'success')
+    return redirect(url_for('messaging_flows_page'))
+
+
 @app.route('/messaging/templates/save', methods=['POST'])
 @login_required
 def messaging_template_save():

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}{% if flow %}Edit flow{% else %}New flow{% endif %}{% endblock %}
+{% block content %}
+<style>
+.editor-shell { max-width: 900px; }
+.field-row { margin-bottom: 14px; }
+.field-row label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 5px; }
+.field-row input, .field-row select, .field-row textarea {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border: 1.5px solid var(--border);
+    color: var(--text); font-size: 14px; font-family: inherit;
+}
+.flow-meta-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 18px; }
+.steps-section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+.step-row {
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    margin-bottom: 12px; background: rgba(255,255,255,0.02);
+    position: relative;
+}
+.step-row .step-num {
+    position: absolute; top: -8px; left: 14px;
+    background: var(--primary); color: #0f172a;
+    font-family: 'Space Grotesk'; font-weight: 800; font-size: 12px;
+    padding: 2px 10px; border-radius: 999px;
+}
+.step-row.draft { opacity: 0.6; border-style: dashed; }
+.step-grid { display: grid; grid-template-columns: 100px 140px 1fr; gap: 10px; margin-bottom: 10px; }
+.step-grid input, .step-grid select { padding: 8px 10px; font-size: 13px; }
+.step-actions { display: flex; gap: 6px; }
+.step-actions button { font-size: 11px; padding: 4px 8px; }
+.add-step-btn { display: block; width: 100%; padding: 14px; background: rgba(0,220,130,0.05); border: 1.5px dashed rgba(0,220,130,0.40); border-radius: 12px; color: var(--primary); font-weight: 700; cursor: pointer; }
+.add-step-btn:hover { background: rgba(0,220,130,0.10); }
+.token-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); }
+.token-bar button { font-family: monospace; font-size: 10px; padding: 2px 7px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 999px; color: var(--text); cursor: pointer; }
+.tabs-strip { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.tabs-strip a { padding: 10px 16px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; }
+.tabs-strip a.active { color: var(--primary); border-bottom-color: var(--primary); }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+        <h1 style="margin:0;font-family:'Space Grotesk';letter-spacing:-0.5px;">{% if flow %}Edit flow{% else %}New flow{% endif %}</h1>
+        <div style="color:var(--text-muted);font-size:13px;margin-top:2px;"><a href="/messaging/flows" style="color:inherit;text-decoration:none;"><i class="bi bi-arrow-left"></i> Back to all flows</a></div>
+    </div>
+</div>
+
+<form method="POST" id="flowForm" class="editor-shell">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="flow-meta-card">
+        <h3 style="font-family:'Space Grotesk';margin:0 0 14px;font-size:15px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;">Flow settings</h3>
+
+        <div class="field-row">
+            <label>Name</label>
+            <input type="text" name="name" placeholder="e.g. New Lead Nurture" value="{{ flow.name if flow else '' }}" required>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="field-row">
+                <label>Audience</label>
+                <select name="audience">
+                    <option value="prospects" {% if flow and flow.audience == 'prospects' %}selected{% endif %}>Prospects (leads)</option>
+                    <option value="members" {% if flow and flow.audience == 'members' %}selected{% endif %}>Members (students)</option>
+                </select>
+            </div>
+            <div class="field-row">
+                <label>Trigger</label>
+                <select name="trigger_type">
+                    <option value="prospect_created" {% if flow and flow.trigger_type == 'prospect_created' %}selected{% endif %}>When a prospect is added</option>
+                    <option value="member_created" {% if flow and flow.trigger_type == 'member_created' %}selected{% endif %}>When a member joins</option>
+                    <option value="member_inactive_15d" {% if flow and flow.trigger_type == 'member_inactive_15d' %}selected{% endif %}>When a member goes inactive 15+ days</option>
+                </select>
+            </div>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);">
+            <input type="checkbox" name="active" {% if not flow or flow.active %}checked{% endif %} style="width:auto;">
+            Active — fire this flow on its trigger
+        </label>
+    </div>
+
+    {% if flow %}
+    <div class="steps-section">
+        <h3 style="font-family:'Space Grotesk';margin:0 0 14px;font-size:15px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;">Steps</h3>
+        <p style="color:var(--text-muted);font-size:12px;margin:0 0 16px;">Each step fires after its delay (in days) following the previous step. Step 1's delay is from when the trigger fires.</p>
+
+        <div id="stepsContainer">
+            {% for s in steps %}
+            <div class="step-row" data-idx="{{ loop.index0 }}">
+                <span class="step-num">Step {{ loop.index }}</span>
+                <div class="step-grid">
+                    <div>
+                        <label style="font-size:9px;color:var(--text-muted);font-weight:700;">DAYS DELAY</label>
+                        <input type="number" name="step_delay" min="0" value="{{ s.delay_days }}">
+                    </div>
+                    <div>
+                        <label style="font-size:9px;color:var(--text-muted);font-weight:700;">CHANNEL</label>
+                        <select name="step_channel">
+                            <option value="both" {% if s.channel == 'both' %}selected{% endif %}>Email + SMS</option>
+                            <option value="email" {% if s.channel == 'email' %}selected{% endif %}>Email only</option>
+                            <option value="sms" {% if s.channel == 'sms' %}selected{% endif %}>SMS only</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:9px;color:var(--text-muted);font-weight:700;">SUBJECT (email)</label>
+                        <input type="text" name="step_subject" value="{{ s.subject }}">
+                    </div>
+                </div>
+                <textarea name="step_body" rows="4" style="width:100%;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:13px;" placeholder="Step body…">{{ s.body }}</textarea>
+                <div class="step-actions" style="margin-top:8px;justify-content:space-between;">
+                    <div class="token-bar" style="margin:0;padding:0;border:0;">
+                        {% for tok in ['{{first_name}}', '{{academy_name}}', '{{belt}}'] %}
+                        <button type="button" onclick="insertTok(this, '{{ tok }}')">{{ tok }}</button>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary" onclick="removeStep(this)" style="color:#f87171;"><i class="bi bi-trash3"></i> Remove</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="add-step-btn" onclick="addStep()"><i class="bi bi-plus-lg"></i> Add a step</button>
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+        <a href="/messaging/flows" class="btn btn-outline-secondary">Cancel</a>
+        <button class="btn btn-primary" style="background:var(--primary);color:#0f172a;font-weight:700;"><i class="bi bi-check2"></i> {% if flow %}Save flow{% else %}Create flow{% endif %}</button>
+    </div>
+</form>
+
+<script>
+function addStep() {
+    const c = document.getElementById('stepsContainer');
+    const idx = c.children.length;
+    const div = document.createElement('div');
+    div.className = 'step-row';
+    div.dataset.idx = idx;
+    div.innerHTML = `
+        <span class="step-num">Step ${idx + 1}</span>
+        <div class="step-grid">
+            <div>
+                <label style="font-size:9px;color:var(--text-muted);font-weight:700;">DAYS DELAY</label>
+                <input type="number" name="step_delay" min="0" value="0">
+            </div>
+            <div>
+                <label style="font-size:9px;color:var(--text-muted);font-weight:700;">CHANNEL</label>
+                <select name="step_channel">
+                    <option value="both">Email + SMS</option>
+                    <option value="email">Email only</option>
+                    <option value="sms">SMS only</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:9px;color:var(--text-muted);font-weight:700;">SUBJECT (email)</label>
+                <input type="text" name="step_subject" value="">
+            </div>
+        </div>
+        <textarea name="step_body" rows="4" style="width:100%;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:13px;" placeholder="Hi {{'{{first_name}}'}}, ..."></textarea>
+        <div class="step-actions" style="margin-top:8px;justify-content:space-between;">
+            <div class="token-bar" style="margin:0;padding:0;border:0;">
+                <button type="button" onclick="insertTok(this, '{{'{{first_name}}'}}')">{{'{{first_name}}'}}</button>
+                <button type="button" onclick="insertTok(this, '{{'{{academy_name}}'}}')">{{'{{academy_name}}'}}</button>
+                <button type="button" onclick="insertTok(this, '{{'{{belt}}'}}')">{{'{{belt}}'}}</button>
+            </div>
+            <button type="button" class="btn btn-outline-secondary" onclick="removeStep(this)" style="color:#f87171;"><i class="bi bi-trash3"></i> Remove</button>
+        </div>`;
+    c.appendChild(div);
+    renumber();
+}
+
+function removeStep(btn) {
+    btn.closest('.step-row').remove();
+    renumber();
+}
+
+function renumber() {
+    const rows = document.querySelectorAll('#stepsContainer .step-row');
+    rows.forEach((r, i) => {
+        r.querySelector('.step-num').textContent = `Step ${i + 1}`;
+        r.dataset.idx = i;
+    });
+}
+
+function insertTok(btn, token) {
+    const row = btn.closest('.step-row');
+    const target = row.querySelector('textarea[name="step_body"]');
+    const start = target.selectionStart || 0;
+    const end = target.selectionEnd || 0;
+    target.value = target.value.slice(0, start) + token + target.value.slice(end);
+    target.focus();
+    target.selectionStart = target.selectionEnd = start + token.length;
+}
+</script>
+{% endblock %}

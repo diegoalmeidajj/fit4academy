@@ -678,6 +678,44 @@ def init_db():
             sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
         "CREATE INDEX IF NOT EXISTS idx_automated_runs_uniq ON automated_message_runs(automation_id, recipient_type, recipient_id)",
+
+        # ─── Message Flows (multi-step drip sequences) ───
+        # A flow has N ordered steps. When the flow's trigger fires for a
+        # recipient, a flow_execution is created and advances through steps
+        # over days as their delays elapse.
+        """CREATE TABLE IF NOT EXISTS message_flows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            name TEXT NOT NULL,
+            audience TEXT DEFAULT 'prospects',
+            trigger_type TEXT NOT NULL,
+            active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS flow_steps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            flow_id INTEGER NOT NULL,
+            sequence INTEGER NOT NULL,
+            delay_days INTEGER DEFAULT 0,
+            channel TEXT DEFAULT 'both',
+            subject TEXT DEFAULT '',
+            body TEXT DEFAULT ''
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_flow_steps_flow ON flow_steps(flow_id, sequence)",
+        """CREATE TABLE IF NOT EXISTS flow_executions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            flow_id INTEGER NOT NULL,
+            recipient_type TEXT NOT NULL,
+            recipient_id INTEGER NOT NULL,
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            current_step INTEGER DEFAULT 0,
+            last_step_sent_at TIMESTAMP,
+            completed_at TIMESTAMP,
+            cancelled_at TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_flow_exec_recipient ON flow_executions(flow_id, recipient_type, recipient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_flow_exec_pending ON flow_executions(completed_at, cancelled_at)",
     ]:
         try:
             conn.execute(alter)
@@ -1490,7 +1528,9 @@ def create_member(academy_id=1, **kwargs):
     try:
         member = get_member_by_id(new_id)
         if member:
-            fire_automation_trigger('member_created', member=dict(member), academy_id=academy_id)
+            md = dict(member)
+            fire_automation_trigger('member_created', member=md, academy_id=academy_id)
+            start_flows_for_trigger('member_created', member=md, academy_id=academy_id)
     except Exception as _e:
         print(f"[create_member] automation hook error: {_e}")
 
@@ -2375,6 +2415,7 @@ def create_prospect(academy_id=1, **kwargs):
             'phone': kwargs.get('phone', ''),
         }
         fire_automation_trigger('prospect_created', prospect=prospect_data, academy_id=academy_id)
+        start_flows_for_trigger('prospect_created', prospect=prospect_data, academy_id=academy_id)
     except Exception as _e:
         print(f"[create_prospect] automation hook error: {_e}")
 
@@ -3181,6 +3222,306 @@ def run_due_delayed_automations(academy_id=1):
                 _record_automation_run(a['id'], 'member', md['id'])
                 fired += 1
     return fired
+
+
+# ─── Message Flows (multi-step drip sequences) ─────────────────
+
+def get_flows(academy_id=1, active_only=False):
+    conn = get_db()
+    try:
+        sql = "SELECT * FROM message_flows WHERE academy_id = ?"
+        params = [academy_id]
+        if active_only:
+            sql += " AND active = ?"
+            params.append(True)
+        sql += " ORDER BY name"
+        rows = conn.execute(sql, params).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            d['step_count'] = conn.execute(
+                "SELECT COUNT(*) FROM flow_steps WHERE flow_id = ?", (d['id'],)
+            ).fetchone()[0]
+            out.append(d)
+        return out
+    finally:
+        conn.close()
+
+
+def get_flow(flow_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM message_flows WHERE id = ?", (flow_id,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_flow_steps(flow_id):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM flow_steps WHERE flow_id = ? ORDER BY sequence ASC",
+            (flow_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def upsert_flow(academy_id, **kwargs):
+    """Create or update a flow. Returns flow_id."""
+    flow_id = kwargs.get('flow_id')
+    payload = (
+        kwargs.get('name', ''),
+        kwargs.get('audience', 'prospects'),
+        kwargs.get('trigger_type', 'prospect_created'),
+        bool(kwargs.get('active', True)),
+    )
+    conn = get_db()
+    try:
+        if flow_id:
+            conn.execute(
+                "UPDATE message_flows SET name=?, audience=?, trigger_type=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                payload + (flow_id,)
+            )
+            conn.commit()
+            return flow_id
+        cur = conn.execute(
+            "INSERT INTO message_flows (academy_id, name, audience, trigger_type, active) VALUES (?, ?, ?, ?, ?)",
+            (academy_id,) + payload
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def delete_flow(flow_id):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM flow_steps WHERE flow_id = ?", (flow_id,))
+        conn.execute("DELETE FROM flow_executions WHERE flow_id = ?", (flow_id,))
+        conn.execute("DELETE FROM message_flows WHERE id = ?", (flow_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def set_flow_steps(flow_id, steps):
+    """Replace all steps for a flow with the provided list.
+
+    steps: list of dicts {sequence, delay_days, channel, subject, body}.
+    Sequence is 0-indexed.
+    """
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM flow_steps WHERE flow_id = ?", (flow_id,))
+        for i, s in enumerate(steps):
+            conn.execute(
+                "INSERT INTO flow_steps (flow_id, sequence, delay_days, channel, subject, body) VALUES (?, ?, ?, ?, ?, ?)",
+                (flow_id, i,
+                 int(s.get('delay_days', 0) or 0),
+                 s.get('channel', 'both'),
+                 s.get('subject', ''),
+                 s.get('body', ''))
+            )
+        conn.execute("UPDATE message_flows SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (flow_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def start_flow_execution(flow_id, recipient_type, recipient_id):
+    """Begin a flow for a recipient. Idempotent — won't double-start an active
+    execution for the same (flow, recipient).
+    """
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            """SELECT id FROM flow_executions
+               WHERE flow_id = ? AND recipient_type = ? AND recipient_id = ?
+               AND completed_at IS NULL AND cancelled_at IS NULL""",
+            (flow_id, recipient_type, recipient_id)
+        ).fetchone()
+        if existing:
+            return None
+        cur = conn.execute(
+            """INSERT INTO flow_executions
+               (flow_id, recipient_type, recipient_id, started_at, current_step)
+               VALUES (?, ?, ?, CURRENT_TIMESTAMP, 0)""",
+            (flow_id, recipient_type, recipient_id)
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def start_flows_for_trigger(trigger_type, member=None, prospect=None, academy_id=None):
+    """Start every active flow whose trigger matches this event."""
+    if academy_id is None:
+        if member:
+            academy_id = (member.get('academy_id') if isinstance(member, dict) else member['academy_id']) or 1
+        elif prospect:
+            academy_id = (prospect.get('academy_id') if isinstance(prospect, dict) else prospect['academy_id']) or 1
+        else:
+            academy_id = 1
+
+    flows = get_flows(academy_id, active_only=True)
+    flows = [f for f in flows if f.get('trigger_type') == trigger_type and f.get('step_count', 0) > 0]
+    if not flows:
+        return 0
+
+    recipient_type = 'member' if member else 'prospect'
+    recipient = member or prospect or {}
+    if not isinstance(recipient, dict):
+        recipient = dict(recipient)
+    recipient_id = recipient.get('id')
+    if not recipient_id:
+        return 0
+
+    started = 0
+    for f in flows:
+        if start_flow_execution(f['id'], recipient_type, recipient_id):
+            started += 1
+    return started
+
+
+def advance_flow_executions(academy_id=1):
+    """Advance every active flow execution whose next step's delay has elapsed.
+
+    Returns count of step messages actually sent.
+
+    Logic:
+    - For each pending execution (no completed_at, no cancelled_at):
+      - Look up the step at current_step
+      - If no such step → mark completed
+      - Compute "ready time" = started_at + sum(delay_days[0..current_step])
+      - If now >= ready_time AND (last_step_sent_at is None OR step delay
+        elapsed since it): send the message and advance
+    """
+    from datetime import datetime as _dt, timedelta as _td
+
+    flows = {f['id']: f for f in get_flows(academy_id)}
+    if not flows:
+        return 0
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT * FROM flow_executions
+               WHERE completed_at IS NULL AND cancelled_at IS NULL"""
+        ).fetchall()
+        executions = [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+    if not executions:
+        return 0
+
+    sent = 0
+    for ex in executions:
+        flow = flows.get(ex['flow_id'])
+        if not flow:
+            continue
+        steps = get_flow_steps(ex['flow_id'])
+        cur_idx = ex.get('current_step', 0) or 0
+        if cur_idx >= len(steps):
+            _mark_flow_completed(ex['id'])
+            continue
+        step = steps[cur_idx]
+
+        # Time when this step is due. Anchor: previous step's send time, or
+        # started_at if cur_idx == 0.
+        try:
+            anchor_str = ex.get('last_step_sent_at') or ex.get('started_at')
+            anchor_str = str(anchor_str)[:19].replace('T', ' ')
+            anchor = _dt.strptime(anchor_str, '%Y-%m-%d %H:%M:%S')
+        except Exception:
+            anchor = _dt.utcnow()
+
+        due_at = anchor + _td(days=int(step.get('delay_days', 0) or 0))
+        if _dt.utcnow() < due_at:
+            continue
+
+        # Resolve recipient
+        recipient = None
+        try:
+            if ex['recipient_type'] == 'member':
+                m = get_member_by_id(ex['recipient_id'])
+                recipient = dict(m) if m else None
+            elif ex['recipient_type'] == 'prospect':
+                p = get_prospect_by_id(ex['recipient_id'])
+                recipient = dict(p) if p else None
+        except Exception:
+            recipient = None
+        if not recipient:
+            _mark_flow_cancelled(ex['id'])
+            continue
+
+        try:
+            academy = get_academy_by_id(recipient.get('academy_id', academy_id))
+            academy = dict(academy) if academy else {}
+        except Exception:
+            academy = {}
+
+        subject = render_message_tokens(step.get('subject', '') or '', recipient, academy)
+        body = render_message_tokens(step.get('body', '') or '', recipient, academy)
+        channel = step.get('channel', 'both')
+
+        try:
+            import notifications_lib
+            if channel in ('email', 'both') and recipient.get('email'):
+                notifications_lib.send_email(recipient['email'], subject or '(no subject)', body)
+            if channel in ('sms', 'both') and recipient.get('phone'):
+                sms_body = (subject + '\n\n' + body) if subject else body
+                notifications_lib.send_sms(recipient['phone'], sms_body[:1500])
+        except Exception as e:
+            print(f"[Flow {flow['id']} step {cur_idx}] send error: {e}")
+            continue
+
+        _advance_flow_execution(ex['id'], cur_idx + 1, complete=(cur_idx + 1 >= len(steps)))
+        sent += 1
+    return sent
+
+
+def _advance_flow_execution(execution_id, new_step, complete=False):
+    conn = get_db()
+    try:
+        if complete:
+            conn.execute(
+                "UPDATE flow_executions SET current_step = ?, last_step_sent_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (new_step, execution_id)
+            )
+        else:
+            conn.execute(
+                "UPDATE flow_executions SET current_step = ?, last_step_sent_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (new_step, execution_id)
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _mark_flow_completed(execution_id):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE flow_executions SET completed_at = CURRENT_TIMESTAMP WHERE id = ?", (execution_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _mark_flow_cancelled(execution_id):
+    conn = get_db()
+    try:
+        conn.execute("UPDATE flow_executions SET cancelled_at = CURRENT_TIMESTAMP WHERE id = ?", (execution_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_messaging_stats(academy_id=1):

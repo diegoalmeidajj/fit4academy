@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Message Flows{% endblock %}
+{% block content %}
+<style>
+.flow-tabs { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.flow-tab { padding: 10px 16px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; }
+.flow-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.flow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.flow-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.flow-card.active { border-color: rgba(0,220,130,0.40); }
+.flow-card h3 { font-family: 'Space Grotesk'; font-size: 15px; margin: 0 0 4px; }
+.flow-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+.flow-meta code { background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; font-size: 10px; }
+.flow-steps-line {
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 12px; background: rgba(99,102,241,0.06);
+    border: 1px solid rgba(99,102,241,0.20); border-radius: 8px;
+    font-size: 12px; color: #a5b4fc;
+}
+.flow-actions { display: flex; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+.flow-actions a, .flow-actions button { font-size: 11px; padding: 6px 10px; }
+.empty-flow { padding: 60px 20px; text-align: center; border: 1px dashed var(--border); border-radius: 14px; color: var(--text-muted); }
+.empty-flow i { font-size: 56px; opacity: 0.4; }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+        <h1 style="margin:0;font-family:'Space Grotesk';letter-spacing:-0.5px;">Messaging</h1>
+        <div style="color:var(--text-muted);font-size:13px;margin-top:2px;">Multi-step drip sequences that nurture leads and onboard members.</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <form method="POST" action="/messaging/flows/run-now" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-primary"><i class="bi bi-play-circle"></i> Advance flows now</button>
+        </form>
+        <a href="/messaging/flows/new" class="btn btn-primary" style="background:var(--primary);color:#0f172a;font-weight:700;"><i class="bi bi-plus-lg"></i> New flow</a>
+    </div>
+</div>
+
+<div class="flow-tabs">
+    <a href="/messaging" class="flow-tab"><i class="bi bi-send"></i> Compose &amp; send</a>
+    <a href="/messaging/automations" class="flow-tab"><i class="bi bi-lightning"></i> Automations</a>
+    <a href="/messaging/flows" class="flow-tab active"><i class="bi bi-diagram-3"></i> Flows</a>
+</div>
+
+{% if flows %}
+<div class="flow-grid">
+    {% for f in flows %}
+    <div class="flow-card {% if f.active %}active{% endif %}">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h3>{{ f.name }}</h3>
+            {% if f.active %}<span style="font-size:9px;font-weight:700;color:var(--primary);background:rgba(0,220,130,0.12);padding:2px 8px;border-radius:999px;">ACTIVE</span>{% else %}<span style="font-size:9px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.12);padding:2px 8px;border-radius:999px;">PAUSED</span>{% endif %}
+        </div>
+        <div class="flow-meta">
+            Audience: <strong style="color:var(--text);">{{ f.audience }}</strong> · Trigger: <code>{{ f.trigger_type }}</code>
+        </div>
+        <div class="flow-steps-line">
+            <i class="bi bi-list-ol"></i>
+            <strong>{{ f.step_count }}</strong> step{% if f.step_count != 1 %}s{% endif %} configured
+        </div>
+        <div class="flow-actions">
+            <a href="/messaging/flows/{{ f.id }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit flow</a>
+            <form method="POST" action="/messaging/flows/{{ f.id }}/delete" style="margin:0;display:inline;" onsubmit="return confirm('Delete this flow? Active executions will be cancelled.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-secondary" style="color:#f87171;"><i class="bi bi-trash3"></i></button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-flow">
+    <i class="bi bi-diagram-3"></i>
+    <h3 style="color:var(--text);margin-top:10px;font-family:'Space Grotesk';">No flows yet</h3>
+    <p style="font-size:13px;">Build a multi-step sequence — welcome on day 0, follow-up on day 3, last nudge on day 7.</p>
+    <a href="/messaging/flows/new" class="btn btn-primary" style="background:var(--primary);color:#0f172a;font-weight:700;margin-top:8px;"><i class="bi bi-plus-lg"></i> Create your first flow</a>
+</div>
+{% endif %}
+{% endblock %}
