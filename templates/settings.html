@@ -143,6 +143,55 @@
         </div>
     </div>
 
+    <!-- Lead capture & tracking -->
+    <div class="card mb-24">
+        <div class="card-body">
+            <div class="settings-section">
+                <div class="settings-section-title"><i class="bi bi-magnet"></i> Lead capture &amp; tracking</div>
+                <div style="font-size:12px;color:var(--text-muted);margin:-8px 0 14px;">Pixels and conversion tags fire on your lead landing page (<code>/lead/{{ academy.id if academy else 1 }}</code>) and embedded form. Leave blank to disable.</div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label"><i class="bi bi-meta"></i> Meta (Facebook) Pixel ID</label>
+                        <input type="text" name="meta_pixel_id" class="form-control" placeholder="e.g. 1234567890123456" value="{{ academy.meta_pixel_id if academy else '' }}">
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Fires <code>PageView</code> + <code>Lead</code> events. Find it in Meta Events Manager → Data Sources.</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><i class="bi bi-google"></i> Google Analytics 4 ID</label>
+                        <input type="text" name="google_analytics_id" class="form-control" placeholder="e.g. G-XXXXXXXXXX" value="{{ academy.google_analytics_id if academy else '' }}">
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Fires <code>generate_lead</code>. From GA4 Admin → Data Streams.</div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label"><i class="bi bi-google"></i> Google Ads conversion ID</label>
+                        <input type="text" name="google_ads_id" class="form-control" placeholder="e.g. AW-123456789" value="{{ academy.google_ads_id if academy else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Google Ads conversion label</label>
+                        <input type="text" name="google_ads_label" class="form-control" placeholder="e.g. abcDEFghij1234567" value="{{ academy.google_ads_label if academy else '' }}">
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">From your Google Ads conversion action snippet — the part after the slash in <code>send_to: 'AW-XXX/LABEL'</code>.</div>
+                    </div>
+                </div>
+
+                <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">
+
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                        <input type="checkbox" name="waiver_required" {{ 'checked' if academy and academy.waiver_required }}>
+                        <span style="font-size:14px;font-weight:600;"><i class="bi bi-file-earmark-text" style="color:var(--primary);"></i> Require waiver signature on lead form</span>
+                    </label>
+                    <div style="font-size:11px;color:var(--text-muted);margin-left:28px;margin-top:4px;">When on, leads must read the waiver, check agreement, and type their full name to submit. Signatures are timestamped + IP-stamped for legal record.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Waiver text</label>
+                    <textarea name="waiver_text" class="form-control" rows="8" placeholder="Leave blank to use the default BJJ liability release.">{{ academy.waiver_text if academy else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Preferences -->
     <div class="card mb-24">
         <div class="card-body">

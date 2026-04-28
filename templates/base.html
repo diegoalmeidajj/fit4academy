@@ -360,7 +360,6 @@
                 <a href="/automations" class="{{ 'active' if request.path == '/automations' }}"><i class="bi bi-stars"></i> Automations</a>
                 <a href="/messaging" class="{{ 'active' if request.path.startswith('/messaging') }}"><i class="bi bi-megaphone"></i> {{ t('nav_messaging') }}</a>
                 <a href="/lp" class="{{ 'active' if request.path.startswith('/lp') }}"><i class="bi bi-globe"></i> Landing Pages</a>
-                <a href="/smart-groups" class="{{ 'active' if request.path.startswith('/smart-groups') }}"><i class="bi bi-funnel"></i> Listas inteligentes</a>
                 <a href="/checkin" class="{{ 'active' if request.path == '/checkin' }}"><i class="bi bi-qr-code-scan"></i> {{ t('nav_checkin') }}</a>
             </div>
             <div class="nav-section">
@@ -373,6 +372,7 @@
             <div class="nav-section">
                 <div class="nav-label">{{ t('nav_business') }}</div>
                 <a href="/prospects" class="{{ 'active' if request.path.startswith('/prospects') }}"><i class="bi bi-funnel"></i> {{ t('nav_prospects') }}{% if urgent_leads and urgent_leads > 0 %}<span class="nav-badge" style="background:rgba(239,68,68,.25);color:#f87171;">{{ urgent_leads }}</span>{% endif %}</a>
+                <a href="/landing-builder" class="{{ 'active' if request.path.startswith('/landing-builder') }}"><i class="bi bi-stars"></i> Landing Builder <span class="nav-badge" style="background:rgba(99,102,241,.2);color:#a5b4fc;">AI</span></a>
                 <a href="/memberships" class="{{ 'active' if request.path.startswith('/memberships') }}"><i class="bi bi-card-checklist"></i> {{ t('nav_memberships') }}</a>
                 <a href="/payments" class="{{ 'active' if request.path.startswith('/payments') }}"><i class="bi bi-credit-card"></i> {{ t('nav_payments') }}</a>
                 <a href="/finance" class="{{ 'active' if request.path == '/finance' }}"><i class="bi bi-graph-up-arrow"></i> {{ t('nav_finance') }}</a>

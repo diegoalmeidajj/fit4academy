@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ academy.name }} — Get Started</title>
+    <meta name="description" content="{{ headline }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    {# ───────── Meta (Facebook) Pixel ───────── #}
+    {% if academy.meta_pixel_id %}
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '{{ academy.meta_pixel_id }}');
+    fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id={{ academy.meta_pixel_id }}&ev=PageView&noscript=1"/></noscript>
+    {% endif %}
+
+    {# ───────── Google gtag (Analytics + Ads) ───────── #}
+    {% set gtag_id = academy.google_analytics_id or academy.google_ads_id %}
+    {% if gtag_id %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ gtag_id }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      {% if academy.google_analytics_id %}gtag('config', '{{ academy.google_analytics_id }}');{% endif %}
+      {% if academy.google_ads_id %}gtag('config', '{{ academy.google_ads_id }}');{% endif %}
+    </script>
+    {% endif %}
+
+    <style>
+        :root { --accent: #00DC82; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { min-height: 100vh; background: #0a0f1a; color: #e2e8f0; }
+        .hero { position: relative; min-height: 320px; display: flex; align-items: flex-end; overflow: hidden; }
+        .hero-bg { position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), #059669); }
+        .hero-overlay { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(10,15,26,0.95) 0%, rgba(10,15,26,0.3) 60%, transparent 100%); }
+        .hero-content { position: relative; z-index: 2; padding: 40px; width: 100%; max-width: 700px; }
+        .academy-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .academy-brand .logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg,var(--accent),#059669); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 12px; }
+        .academy-brand .name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+        .hero h1 { font-family: 'Space Grotesk'; font-size: 38px; font-weight: 800; margin-bottom: 10px; line-height: 1.1; color: #fff; }
+        .hero p { font-size: 15px; color: #cbd5e1; max-width: 540px; }
+        .container { max-width: 700px; margin: 0 auto; padding: 0 24px; }
+        .content { padding: 32px 0; }
+        .reg-section { background: rgba(0,220,130,0.04); border: 1px solid rgba(0,220,130,0.12); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+        .reg-section h2 { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #fff; }
+        .form-group { margin-bottom: 14px; }
+        .form-label { font-size: 11px; font-weight: 600; color: #94a3b8; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control, .form-select { width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 14px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); color: #fff; outline: none; transition: all .2s; }
+        .form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,220,130,0.15); }
+        .form-control::placeholder { color: #475569; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, var(--accent), #059669); color: #fff; transition: all .3s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,220,130,0.3); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .success-msg { text-align: center; padding: 40px 20px; }
+        .success-msg i { font-size: 48px; color: var(--accent); }
+        .footer { text-align: center; padding: 24px; font-size: 11px; color: #475569; }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .honeypot { position: absolute; left: -9999px; top: -9999px; }
+        .perks { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .perk { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(0,220,130,0.08); border: 1px solid rgba(0,220,130,0.2); font-size: 12px; color: var(--accent); }
+
+        .perks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+        .perk-card { padding: 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+        .perk-card .ico { width: 36px; height: 36px; border-radius: 10px; background: rgba(0,220,130,0.12); display: flex; align-items: center; justify-content: center; color: var(--accent); margin-bottom: 10px; }
+        .perk-card .ico i { font-size: 18px; }
+        .perk-card .pt { font-family: 'Space Grotesk'; font-weight: 700; font-size: 15px; color: #fff; margin-bottom: 4px; }
+        .perk-card .pb { font-size: 13px; line-height: 1.5; color: #94a3b8; }
+
+        .about-section { margin-bottom: 28px; padding: 22px; border-radius: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); }
+        .about-section h2 { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+        .about-section p { font-size: 14px; line-height: 1.7; color: #cbd5e1; }
+
+        .faq-section { margin-top: 32px; }
+        .faq-section h2 { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+        .faq-item { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+        .faq-item summary { padding: 14px 16px; cursor: pointer; font-weight: 600; font-size: 14px; color: #fff; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        .faq-item summary::-webkit-details-marker { display: none; }
+        .faq-item summary::after { content: '+'; font-size: 18px; color: var(--accent); transition: transform .2s; }
+        .faq-item[open] summary::after { transform: rotate(45deg); }
+        .faq-item .a { padding: 0 16px 14px; font-size: 13px; line-height: 1.7; color: #94a3b8; }
+
+        .urgency-line { font-size: 12px; color: #94a3b8; text-align: center; margin-top: 8px; }
+        .social-proof { margin-bottom: 18px; padding: 12px 16px; border-radius: 12px; background: rgba(0,220,130,0.04); border: 1px solid rgba(0,220,130,0.12); font-size: 13px; color: #cbd5e1; text-align: center; font-style: italic; }
+        .social-proof i { color: var(--accent); margin-right: 6px; }
+        .hero-sub { font-size: 16px; color: #cbd5e1; max-width: 540px; line-height: 1.5; }
+
+        .waiver-box { margin-top: 18px; padding: 16px; border-radius: 12px; background: rgba(245,158,11,0.04); border: 1px solid rgba(245,158,11,0.18); }
+        .waiver-title { font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .waiver-text { font-size: 12px; line-height: 1.7; color: #94a3b8; white-space: pre-wrap; max-height: 200px; overflow-y: auto; padding-right: 6px; border-radius: 8px; }
+        .waiver-text::-webkit-scrollbar { width: 6px; }
+        .waiver-text::-webkit-scrollbar-thumb { background: rgba(245,158,11,0.3); border-radius: 3px; }
+        .waiver-agree { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.18); cursor: pointer; }
+        .waiver-agree input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+        .waiver-agree span { font-size: 13px; color: #cbd5e1; }
+        .waiver-sig { margin-top: 10px; }
+        .waiver-sig label { font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px; }
+        .waiver-sig input { width: 100%; padding: 11px 13px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); color: #fff; font: 600 16px 'Space Grotesk', cursive; outline: none; }
+        .waiver-sig input:focus { border-color: var(--accent); }
+        .waiver-meta { font-size: 10px; color: #64748b; margin-top: 8px; }
+
+        @media (max-width: 600px) { .hero h1 { font-size: 28px; } .hero-content { padding: 24px; } .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <div class="academy-brand">
+                <div class="logo">{{ (academy.name or 'F4')[:2]|upper }}</div>
+                <div class="name">{{ academy.name }}</div>
+            </div>
+            <h1>{{ headline }}</h1>
+            {% if ai_content and ai_content.hero_subheadline %}
+            <p class="hero-sub">{{ ai_content.hero_subheadline }}</p>
+            {% else %}
+            <p>Drop your details and we'll reach out to schedule your first class.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="content">
+            {% if ai_content and ai_content.social_proof_line %}
+            <div class="social-proof"><i class="bi bi-quote"></i>{{ ai_content.social_proof_line }}</div>
+            {% endif %}
+
+            {% if ai_content and ai_content.perks %}
+            {% set _icon_map = {'check':'check-circle-fill','shield':'shield-check','users':'people-fill','calendar':'calendar-check','trophy':'trophy-fill','star':'star-fill','heart':'heart-fill','fire':'fire','clock':'clock','geo':'geo-alt-fill','sparkle':'stars'} %}
+            <div class="perks-grid">
+                {% for p in ai_content.perks %}
+                <div class="perk-card">
+                    <div class="ico"><i class="bi bi-{{ _icon_map.get(p.icon, 'check-circle-fill') }}"></i></div>
+                    <div class="pt">{{ p.title }}</div>
+                    <div class="pb">{{ p.body }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="perks">
+                <span class="perk"><i class="bi bi-check-circle-fill"></i> Free first class</span>
+                <span class="perk"><i class="bi bi-shield-check"></i> No commitment</span>
+                <span class="perk"><i class="bi bi-people-fill"></i> All levels welcome</span>
+            </div>
+            {% endif %}
+
+            {% if ai_content and ai_content.about_paragraph %}
+            <div class="about-section">
+                <h2>About {{ academy.name }}</h2>
+                <p>{{ ai_content.about_paragraph }}</p>
+            </div>
+            {% endif %}
+
+            <div class="reg-section" id="leadForm">
+                <h2><i class="bi bi-person-plus" style="color:var(--accent);"></i> {{ cta }}</h2>
+                <form id="frmLead" novalidate>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">First name *</label>
+                            <input type="text" name="first_name" class="form-control" placeholder="Jane" required autocomplete="given-name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last name</label>
+                            <input type="text" name="last_name" class="form-control" placeholder="Doe" autocomplete="family-name">
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" placeholder="you@example.com" required autocomplete="email">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="+1 555-1234" autocomplete="tel">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Interested in</label>
+                        <select name="interested_in" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="bjj">Brazilian Jiu-Jitsu</option>
+                            <option value="mma">MMA</option>
+                            <option value="muay-thai">Muay Thai</option>
+                            <option value="boxing">Boxing</option>
+                            <option value="judo">Judo</option>
+                            <option value="kids">Kids classes</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Experience level</label>
+                        <select name="previous_experience" class="form-select">
+                            <option value="">Select...</option>
+                            <option value="none">No experience</option>
+                            <option value="beginner">Beginner (&lt; 1 year)</option>
+                            <option value="intermediate">Intermediate (1-3 years)</option>
+                            <option value="advanced">Advanced (3+ years)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Anything else? (optional)</label>
+                        <input type="text" name="notes" class="form-control" placeholder="Goals, schedule, questions…">
+                    </div>
+
+                    {% if academy.waiver_required %}
+                    <div class="waiver-box">
+                        <div class="waiver-title"><i class="bi bi-file-earmark-text"></i> Waiver &amp; liability release</div>
+                        <div class="waiver-text">{{ academy.waiver_text or 'WAIVER AND RELEASE OF LIABILITY\n\nI, the undersigned participant, voluntarily acknowledge and agree:\n\n1. ASSUMPTION OF RISK — Brazilian Jiu-Jitsu and other martial arts involve grappling, joint locks, chokes, and ground fighting. I understand participation involves inherent risks of physical injury.\n\n2. PHYSICAL FITNESS — I certify that I am physically fit to participate, or have consulted my physician.\n\n3. RELEASE OF LIABILITY — I hereby release, waive, and discharge the academy, its owners, instructors, staff, and affiliates from any and all liability for any injury, illness, or damage arising from my participation.\n\n4. MEDIA CONSENT — I grant permission for the academy to use photographs and videos taken during activities for promotional purposes.\n\nBy submitting this form, I confirm that I have read, understood, and agree to all terms above.' }}</div>
+                        <label class="waiver-agree">
+                            <input type="checkbox" id="waiverCheck" name="waiver_accepted">
+                            <span>I have read and agree to the waiver above</span>
+                        </label>
+                        <div class="waiver-sig">
+                            <label>Type your full name to sign *</label>
+                            <input type="text" id="waiverSig" name="waiver_signature" placeholder="Your full legal name" autocomplete="off">
+                            <div class="waiver-meta">By typing your name and clicking submit, you are providing your electronic signature. This will be timestamped and recorded for legal purposes.</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <input class="honeypot" name="website_url" tabindex="-1" autocomplete="off">
+
+                    <button type="submit" id="leadBtn" class="submit-btn" {% if academy.waiver_required %}disabled{% endif %}>
+                        <i class="bi bi-send-fill"></i> {{ cta }}
+                    </button>
+                    {% if ai_content and ai_content.urgency_line %}
+                    <div class="urgency-line">{{ ai_content.urgency_line }}</div>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div id="leadSuccess" class="success-msg" style="display:none;">
+                <i class="bi bi-check-circle-fill"></i>
+                <h2 style="font-family:'Space Grotesk';margin-top:12px;color:#fff;">Got it!</h2>
+                <p style="color:#94a3b8;margin-top:8px;">Thanks — we'll reach out shortly to set up your first class.</p>
+            </div>
+
+            {% if ai_content and ai_content.faqs %}
+            <div class="faq-section">
+                <h2>Frequently asked</h2>
+                {% for f in ai_content.faqs %}
+                <details class="faq-item">
+                    <summary>{{ f.q }}</summary>
+                    <div class="a">{{ f.a }}</div>
+                </details>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="footer">
+        Powered by <a href="/">Fit4Academy</a> · {{ academy.name }}
+    </div>
+
+    <script>
+    var WAIVER_REQUIRED = {{ 'true' if academy.waiver_required else 'false' }};
+    var META_PIXEL_ID = "{{ academy.meta_pixel_id or '' }}";
+    var GADS_ID = "{{ academy.google_ads_id or '' }}";
+    var GADS_LABEL = "{{ academy.google_ads_label or '' }}";
+
+    var btn = document.getElementById('leadBtn');
+
+    // Toggle submit availability while waiver isn't satisfied
+    if (WAIVER_REQUIRED) {
+        var waiverCheck = document.getElementById('waiverCheck');
+        var waiverSig = document.getElementById('waiverSig');
+        function refreshBtn() {
+            btn.disabled = !(waiverCheck.checked && waiverSig.value.trim().length >= 2);
+        }
+        waiverCheck.addEventListener('change', refreshBtn);
+        waiverSig.addEventListener('input', refreshBtn);
+    }
+
+    document.getElementById('frmLead').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = e.target;
+        var data = {};
+        Array.prototype.forEach.call(form.elements, function(el){
+            if (el.type === 'checkbox') {
+                if (el.name) data[el.name] = el.checked;
+            } else if (el.name) {
+                data[el.name] = el.value.trim();
+            }
+        });
+        if (!data.first_name || !data.email) { alert('Name and email are required'); return; }
+        if (WAIVER_REQUIRED && (!data.waiver_accepted || !data.waiver_signature)) {
+            alert('Please read and sign the waiver to continue');
+            return;
+        }
+        data.academy_id = {{ academy_id }};
+        data.source = '{{ source }}';
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sending…';
+
+        fetch('/api/v1/public/leads', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(function(r){ return r.json(); }).then(function(d){
+            if (d && d.success) {
+                document.getElementById('leadForm').style.display = 'none';
+                document.getElementById('leadSuccess').style.display = '';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // ───── Conversion events ─────
+                try {
+                    if (META_PIXEL_ID && typeof fbq === 'function') {
+                        fbq('track', 'Lead', { content_name: 'Lead form', content_category: data.interested_in || '' });
+                    }
+                } catch (e) {}
+                try {
+                    if (typeof gtag === 'function') {
+                        gtag('event', 'generate_lead', {
+                            value: 1.0,
+                            currency: 'USD',
+                            interested_in: data.interested_in || ''
+                        });
+                        if (GADS_ID && GADS_LABEL) {
+                            gtag('event', 'conversion', {
+                                'send_to': GADS_ID + '/' + GADS_LABEL
+                            });
+                        }
+                    }
+                } catch (e) {}
+            } else {
+                var msg = (d && d.error === 'waiver_required') ? 'Please sign the waiver to continue' : ((d && d.error) || 'Could not send. Try again.');
+                alert(msg);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-send-fill"></i> {{ cta }}';
+            }
+        }).catch(function(){
+            alert('Network error. Try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send-fill"></i> {{ cta }}';
+        });
+    });
+    </script>
+</body>
+</html>

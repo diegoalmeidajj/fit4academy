@@ -14,3 +14,4 @@ from . import auth       # noqa: F401, E402
 from . import me         # noqa: F401, E402
 from . import member     # noqa: F401, E402
 from . import staff      # noqa: F401, E402
+from . import leads      # noqa: F401, E402

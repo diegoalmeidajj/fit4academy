@@ -1,16 +1,29 @@
+import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
+import { apiGet } from '@/lib/api';
 import { useTheme, radius, spacing } from '@/lib/theme';
 import { useAuth } from '@/store/auth';
 import { Card } from '@/components/Card';
 import { Avatar } from '@/components/Avatar';
+import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 
 export default function StaffHome() {
   const t = useTheme();
   const me = useAuth(s => s.me);
   const logout = useAuth(s => s.logout);
+  const [newLeadCount, setNewLeadCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<{ counts?: { new?: number } }>('/api/v1/staff/leads?status=new').then(r => {
+      if (!cancelled && r.ok) setNewLeadCount(r.data.counts?.new || 0);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   if (!me || me.type !== 'staff') return null;
 
@@ -39,6 +52,22 @@ export default function StaffHome() {
             </Text>
           </View>
         </View>
+
+        <Card
+          variant="tinted"
+          onPress={() => router.push('/(staff)/leads')}
+          style={{ marginBottom: spacing.lg }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Text style={{ ...t.type.h3, color: t.tokens.text.primary, flex: 1 }}>
+              📥 Leads
+            </Text>
+            {newLeadCount > 0 ? <Badge label={`${newLeadCount} new`} tone="warning" size="sm" /> : null}
+          </View>
+          <Text style={{ ...t.type.body, color: t.tokens.text.secondary, lineHeight: 22 }}>
+            See people who filled your form. Tap to call, message, or mark contacted. Your share-link is on the next screen.
+          </Text>
+        </Card>
 
         <Card variant="tinted" style={{ marginBottom: spacing.lg }}>
           <Text style={{ ...t.type.h3, color: t.tokens.text.primary, marginBottom: 8 }}>

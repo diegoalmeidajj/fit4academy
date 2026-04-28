@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Landing Builder · AI{% endblock %}
+
+{% block extra_css %}
+.lb-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .lb-grid { grid-template-columns: 1fr; } }
+.lb-section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+.lb-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.lb-section-head h3 { font-family: 'Space Grotesk'; font-size: 14px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
+.lb-section-head h3 i { color: var(--primary); }
+.lb-regen { font-size: 11px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
+.lb-regen:hover { border-color: var(--primary); color: var(--primary); }
+.lb-regen[disabled] { opacity: 0.5; cursor: wait; }
+.lb-input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
+.lb-input:focus { border-color: var(--primary); }
+textarea.lb-input { resize: vertical; min-height: 70px; line-height: 1.5; }
+.lb-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+.lb-perk, .lb-faq { padding: 10px; border-radius: 10px; background: rgba(0,220,130,0.04); border: 1px solid rgba(0,220,130,0.12); margin-bottom: 8px; }
+.lb-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.lb-banner { background: linear-gradient(135deg, rgba(0,220,130,0.06), rgba(6,182,212,0.04)); border: 1px solid rgba(0,220,130,0.18); border-radius: 14px; padding: 18px; margin-bottom: 18px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+.lb-banner h2 { font-family: 'Space Grotesk'; font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+.lb-banner p { font-size: 13px; color: var(--text-muted); margin: 0; }
+.lb-status { font-size: 12px; color: var(--text-muted); padding: 6px 12px; border-radius: 999px; background: var(--input-bg); }
+.lb-status.saving { color: var(--primary); }
+.lb-status.saved { color: var(--success, #10b981); }
+.lb-status.error { color: var(--danger, #ef4444); }
+.lb-vibe { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.lb-vibe-pill { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; cursor: pointer; user-select: none; transition: all .15s; }
+.lb-vibe-pill:hover { border-color: var(--primary); }
+.lb-vibe-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.lb-empty { text-align: center; padding: 28px 18px; color: var(--text-muted); border: 2px dashed var(--border); border-radius: 14px; font-size: 13px; }
+.lb-warn { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); padding: 10px 14px; border-radius: 10px; font-size: 13px; color: var(--text); margin-bottom: 14px; }
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <h1><i class="bi bi-stars" style="color:var(--primary);"></i> Landing Builder · AI</h1>
+  <div class="topbar-actions">
+    <a href="{{ public_url }}" target="_blank" class="btn"><i class="bi bi-box-arrow-up-right"></i> Open landing</a>
+    <span id="lbStatus" class="lb-status">—</span>
+  </div>
+</div>
+
+{% if not ai_enabled %}
+<div class="lb-warn">
+  <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b;"></i>
+  <strong>AI not configured.</strong> Set <code>ANTHROPIC_API_KEY</code> in your environment to enable generation.
+  You can still edit fields manually below.
+</div>
+{% endif %}
+
+<div class="lb-banner">
+  <div>
+    <h2><i class="bi bi-magic" style="color:var(--primary);"></i> Describe your gym, AI builds the page</h2>
+    <p>Write 1-3 sentences about what makes your academy special. Claude will generate headline, perks, FAQ, and a call-to-action — all editable, all saveable.</p>
+  </div>
+  <div>
+    <button class="btn btn-primary btn-lg" id="generateBtn" {% if not ai_enabled %}disabled{% endif %}>
+      <i class="bi bi-sparkles"></i> Generate
+    </button>
+  </div>
+</div>
+
+<div class="lb-grid">
+  <!-- LEFT: brief + sections -->
+  <div>
+    <div class="lb-section">
+      <div class="lb-section-head"><h3><i class="bi bi-pencil-square"></i> Brief from owner</h3></div>
+      <textarea id="brief" class="lb-input" rows="3" placeholder="e.g. 20-year-old BJJ academy in Austin TX. Black-belt instructors from Brazil. Strong kids program 4 days a week. Welcoming vibe — most members started as total beginners.">{{ brief|e }}</textarea>
+      <div class="lb-vibe">
+        <span style="font-size:11px;color:var(--text-muted);align-self:center;margin-right:6px;">VIBE:</span>
+        <span class="lb-vibe-pill" data-vibe="">Default</span>
+        <span class="lb-vibe-pill" data-vibe="punchy and direct">Punchy</span>
+        <span class="lb-vibe-pill" data-vibe="warm and family-friendly">Family-friendly</span>
+        <span class="lb-vibe-pill" data-vibe="competitive and serious">Competitive</span>
+        <span class="lb-vibe-pill" data-vibe="beginner-welcoming and casual">Beginner-friendly</span>
+      </div>
+      <div class="lb-meta">The brief is reused for "Regenerate this section" — make it accurate.</div>
+    </div>
+
+    {# Hero #}
+    <div class="lb-section" data-section="hero">
+      <div class="lb-section-head">
+        <h3><i class="bi bi-megaphone"></i> Hero</h3>
+        <button class="lb-regen" data-regen="hero" {% if not ai_enabled %}disabled{% endif %}><i class="bi bi-arrow-clockwise"></i> Regenerate</button>
+      </div>
+      <label class="lb-meta">HEADLINE</label>
+      <input id="hero_headline" class="lb-input" placeholder="Train BJJ with Brazilian black belts in Austin" value="{{ (content and content.hero_headline) or '' }}">
+      <label class="lb-meta" style="margin-top:8px;display:block;">SUBHEADLINE</label>
+      <textarea id="hero_subheadline" class="lb-input" rows="2" placeholder="Free first class, no commitment. We've coached beginners and competitors for 20 years.">{{ (content and content.hero_subheadline) or '' }}</textarea>
+    </div>
+
+    {# Perks #}
+    <div class="lb-section" data-section="perks">
+      <div class="lb-section-head">
+        <h3><i class="bi bi-award"></i> Perks (4)</h3>
+        <button class="lb-regen" data-regen="perks" {% if not ai_enabled %}disabled{% endif %}><i class="bi bi-arrow-clockwise"></i> Regenerate</button>
+      </div>
+      <div id="perksList">
+        {% if content and content.perks %}
+          {% for p in content.perks %}
+          <div class="lb-perk" data-perk-idx="{{ loop.index0 }}">
+            <div class="lb-row">
+              <input class="lb-input" data-key="icon" placeholder="icon (check/shield/users/calendar/trophy/star/heart/fire/clock/geo/sparkle)" value="{{ p.icon }}">
+              <input class="lb-input" data-key="title" placeholder="Title (2-4 words)" value="{{ p.title }}">
+            </div>
+            <input class="lb-input" data-key="body" placeholder="Body (1 short sentence)" value="{{ p.body }}">
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="lb-empty">No perks yet. Click <strong>Generate</strong> above.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# About #}
+    <div class="lb-section" data-section="about">
+      <div class="lb-section-head">
+        <h3><i class="bi bi-people"></i> About</h3>
+        <button class="lb-regen" data-regen="about" {% if not ai_enabled %}disabled{% endif %}><i class="bi bi-arrow-clockwise"></i> Regenerate</button>
+      </div>
+      <textarea id="about_paragraph" class="lb-input" rows="4" placeholder="2-3 sentences about your gym, the instructors, and what makes it different.">{{ (content and content.about_paragraph) or '' }}</textarea>
+    </div>
+
+    {# FAQs #}
+    <div class="lb-section" data-section="faqs">
+      <div class="lb-section-head">
+        <h3><i class="bi bi-question-circle"></i> FAQs (4)</h3>
+        <button class="lb-regen" data-regen="faqs" {% if not ai_enabled %}disabled{% endif %}><i class="bi bi-arrow-clockwise"></i> Regenerate</button>
+      </div>
+      <div id="faqsList">
+        {% if content and content.faqs %}
+          {% for f in content.faqs %}
+          <div class="lb-faq" data-faq-idx="{{ loop.index0 }}">
+            <input class="lb-input" data-key="q" placeholder="Question" value="{{ f.q }}">
+            <textarea class="lb-input" data-key="a" rows="2" placeholder="Answer (1-2 sentences)" style="margin-top:6px;">{{ f.a }}</textarea>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="lb-empty">No FAQs yet. Click <strong>Generate</strong> above.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# CTA #}
+    <div class="lb-section" data-section="cta">
+      <div class="lb-section-head">
+        <h3><i class="bi bi-cursor-fill"></i> Call-to-action</h3>
+        <button class="lb-regen" data-regen="cta" {% if not ai_enabled %}disabled{% endif %}><i class="bi bi-arrow-clockwise"></i> Regenerate</button>
+      </div>
+      <div class="lb-row">
+        <div>
+          <label class="lb-meta">CTA LABEL</label>
+          <input id="cta_label" class="lb-input" placeholder="Claim Free Class" value="{{ (content and content.cta_label) or '' }}">
+        </div>
+        <div>
+          <label class="lb-meta">URGENCY LINE</label>
+          <input id="urgency_line" class="lb-input" placeholder="No commitment · No credit card" value="{{ (content and content.urgency_line) or '' }}">
+        </div>
+      </div>
+    </div>
+
+    {# Social proof #}
+    <div class="lb-section" data-section="social_proof">
+      <div class="lb-section-head">
+        <h3><i class="bi bi-chat-quote"></i> Social proof line</h3>
+        <button class="lb-regen" data-regen="social_proof" {% if not ai_enabled %}disabled{% endif %}><i class="bi bi-arrow-clockwise"></i> Regenerate</button>
+      </div>
+      <input id="social_proof_line" class="lb-input" placeholder="Trusted by hundreds of beginners and competitors since 2005." value="{{ (content and content.social_proof_line) or '' }}">
+      <div class="lb-meta">Leave blank if you don't have anything specific to say yet.</div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-primary" id="saveBtn"><i class="bi bi-check-lg"></i> Save changes</button>
+      <button class="btn" id="resetBtn" style="margin-left:auto;color:var(--danger,#ef4444);"><i class="bi bi-trash"></i> Reset to default</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: live preview -->
+  <div>
+    <div class="lb-section" style="position:sticky;top:80px;">
+      <div class="lb-section-head">
+        <h3><i class="bi bi-eye"></i> Live preview</h3>
+        <button class="lb-regen" id="reloadPreview"><i class="bi bi-arrow-clockwise"></i> Reload</button>
+      </div>
+      <iframe id="previewFrame" src="{{ public_url }}" style="width:100%;height:680px;border:1px solid var(--border);border-radius:10px;background:#0a0f1a;"></iframe>
+      <div class="lb-meta" style="margin-top:8px;">Reload after saving to see your changes.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentVibe = '';
+const statusEl = document.getElementById('lbStatus');
+function setStatus(text, cls = '') {
+  statusEl.textContent = text;
+  statusEl.className = 'lb-status' + (cls ? ' ' + cls : '');
+}
+
+document.querySelectorAll('.lb-vibe-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('.lb-vibe-pill').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    currentVibe = p.dataset.vibe;
+  });
+});
+document.querySelector('.lb-vibe-pill[data-vibe=""]')?.classList.add('active');
+
+function readForm() {
+  const perks = Array.from(document.querySelectorAll('#perksList .lb-perk')).map(el => ({
+    icon: el.querySelector('[data-key="icon"]').value.trim() || 'check',
+    title: el.querySelector('[data-key="title"]').value.trim(),
+    body: el.querySelector('[data-key="body"]').value.trim(),
+  })).filter(p => p.title || p.body);
+  const faqs = Array.from(document.querySelectorAll('#faqsList .lb-faq')).map(el => ({
+    q: el.querySelector('[data-key="q"]').value.trim(),
+    a: el.querySelector('[data-key="a"]').value.trim(),
+  })).filter(f => f.q || f.a);
+  return {
+    hero_headline: document.getElementById('hero_headline').value.trim(),
+    hero_subheadline: document.getElementById('hero_subheadline').value.trim(),
+    perks,
+    about_paragraph: document.getElementById('about_paragraph').value.trim(),
+    faqs,
+    cta_label: document.getElementById('cta_label').value.trim(),
+    urgency_line: document.getElementById('urgency_line').value.trim(),
+    social_proof_line: document.getElementById('social_proof_line').value.trim(),
+  };
+}
+
+function applyContent(c) {
+  if (!c) return;
+  document.getElementById('hero_headline').value = c.hero_headline || '';
+  document.getElementById('hero_subheadline').value = c.hero_subheadline || '';
+  document.getElementById('about_paragraph').value = c.about_paragraph || '';
+  document.getElementById('cta_label').value = c.cta_label || '';
+  document.getElementById('urgency_line').value = c.urgency_line || '';
+  document.getElementById('social_proof_line').value = c.social_proof_line || '';
+
+  if (Array.isArray(c.perks)) {
+    document.getElementById('perksList').innerHTML = c.perks.map(p => `
+      <div class="lb-perk">
+        <div class="lb-row">
+          <input class="lb-input" data-key="icon" value="${escapeHtml(p.icon || 'check')}">
+          <input class="lb-input" data-key="title" value="${escapeHtml(p.title || '')}">
+        </div>
+        <input class="lb-input" data-key="body" value="${escapeHtml(p.body || '')}">
+      </div>
+    `).join('');
+  }
+  if (Array.isArray(c.faqs)) {
+    document.getElementById('faqsList').innerHTML = c.faqs.map(f => `
+      <div class="lb-faq">
+        <input class="lb-input" data-key="q" value="${escapeHtml(f.q || '')}">
+        <textarea class="lb-input" data-key="a" rows="2" style="margin-top:6px;">${escapeHtml(f.a || '')}</textarea>
+      </div>
+    `).join('');
+  }
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+async function api(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {}),
+  });
+  let j; try { j = await r.json(); } catch { j = {}; }
+  if (!r.ok) throw new Error(j.error || ('http_' + r.status));
+  return j;
+}
+
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  const brief = document.getElementById('brief').value.trim();
+  if (!brief) { alert('Write a short brief first.'); return; }
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Generating…';
+  setStatus('Generating with Claude…', 'saving');
+  try {
+    const j = await api('/api/admin/landing/generate', { brief, vibe: currentVibe });
+    applyContent(j.content);
+    setStatus('Generated and saved', 'saved');
+    document.getElementById('previewFrame').src = '{{ public_url }}?_=' + Date.now();
+  } catch (e) {
+    if (String(e.message).includes('ai_not_configured')) setStatus('AI not configured (set ANTHROPIC_API_KEY)', 'error');
+    else setStatus('Failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-sparkles"></i> Generate';
+  }
+});
+
+document.querySelectorAll('.lb-regen[data-regen]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const section = btn.dataset.regen;
+    const brief = document.getElementById('brief').value.trim();
+    if (!brief) { alert('Write the brief first.'); return; }
+    btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+    setStatus(`Regenerating ${section}…`, 'saving');
+    try {
+      const j = await api('/api/admin/landing/regenerate-section', { section, brief, vibe: currentVibe });
+      applyContent(j.content);
+      setStatus(`Regenerated ${section}`, 'saved');
+      document.getElementById('previewFrame').src = '{{ public_url }}?_=' + Date.now();
+    } catch (e) {
+      if (String(e.message).includes('ai_not_configured')) setStatus('AI not configured', 'error');
+      else setStatus('Failed: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Regenerate';
+    }
+  });
+});
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  setStatus('Saving…', 'saving');
+  try {
+    await api('/api/admin/landing/save', { content: readForm() });
+    setStatus('Saved', 'saved');
+    document.getElementById('previewFrame').src = '{{ public_url }}?_=' + Date.now();
+  } catch (e) {
+    setStatus('Failed: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if (!confirm('Clear the AI-generated landing? Your /lead page will fall back to the default template.')) return;
+  setStatus('Resetting…', 'saving');
+  try {
+    await api('/api/admin/landing/reset', {});
+    setStatus('Reset', 'saved');
+    setTimeout(() => location.reload(), 600);
+  } catch (e) {
+    setStatus('Failed: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('reloadPreview').addEventListener('click', () => {
+  document.getElementById('previewFrame').src = '{{ public_url }}?_=' + Date.now();
+});
+</script>
+{% endblock %}

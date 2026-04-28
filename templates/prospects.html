@@ -72,6 +72,36 @@
     </div>
 </div>
 
+<!-- Share your lead form -->
+{% set lead_url = share_base_url ~ '/lead/' ~ share_academy_id %}
+{% set embed_url = share_base_url ~ '/embed/lead/' ~ share_academy_id ~ '.js' %}
+<div style="background: linear-gradient(135deg, rgba(0,220,130,0.06), rgba(6,182,212,0.04)); border: 1px solid rgba(0,220,130,0.18); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+  <div>
+    <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;margin-bottom:4px;"><i class="bi bi-link-45deg" style="color:var(--primary);"></i> Share your lead form</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Send the link or post a QR. Submissions land here automatically and ping the staff app.</div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input id="shareUrl" readonly value="{{ lead_url }}" style="flex:1;font-family:'Space Grotesk';font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);">
+      <button onclick="copyVal('shareUrl')" class="btn btn-sm" style="font-size:11px;"><i class="bi bi-clipboard"></i> Copy</button>
+      <a href="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data={{ lead_url|urlencode }}" target="_blank" class="btn btn-sm" style="font-size:11px;"><i class="bi bi-qr-code"></i> QR</a>
+    </div>
+  </div>
+  <div>
+    <div style="font-family:'Space Grotesk';font-size:14px;font-weight:700;margin-bottom:4px;"><i class="bi bi-code-slash" style="color:var(--primary);"></i> Embed on your website</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Paste this one-liner before <code>&lt;/body&gt;</code>. A floating "Free Trial" button appears on the page.</div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input id="embedSnippet" readonly value='&lt;script src="{{ embed_url }}" defer&gt;&lt;/script&gt;' style="flex:1;font-family:'Space Grotesk';font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);">
+      <button onclick="copyVal('embedSnippet')" class="btn btn-sm" style="font-size:11px;"><i class="bi bi-clipboard"></i> Copy</button>
+    </div>
+  </div>
+</div>
+<script>
+function copyVal(id) {
+  var el = document.getElementById(id);
+  el.select(); el.setSelectionRange(0, 99999);
+  try { navigator.clipboard.writeText(el.value); } catch(e) { document.execCommand('copy'); }
+}
+</script>
+
 <!-- Tabs -->
 {% set active_count = (prospects_by_stage.new|length) + (prospects_by_stage.contacted|length) + (prospects_by_stage.trial|length) + (prospects_by_stage.converted|length) %}
 <div class="prospect-tabs">

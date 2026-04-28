@@ -172,29 +172,13 @@
 </div>
 {% endif %}
 
-<!-- ─── Smart audiences ─── -->
-{% if smart_groups %}
-<div class="section-title"><i class="bi bi-funnel"></i> Smart audiences <span class="count">{{ smart_groups|length }}</span></div>
-<div class="list-strip">
-    {% for g in smart_groups %}
-    <a href="/smart-groups/{{ g.id }}" class="mini-card">
-        <div class="mini-ico" style="background: rgba(245,158,11,0.10); color: #f59e0b;"><i class="bi bi-funnel"></i></div>
-        <div class="mini-body">
-            <div class="mini-name">{{ g.name }}</div>
-            <div class="mini-meta">{{ g.match_count|default(0) }} member{% if g.match_count|default(0) != 1 %}s{% endif %}</div>
-        </div>
-    </a>
-    {% endfor %}
-</div>
-{% endif %}
-
 <!-- ─── Tools ─── -->
 <div class="section-title"><i class="bi bi-grid-3x3-gap"></i> All tools</div>
 <div class="tools-grid">
     <a href="/messaging" class="tool-card">
         <i class="bi bi-megaphone tool-icn"></i>
         <h4>Compose &amp; Send</h4>
-        <p>One-off campaigns to all members or a smart group, with email + SMS.</p>
+        <p>One-off campaigns to all members or a filtered audience, with email + SMS.</p>
     </a>
     <a href="/messaging/automations" class="tool-card">
         <i class="bi bi-lightning tool-icn"></i>
@@ -205,11 +189,6 @@
         <i class="bi bi-diagram-3 tool-icn"></i>
         <h4>Drip flows</h4>
         <p>Multi-step sequences: day 0 welcome → day 3 follow-up → day 7 nudge.</p>
-    </a>
-    <a href="/smart-groups" class="tool-card">
-        <i class="bi bi-funnel tool-icn"></i>
-        <h4>Smart audiences</h4>
-        <p>Rule-based groups that update themselves: "Active blues", "30+ days inactive".</p>
     </a>
     <a href="/lp" class="tool-card">
         <i class="bi bi-globe tool-icn"></i>
