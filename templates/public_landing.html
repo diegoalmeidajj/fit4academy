@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page.title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root { --accent: {{ page.theme_color }}; }
+        body {
+            font-family: 'DM Sans', -apple-system, system-ui, sans-serif;
+            background: linear-gradient(160deg, #0f172a 0%, #0a0f1a 50%, #001a10 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 540px; margin: 40px auto; }
+        .hero {
+            text-align: center;
+            padding: 32px 0 24px;
+        }
+        {% if page.header_image_url %}
+        .hero-img {
+            width: 100%; max-height: 240px; object-fit: cover;
+            border-radius: 16px; margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        {% endif %}
+        .academy-mark {
+            font-family: 'Space Grotesk';
+            font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+            color: var(--accent); text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-family: 'Space Grotesk';
+            font-size: 36px; font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            color: #fff;
+        }
+        .body-content {
+            font-size: 15px; line-height: 1.6;
+            color: rgba(255,255,255,0.78);
+            margin-bottom: 28px;
+        }
+        .body-content p { margin-bottom: 12px; }
+        .body-content strong { color: #fff; }
+        .body-content a { color: var(--accent); }
+
+        .form-card {
+            background: rgba(15,25,40,0.85);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 18px;
+            padding: 28px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(8px);
+        }
+        .form-card h2 {
+            font-family: 'Space Grotesk';
+            font-size: 18px; font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .form-card .sub { font-size: 13px; color: rgba(255,255,255,0.55); margin-bottom: 18px; }
+        .field { margin-bottom: 14px; }
+        .field label {
+            display: block; font-size: 11px; font-weight: 700;
+            color: rgba(255,255,255,0.55); letter-spacing: 0.4px;
+            text-transform: uppercase; margin-bottom: 5px;
+        }
+        .field input, .field textarea, .field select {
+            width: 100%; padding: 12px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1.5px solid rgba(255,255,255,0.10);
+            border-radius: 10px;
+            font-family: inherit; font-size: 15px;
+            color: #fff;
+        }
+        .field input:focus, .field textarea:focus, .field select:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0,220,130,0.15);
+            background: rgba(255,255,255,0.08);
+        }
+        .agreement {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 12px; line-height: 1.5;
+            color: rgba(255,255,255,0.7);
+        }
+        .agreement input { width: auto; margin-top: 3px; }
+        .submit-btn {
+            display: block; width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--accent), {{ page.theme_color }}cc);
+            color: #0f172a;
+            font-family: 'Space Grotesk';
+            font-weight: 800; font-size: 16px;
+            border: none; border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 8px 28px rgba(0,220,130,0.30);
+            transition: transform .15s, box-shadow .15s;
+        }
+        .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 36px rgba(0,220,130,0.4); }
+        .footer {
+            text-align: center; font-size: 11px;
+            color: rgba(255,255,255,0.35);
+            margin-top: 24px;
+        }
+        .success-box {
+            text-align: center; padding: 40px 24px;
+        }
+        .success-box .check {
+            width: 72px; height: 72px; border-radius: 50%;
+            background: var(--accent);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px; color: #0f172a;
+            margin: 0 auto 18px;
+            box-shadow: 0 12px 32px rgba(0,220,130,0.4);
+        }
+        .success-box h2 { font-family: 'Space Grotesk'; font-size: 26px; margin-bottom: 8px; }
+        .success-box p { font-size: 15px; color: rgba(255,255,255,0.7); }
+    </style>
+</head>
+<body>
+<div class="container">
+    {% if not success %}
+    <div class="hero">
+        {% if page.header_image_url %}
+        <img src="{{ page.header_image_url }}" alt="" class="hero-img">
+        {% endif %}
+        <div class="academy-mark">{{ academy.name if academy else 'Fit4Academy' }}</div>
+        <h1>{{ page.headline or page.title }}</h1>
+        {% if page.body_html %}
+        <div class="body-content">{{ page.body_html|safe }}</div>
+        {% endif %}
+    </div>
+
+    <form method="POST" action="/p/{{ page.slug }}/signup" class="form-card">
+        <h2>Tell us about you</h2>
+        <div class="sub">We'll be in touch within 24 hours.</div>
+
+        <div class="field">
+            <label>Full name</label>
+            <input type="text" name="name" required autofocus>
+        </div>
+        <div class="field">
+            <label>Email</label>
+            <input type="email" name="email" required>
+        </div>
+        {% if page.ask_phone %}
+        <div class="field">
+            <label>Phone</label>
+            <input type="tel" name="phone">
+        </div>
+        {% endif %}
+        {% if page.ask_experience %}
+        <div class="field">
+            <label>Prior experience</label>
+            <select name="experience">
+                <option value="">— pick one —</option>
+                <option value="none">None — total beginner</option>
+                <option value="some">Tried a few classes before</option>
+                <option value="experienced">I trained before for 6+ months</option>
+                <option value="advanced">Currently training elsewhere</option>
+            </select>
+        </div>
+        {% endif %}
+        {% if page.ask_notes %}
+        <div class="field">
+            <label>Anything you want us to know?</label>
+            <textarea name="notes" rows="3"></textarea>
+        </div>
+        {% endif %}
+
+        {% if page.agreement_text %}
+        <label class="agreement">
+            <input type="checkbox" name="agreement" required>
+            <span>{{ page.agreement_text }}</span>
+        </label>
+        {% endif %}
+
+        <button type="submit" class="submit-btn">{{ page.cta_label }} <i class="bi bi-arrow-right"></i></button>
+    </form>
+
+    <div class="footer">Powered by Fit4Academy</div>
+    {% else %}
+    <div class="form-card success-box">
+        <div class="check"><i class="bi bi-check-lg"></i></div>
+        <h2>You're in.</h2>
+        <p>We've got your details. Someone from {{ academy.name if academy else 'the academy' }} will reach out shortly.</p>
+    </div>
+    <div class="footer">Powered by Fit4Academy</div>
+    {% endif %}
+</div>
+</body>
+</html>

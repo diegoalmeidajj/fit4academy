@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Landing Pages{% endblock %}
+{% block content %}
+<style>
+.lp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.lp-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.lp-card .preview-strip { height: 70px; display: flex; align-items: center; justify-content: center; color: #0f172a; font-family: 'Space Grotesk'; font-weight: 800; font-size: 16px; padding: 0 16px; text-align: center; }
+.lp-body { padding: 16px; }
+.lp-title { font-family: 'Space Grotesk'; font-size: 15px; margin: 0 0 6px; }
+.lp-meta { font-size: 11px; color: var(--text-muted); }
+.lp-meta code { font-size: 10px; background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; }
+.lp-stats { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+.lp-stat { font-size: 11px; color: var(--text-muted); }
+.lp-stat strong { color: var(--text); font-family: 'Space Grotesk'; font-size: 14px; }
+.lp-actions { display: flex; gap: 6px; margin-top: 12px; }
+.lp-actions a, .lp-actions button { font-size: 11px; padding: 6px 10px; }
+.empty-lp { padding: 60px 20px; text-align: center; border: 1px dashed var(--border); border-radius: 14px; color: var(--text-muted); }
+.empty-lp i { font-size: 56px; opacity: 0.4; }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+    <div>
+        <h1 style="margin:0;font-family:'Space Grotesk';letter-spacing:-0.5px;">Landing Pages</h1>
+        <div style="color:var(--text-muted);font-size:13px;margin-top:2px;">Public lead-capture pages. Every signup creates a prospect and fires your automations &amp; flows.</div>
+    </div>
+    <a href="/lp/new" class="btn btn-primary" style="background:var(--primary);color:#0f172a;font-weight:700;"><i class="bi bi-plus-lg"></i> New landing page</a>
+</div>
+
+{% if pages %}
+<div class="lp-grid">
+    {% for p in pages %}
+    <div class="lp-card">
+        <div class="preview-strip" style="background: linear-gradient(135deg, {{ p.theme_color }}, {{ p.theme_color }}cc);">
+            {{ p.headline or p.title }}
+        </div>
+        <div class="lp-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="lp-title">{{ p.title }}</div>
+                {% if p.active %}<span style="font-size:9px;font-weight:700;color:var(--primary);background:rgba(0,220,130,0.12);padding:2px 8px;border-radius:999px;">LIVE</span>{% else %}<span style="font-size:9px;font-weight:700;color:#94a3b8;background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:999px;">DRAFT</span>{% endif %}
+            </div>
+            <div class="lp-meta">{{ base_url }}/p/<code>{{ p.slug }}</code></div>
+            <div class="lp-stats">
+                <div class="lp-stat"><strong>{{ p.signups_count }}</strong> signup{% if p.signups_count != 1 %}s{% endif %}</div>
+            </div>
+            <div class="lp-actions">
+                <a href="/lp/{{ p.id }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+                <a href="/p/{{ p.slug }}" target="_blank" class="btn btn-outline-secondary"><i class="bi bi-box-arrow-up-right"></i> Preview</a>
+                <a href="/lp/{{ p.id }}/qr" target="_blank" class="btn btn-outline-secondary" title="QR code"><i class="bi bi-qr-code"></i></a>
+                <form method="POST" action="/lp/{{ p.id }}/delete" style="margin:0;display:inline;" onsubmit="return confirm('Delete this landing page and its signups?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-outline-secondary" style="color:#f87171;"><i class="bi bi-trash3"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-lp">
+    <i class="bi bi-megaphone"></i>
+    <h3 style="color:var(--text);margin-top:10px;font-family:'Space Grotesk';">No landing pages yet</h3>
+    <p style="font-size:13px;">Build a public page to capture trial signups, free-class registrations, or campaign leads.</p>
+    <a href="/lp/new" class="btn btn-primary" style="background:var(--primary);color:#0f172a;font-weight:700;margin-top:8px;"><i class="bi bi-plus-lg"></i> Create your first page</a>
+</div>
+{% endif %}
+{% endblock %}

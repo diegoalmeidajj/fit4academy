@@ -6283,6 +6283,202 @@ def messaging_automations_run_now():
     return redirect(url_for('messaging_automations_page'))
 
 
+# ─── Landing pages ──────────────────────────────────────────────
+
+@app.route('/lp')
+@login_required
+def landing_pages_list():
+    academy_id = _get_academy_id()
+    pages = models.get_landing_pages(academy_id)
+    base_url = request.host_url.rstrip('/')
+    return render_template('landing_pages_list.html', pages=pages, base_url=base_url)
+
+
+@app.route('/lp/new', methods=['GET', 'POST'])
+@login_required
+def landing_page_new():
+    academy_id = _get_academy_id()
+    if request.method == 'POST':
+        if not validate_csrf():
+            return redirect(url_for('landing_pages_list'))
+        try:
+            page_id = models.upsert_landing_page(
+                academy_id,
+                title=request.form.get('title', '').strip(),
+                slug=request.form.get('slug', '').strip(),
+                headline=request.form.get('headline', '').strip(),
+                body_html=request.form.get('body_html', ''),
+                agreement_text=request.form.get('agreement_text', '').strip(),
+                header_image_url=request.form.get('header_image_url', '').strip(),
+                theme_color=request.form.get('theme_color', '#00DC82'),
+                cta_label=request.form.get('cta_label', 'Sign up').strip() or 'Sign up',
+                redirect_url=request.form.get('redirect_url', '').strip(),
+                ask_phone=request.form.get('ask_phone') == 'on',
+                ask_experience=request.form.get('ask_experience') == 'on',
+                ask_notes=request.form.get('ask_notes') == 'on',
+                active=request.form.get('active') == 'on',
+            )
+            flash('Landing page created.', 'success')
+            return redirect(url_for('landing_page_edit', page_id=page_id))
+        except Exception as e:
+            flash(f'Could not create landing page: {e}', 'error')
+    return render_template('landing_page_editor.html', page=None, signups=[])
+
+
+@app.route('/lp/<int:page_id>', methods=['GET', 'POST'])
+@login_required
+def landing_page_edit(page_id):
+    academy_id = _get_academy_id()
+    page = models.get_landing_page(page_id)
+    if not page or page.get('academy_id') != academy_id:
+        flash('Page not found.', 'error')
+        return redirect(url_for('landing_pages_list'))
+
+    if request.method == 'POST':
+        if not validate_csrf():
+            return redirect(url_for('landing_page_edit', page_id=page_id))
+        try:
+            models.upsert_landing_page(
+                academy_id,
+                page_id=page_id,
+                title=request.form.get('title', '').strip(),
+                slug=request.form.get('slug', '').strip(),
+                headline=request.form.get('headline', '').strip(),
+                body_html=request.form.get('body_html', ''),
+                agreement_text=request.form.get('agreement_text', '').strip(),
+                header_image_url=request.form.get('header_image_url', '').strip(),
+                theme_color=request.form.get('theme_color', '#00DC82'),
+                cta_label=request.form.get('cta_label', 'Sign up').strip() or 'Sign up',
+                redirect_url=request.form.get('redirect_url', '').strip(),
+                ask_phone=request.form.get('ask_phone') == 'on',
+                ask_experience=request.form.get('ask_experience') == 'on',
+                ask_notes=request.form.get('ask_notes') == 'on',
+                active=request.form.get('active') == 'on',
+            )
+            flash('Landing page saved.', 'success')
+        except Exception as e:
+            flash(f'Could not save: {e}', 'error')
+        return redirect(url_for('landing_page_edit', page_id=page_id))
+
+    signups = models.get_landing_signups(page_id, limit=50)
+    base_url = request.host_url.rstrip('/')
+    return render_template('landing_page_editor.html', page=page, signups=signups, base_url=base_url)
+
+
+@app.route('/lp/<int:page_id>/delete', methods=['POST'])
+@login_required
+def landing_page_delete(page_id):
+    if not validate_csrf():
+        return redirect(url_for('landing_pages_list'))
+    models.delete_landing_page(page_id)
+    flash('Landing page deleted.', 'success')
+    return redirect(url_for('landing_pages_list'))
+
+
+@app.route('/lp/<int:page_id>/qr')
+@login_required
+def landing_page_qr(page_id):
+    """Generate a QR code PNG that points at the public landing page URL."""
+    page = models.get_landing_page(page_id)
+    if not page:
+        return "Not found", 404
+    try:
+        import qrcode
+        from io import BytesIO
+        url = f"{request.host_url.rstrip('/')}/p/{page['slug']}"
+        img = qrcode.make(url)
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        from flask import send_file
+        return send_file(buf, mimetype='image/png',
+                         as_attachment=False,
+                         download_name=f"qr-{page['slug']}.png")
+    except Exception as e:
+        return f"QR error: {e}", 500
+
+
+# ─── Public landing page (no auth) ─────────────────────────────
+
+@app.route('/p/<slug>')
+def public_landing_page(slug):
+    page = models.get_landing_page_by_slug(slug)
+    if not page:
+        return "Page not found.", 404
+    # Resolve academy for display
+    academy = None
+    try:
+        academy = models.get_academy_by_id(page.get('academy_id', 1))
+        academy = dict(academy) if academy else None
+    except Exception:
+        pass
+    return render_template('public_landing.html', page=page, academy=academy)
+
+
+@app.route('/p/<slug>/signup', methods=['POST'])
+def public_landing_signup(slug):
+    page = models.get_landing_page_by_slug(slug)
+    if not page:
+        return "Page not found.", 404
+    name = (request.form.get('name') or '').strip()
+    email = (request.form.get('email') or '').strip().lower()
+    phone = (request.form.get('phone') or '').strip()
+    experience = (request.form.get('experience') or '').strip()
+    notes = (request.form.get('notes') or '').strip()
+    agreement_signed = bool(page.get('agreement_text')) and request.form.get('agreement') == 'on'
+
+    if not name or not email:
+        flash('Name and email are required.', 'error')
+        return redirect(url_for('public_landing_page', slug=slug))
+
+    # Split name into first/last (best-effort)
+    parts = name.split(None, 1)
+    first_name = parts[0]
+    last_name = parts[1] if len(parts) > 1 else ''
+
+    # Create the prospect — this fires automations + flows hooks.
+    prospect_id = None
+    try:
+        prospect_id = models.create_prospect(
+            academy_id=page.get('academy_id', 1),
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone,
+            source=f'landing:{page["slug"]}',
+            previous_experience=experience,
+            interested_in='',
+            notes=notes,
+        )
+    except Exception as e:
+        print(f"[Landing signup] prospect create error: {e}")
+
+    # Persist the signup row regardless (so we don't lose the lead even if
+    # the prospect insert hit a constraint).
+    try:
+        from datetime import datetime as _dt
+        models.record_landing_signup(
+            page['id'],
+            prospect_id=prospect_id,
+            name=name,
+            email=email,
+            phone=phone,
+            experience=experience,
+            notes=notes,
+            agreement_signed=agreement_signed,
+            agreement_signed_at=_dt.utcnow().isoformat(' ', 'seconds') if agreement_signed else None,
+            user_agent=request.headers.get('User-Agent', ''),
+            ip_address=request.headers.get('X-Forwarded-For', request.remote_addr or ''),
+        )
+    except Exception as e:
+        print(f"[Landing signup] record error: {e}")
+
+    # Redirect to configured URL or thank-you page
+    if page.get('redirect_url'):
+        return redirect(page['redirect_url'])
+    return render_template('public_landing.html', page=page, academy=None, success=True)
+
+
 @app.route('/messaging/flows')
 @login_required
 def messaging_flows_page():

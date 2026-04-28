@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{% if page %}Edit landing{% else %}New landing{% endif %}{% endblock %}
+{% block content %}
+<style>
+.editor-shell { display: grid; grid-template-columns: 1fr 320px; gap: 18px; }
+.editor-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 14px; }
+.field-row { margin-bottom: 14px; }
+.field-row label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 5px; }
+.field-row input[type=text], .field-row input[type=url], .field-row input[type=color], .field-row textarea, .field-row select {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border: 1.5px solid var(--border);
+    color: var(--text); font-size: 14px; font-family: inherit;
+}
+.field-row textarea { min-height: 120px; resize: vertical; }
+.share-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+.share-card h4 { font-family: 'Space Grotesk'; font-size: 12px; color: var(--text-muted); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 8px; }
+.share-url { background: #0a0f1a; border: 1px solid var(--border); padding: 8px 10px; border-radius: 8px; font-family: monospace; font-size: 11px; color: var(--primary); word-break: break-all; margin-bottom: 8px; }
+.signup-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; }
+.signup-row:last-child { border-bottom: 0; }
+.signup-row .av { width: 28px; height: 28px; border-radius: 50%; background: rgba(0,220,130,0.15); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; color: var(--primary); flex-shrink: 0; }
+.tab-strip { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.tab-strip a { padding: 10px 16px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; }
+.tab-strip a.active { color: var(--primary); border-bottom-color: var(--primary); }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+        <h1 style="margin:0;font-family:'Space Grotesk';letter-spacing:-0.5px;">{% if page %}Edit landing page{% else %}New landing page{% endif %}</h1>
+        <div style="color:var(--text-muted);font-size:13px;margin-top:2px;"><a href="/lp" style="color:inherit;text-decoration:none;"><i class="bi bi-arrow-left"></i> Back to landing pages</a></div>
+    </div>
+</div>
+
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="editor-shell">
+        <div>
+            <div class="editor-card">
+                <h3 style="font-family:'Space Grotesk';margin:0 0 14px;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;">Content</h3>
+
+                <div class="field-row">
+                    <label>Page title (internal)</label>
+                    <input type="text" name="title" placeholder="e.g. Free Trial Class" value="{{ page.title if page else '' }}" required>
+                </div>
+
+                {% if page %}
+                <div class="field-row">
+                    <label>Slug (URL)</label>
+                    <input type="text" name="slug" value="{{ page.slug }}" pattern="[a-z0-9-]+">
+                </div>
+                {% endif %}
+
+                <div class="field-row">
+                    <label>Hero headline (shown to leads)</label>
+                    <input type="text" name="headline" placeholder="e.g. Try a free BJJ class — bring a friend." value="{{ page.headline if page else '' }}">
+                </div>
+
+                <div class="field-row">
+                    <label>Body (HTML allowed)</label>
+                    <textarea name="body_html" placeholder="Why should they sign up? Include schedule, location, what to expect.">{{ page.body_html if page else '<p>Bring comfortable clothes. We provide a uniform for your first class. The session lasts 60 minutes.</p>' }}</textarea>
+                </div>
+
+                <div class="field-row">
+                    <label>Header image URL (optional)</label>
+                    <input type="url" name="header_image_url" placeholder="https://…" value="{{ page.header_image_url if page else '' }}">
+                </div>
+            </div>
+
+            <div class="editor-card">
+                <h3 style="font-family:'Space Grotesk';margin:0 0 14px;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;">Lead capture form</h3>
+
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Name + email are always required. Toggle the optional fields:</p>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:8px;">
+                    <input type="checkbox" name="ask_phone" {% if not page or page.ask_phone %}checked{% endif %}> Ask for phone number
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:8px;">
+                    <input type="checkbox" name="ask_experience" {% if not page or page.ask_experience %}checked{% endif %}> Ask about prior experience
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:14px;">
+                    <input type="checkbox" name="ask_notes" {% if page and page.ask_notes %}checked{% endif %}> Ask for notes / questions
+                </label>
+
+                <div class="field-row">
+                    <label>Agreement / waiver text (optional)</label>
+                    <textarea name="agreement_text" rows="3" placeholder="By signing up I agree to the academy's general policies…">{{ page.agreement_text if page else '' }}</textarea>
+                    <small style="color:var(--text-muted);font-size:11px;">If filled, a checkbox appears on the form and the signup is recorded as agreed.</small>
+                </div>
+            </div>
+
+            <div class="editor-card">
+                <h3 style="font-family:'Space Grotesk';margin:0 0 14px;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;">Style &amp; behavior</h3>
+
+                <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;">
+                    <div class="field-row">
+                        <label>Theme color</label>
+                        <input type="color" name="theme_color" value="{{ page.theme_color if page else '#00DC82' }}" style="height:42px;padding:4px;">
+                    </div>
+                    <div class="field-row">
+                        <label>CTA label</label>
+                        <input type="text" name="cta_label" value="{{ page.cta_label if page else 'Sign up' }}">
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <label>Redirect URL after signup (optional)</label>
+                    <input type="url" name="redirect_url" placeholder="https://your-thank-you-page.com" value="{{ page.redirect_url if page else '' }}">
+                </div>
+
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);">
+                    <input type="checkbox" name="active" {% if not page or page.active %}checked{% endif %}> Page is live (publicly accessible)
+                </label>
+            </div>
+
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <a href="/lp" class="btn btn-outline-secondary">Cancel</a>
+                <button class="btn btn-primary" style="background:var(--primary);color:#0f172a;font-weight:700;"><i class="bi bi-check2"></i> {% if page %}Save changes{% else %}Create page{% endif %}</button>
+            </div>
+        </div>
+
+        <aside>
+            {% if page %}
+            <div class="share-card">
+                <h4>Share</h4>
+                <div class="share-url">{{ base_url }}/p/{{ page.slug }}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <a href="/p/{{ page.slug }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-arrow-up-right"></i> Open</a>
+                    <a href="/lp/{{ page.id }}/qr" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-qr-code"></i> QR</a>
+                </div>
+            </div>
+
+            <div class="share-card" style="margin-top:14px;">
+                <h4>Recent signups · {{ page.signups_count }}</h4>
+                {% if signups %}
+                    {% for s in signups[:8] %}
+                    <div class="signup-row">
+                        <div class="av">{{ (s.name[0] or '?')|upper }}</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:600;">{{ s.name }}</div>
+                            <div style="font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.email }}</div>
+                        </div>
+                        <div style="font-size:10px;color:var(--text-muted);">{{ (s.created_at or '')|string|truncate(10, True, '') }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="font-size:12px;color:var(--text-muted);">No signups yet — share the URL to start collecting leads.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</form>
+{% endblock %}

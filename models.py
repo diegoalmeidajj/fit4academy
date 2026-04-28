@@ -716,6 +716,46 @@ def init_db():
         )""",
         "CREATE INDEX IF NOT EXISTS idx_flow_exec_recipient ON flow_executions(flow_id, recipient_type, recipient_id)",
         "CREATE INDEX IF NOT EXISTS idx_flow_exec_pending ON flow_executions(completed_at, cancelled_at)",
+
+        # ─── Landing pages (lead capture) ───
+        # Public-facing pages with lead capture form. Submissions create a
+        # prospect, which fires comms automations and flows.
+        """CREATE TABLE IF NOT EXISTS landing_pages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            slug TEXT NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            headline TEXT DEFAULT '',
+            body_html TEXT DEFAULT '',
+            agreement_text TEXT DEFAULT '',
+            header_image_url TEXT DEFAULT '',
+            theme_color TEXT DEFAULT '#00DC82',
+            cta_label TEXT DEFAULT 'Sign up',
+            redirect_url TEXT DEFAULT '',
+            ask_phone BOOLEAN DEFAULT TRUE,
+            ask_experience BOOLEAN DEFAULT TRUE,
+            ask_notes BOOLEAN DEFAULT FALSE,
+            signups_count INTEGER DEFAULT 0,
+            active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        """CREATE TABLE IF NOT EXISTS landing_page_signups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_id INTEGER NOT NULL,
+            prospect_id INTEGER,
+            name TEXT DEFAULT '',
+            email TEXT DEFAULT '',
+            phone TEXT DEFAULT '',
+            experience TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            agreement_signed BOOLEAN DEFAULT FALSE,
+            agreement_signed_at TIMESTAMP,
+            user_agent TEXT DEFAULT '',
+            ip_address TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_landing_signups_page ON landing_page_signups(page_id, created_at DESC)",
     ]:
         try:
             conn.execute(alter)
@@ -3520,6 +3560,166 @@ def _mark_flow_cancelled(execution_id):
     try:
         conn.execute("UPDATE flow_executions SET cancelled_at = CURRENT_TIMESTAMP WHERE id = ?", (execution_id,))
         conn.commit()
+    finally:
+        conn.close()
+
+
+# ─── Landing pages (lead capture) ─────────────────────────────
+
+import re as _re_landing
+
+
+def _slugify(text):
+    s = (text or '').lower().strip()
+    s = _re_landing.sub(r'[^a-z0-9]+', '-', s)
+    s = s.strip('-')
+    return s or 'landing'
+
+
+def get_landing_pages(academy_id=1):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM landing_pages WHERE academy_id = ? ORDER BY updated_at DESC",
+            (academy_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_landing_page(page_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM landing_pages WHERE id = ?", (page_id,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_landing_page_by_slug(slug):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM landing_pages WHERE slug = ? AND active = ?",
+            (slug, True)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def upsert_landing_page(academy_id, **kwargs):
+    """Insert or update a landing page. Slug auto-generates from title if blank."""
+    page_id = kwargs.get('page_id')
+    title = (kwargs.get('title') or '').strip() or 'Untitled'
+    slug = (kwargs.get('slug') or '').strip()
+    if not slug:
+        slug = _slugify(title)
+    # Avoid slug collision by appending the page_id or a counter when needed.
+    conn = get_db()
+    try:
+        if not page_id:
+            base = slug
+            counter = 2
+            while conn.execute(
+                "SELECT 1 FROM landing_pages WHERE slug = ?", (slug,)
+            ).fetchone():
+                slug = f"{base}-{counter}"
+                counter += 1
+
+        payload = (
+            slug, title,
+            kwargs.get('headline', ''),
+            kwargs.get('body_html', ''),
+            kwargs.get('agreement_text', ''),
+            kwargs.get('header_image_url', ''),
+            kwargs.get('theme_color', '#00DC82'),
+            kwargs.get('cta_label', 'Sign up'),
+            kwargs.get('redirect_url', ''),
+            bool(kwargs.get('ask_phone', True)),
+            bool(kwargs.get('ask_experience', True)),
+            bool(kwargs.get('ask_notes', False)),
+            bool(kwargs.get('active', True)),
+        )
+
+        if page_id:
+            conn.execute(
+                """UPDATE landing_pages SET
+                   slug=?, title=?, headline=?, body_html=?, agreement_text=?,
+                   header_image_url=?, theme_color=?, cta_label=?, redirect_url=?,
+                   ask_phone=?, ask_experience=?, ask_notes=?, active=?,
+                   updated_at=CURRENT_TIMESTAMP
+                   WHERE id=?""",
+                payload + (page_id,)
+            )
+            conn.commit()
+            return page_id
+        cur = conn.execute(
+            """INSERT INTO landing_pages
+               (academy_id, slug, title, headline, body_html, agreement_text,
+                header_image_url, theme_color, cta_label, redirect_url,
+                ask_phone, ask_experience, ask_notes, active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (academy_id,) + payload
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def delete_landing_page(page_id):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM landing_page_signups WHERE page_id = ?", (page_id,))
+        conn.execute("DELETE FROM landing_pages WHERE id = ?", (page_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def record_landing_signup(page_id, **kwargs):
+    """Persist a landing page form submission and bump signups_count."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """INSERT INTO landing_page_signups
+               (page_id, prospect_id, name, email, phone, experience, notes,
+                agreement_signed, agreement_signed_at, user_agent, ip_address)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (page_id,
+             kwargs.get('prospect_id'),
+             kwargs.get('name', ''),
+             kwargs.get('email', ''),
+             kwargs.get('phone', ''),
+             kwargs.get('experience', ''),
+             kwargs.get('notes', ''),
+             bool(kwargs.get('agreement_signed', False)),
+             kwargs.get('agreement_signed_at'),
+             kwargs.get('user_agent', '')[:500],
+             kwargs.get('ip_address', '')[:64])
+        )
+        conn.execute(
+            "UPDATE landing_pages SET signups_count = signups_count + 1 WHERE id = ?",
+            (page_id,)
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_landing_signups(page_id, limit=200):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM landing_page_signups WHERE page_id = ? ORDER BY created_at DESC LIMIT ?",
+            (page_id, limit)
+        ).fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()
 
