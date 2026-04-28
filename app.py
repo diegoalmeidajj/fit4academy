@@ -5282,6 +5282,18 @@ def user_edit(user_id):
 def notifications_page():
     academy_id = _get_academy_id()
     try:
+        notifications = _safe_notifications_render(academy_id)
+        return notifications
+    except Exception as _err:
+        import traceback
+        print(f"[/notifications] ERROR: {_err}")
+        traceback.print_exc()
+        flash(f'Could not load notifications: {_err}', 'error')
+        return redirect(url_for('dashboard'))
+
+
+def _safe_notifications_render(academy_id):
+    try:
         notifications = models.get_all_notifications(academy_id, limit=100)
         # Enrich each notification with relevant context for inline actions
         for n in (notifications or []):
@@ -6205,6 +6217,16 @@ def messaging_page():
     except Exception:
         templates = []
 
+    try:
+        smart_groups = models.get_smart_groups(academy_id)
+        for g in smart_groups:
+            try:
+                g['match_count'] = len(models.evaluate_smart_group(g['id'], academy_id))
+            except Exception:
+                g['match_count'] = 0
+    except Exception:
+        smart_groups = []
+
     programs = _enrich_programs(models.get_programs(academy_id))
     return render_template('messaging.html',
                            members=members,
@@ -6213,7 +6235,8 @@ def messaging_page():
                            belts=belts,
                            stats=stats,
                            programs=programs,
-                           templates=templates)
+                           templates=templates,
+                           smart_groups=smart_groups)
 
 
 @app.route('/messaging/automations')
@@ -6281,6 +6304,109 @@ def messaging_automations_run_now():
     fired = models.run_due_delayed_automations(academy_id)
     flash(f'{fired} automation message{"s" if fired != 1 else ""} fired.', 'success')
     return redirect(url_for('messaging_automations_page'))
+
+
+# ─── Smart Groups ──────────────────────────────────────────────
+
+@app.route('/smart-groups')
+@login_required
+def smart_groups_list():
+    academy_id = _get_academy_id()
+    groups = models.get_smart_groups(academy_id)
+    # Compute counts on the fly so the user sees how many members each group
+    # currently matches. Cheap because get_all_members is already cached above.
+    for g in groups:
+        try:
+            g['match_count'] = len(models.evaluate_smart_group(g['id'], academy_id))
+        except Exception:
+            g['match_count'] = 0
+    return render_template('smart_groups_list.html', groups=groups)
+
+
+@app.route('/smart-groups/new', methods=['GET', 'POST'])
+@login_required
+def smart_group_new():
+    academy_id = _get_academy_id()
+    if request.method == 'POST':
+        if not validate_csrf():
+            return redirect(url_for('smart_groups_list'))
+        gid = models.upsert_smart_group(
+            academy_id,
+            name=request.form.get('name', '').strip() or 'Untitled group',
+            description=request.form.get('description', '').strip(),
+            rules=_parse_smart_group_rules(request.form),
+        )
+        flash('Smart group created.', 'success')
+        return redirect(url_for('smart_group_edit', group_id=gid))
+    return render_template('smart_group_editor.html', group=None,
+                           belts=_safe_get_belts(), programs=_enrich_programs(models.get_programs(academy_id)),
+                           preview_count=None)
+
+
+@app.route('/smart-groups/<int:group_id>', methods=['GET', 'POST'])
+@login_required
+def smart_group_edit(group_id):
+    academy_id = _get_academy_id()
+    group = models.get_smart_group(group_id)
+    if not group or group.get('academy_id') != academy_id:
+        flash('Group not found.', 'error')
+        return redirect(url_for('smart_groups_list'))
+
+    if request.method == 'POST':
+        if not validate_csrf():
+            return redirect(url_for('smart_group_edit', group_id=group_id))
+        models.upsert_smart_group(
+            academy_id,
+            group_id=group_id,
+            name=request.form.get('name', '').strip() or group['name'],
+            description=request.form.get('description', '').strip(),
+            rules=_parse_smart_group_rules(request.form),
+        )
+        flash('Smart group saved.', 'success')
+        return redirect(url_for('smart_group_edit', group_id=group_id))
+
+    members = models.evaluate_smart_group(group_id, academy_id)
+    return render_template('smart_group_editor.html', group=group,
+                           belts=_safe_get_belts(),
+                           programs=_enrich_programs(models.get_programs(academy_id)),
+                           preview_count=len(members),
+                           preview_members=members[:25])
+
+
+@app.route('/smart-groups/<int:group_id>/delete', methods=['POST'])
+@login_required
+def smart_group_delete(group_id):
+    if not validate_csrf():
+        return redirect(url_for('smart_groups_list'))
+    models.delete_smart_group(group_id)
+    flash('Smart group deleted.', 'success')
+    return redirect(url_for('smart_groups_list'))
+
+
+def _safe_get_belts():
+    try:
+        return models.get_all_belt_ranks() or []
+    except Exception:
+        return []
+
+
+def _parse_smart_group_rules(form):
+    """Form posts rules as parallel arrays: rule_field[], rule_op[], rule_value[]."""
+    fields = form.getlist('rule_field')
+    ops = form.getlist('rule_op')
+    values = form.getlist('rule_value')
+    rules = []
+    for i in range(min(len(fields), len(ops), len(values))):
+        f = (fields[i] or '').strip()
+        v = (values[i] or '').strip()
+        if not f or not v:
+            continue
+        rules.append({
+            'field': f,
+            'op': (ops[i] or 'eq').strip(),
+            'value': v,
+        })
+    return rules
 
 
 # ─── Landing pages ──────────────────────────────────────────────
@@ -6654,6 +6780,11 @@ def messaging_send():
     # Determine recipients
     if filter_type == 'manual':
         recipients = models.get_members_by_filter(academy_id, 'manual', manual_ids)
+    elif filter_type == 'smart_group':
+        try:
+            recipients = models.evaluate_smart_group(int(filter_value), academy_id)
+        except Exception:
+            recipients = []
     else:
         recipients = models.get_members_by_filter(academy_id, filter_type, filter_value)
 
