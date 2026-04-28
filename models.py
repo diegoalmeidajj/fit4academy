@@ -649,6 +649,35 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
+
+        # ─── Automated messages (event-triggered campaigns) ───
+        # trigger_type: 'member_created' | 'prospect_created'
+        #               | 'member_inactive_15d' | 'payment_failed'
+        # delay_minutes: 0 = fire immediately when the event hooks
+        #                >0 = fire when scheduler/cron runs after the delay
+        """CREATE TABLE IF NOT EXISTS automated_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            academy_id INTEGER DEFAULT 1,
+            trigger_type TEXT NOT NULL,
+            name TEXT DEFAULT '',
+            channel TEXT DEFAULT 'both',
+            subject TEXT DEFAULT '',
+            body TEXT DEFAULT '',
+            delay_minutes INTEGER DEFAULT 0,
+            active BOOLEAN DEFAULT TRUE,
+            last_run_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        # Idempotency log so we don't re-fire the same trigger for the same
+        # (member, automation) more than once for the same delay.
+        """CREATE TABLE IF NOT EXISTS automated_message_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            automation_id INTEGER NOT NULL,
+            recipient_type TEXT NOT NULL,
+            recipient_id INTEGER NOT NULL,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_automated_runs_uniq ON automated_message_runs(automation_id, recipient_type, recipient_id)",
     ]:
         try:
             conn.execute(alter)
@@ -1455,6 +1484,16 @@ def create_member(academy_id=1, **kwargs):
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
+
+    # Fire any 'member_created' automated messages immediately. Wrapped so a
+    # broken template never blocks member creation.
+    try:
+        member = get_member_by_id(new_id)
+        if member:
+            fire_automation_trigger('member_created', member=dict(member), academy_id=academy_id)
+    except Exception as _e:
+        print(f"[create_member] automation hook error: {_e}")
+
     return new_id
 
 
@@ -2324,6 +2363,21 @@ def create_prospect(academy_id=1, **kwargs):
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
+
+    # Fire any 'prospect_created' automated messages immediately.
+    try:
+        prospect_data = {
+            'id': new_id,
+            'academy_id': academy_id,
+            'first_name': kwargs.get('first_name', ''),
+            'last_name': kwargs.get('last_name', ''),
+            'email': kwargs.get('email', ''),
+            'phone': kwargs.get('phone', ''),
+        }
+        fire_automation_trigger('prospect_created', prospect=prospect_data, academy_id=academy_id)
+    except Exception as _e:
+        print(f"[create_prospect] automation hook error: {_e}")
+
     return new_id
 
 
@@ -2900,6 +2954,233 @@ def render_message_tokens(text, member=None, academy=None):
     for k, v in repl.items():
         out = out.replace(k, v)
     return out
+
+
+# ─── Automated messages (event-triggered) ──────────────────────
+
+def get_automated_messages(academy_id=1, trigger_type=None, active_only=False):
+    conn = get_db()
+    try:
+        sql = "SELECT * FROM automated_messages WHERE academy_id = ?"
+        params = [academy_id]
+        if trigger_type:
+            sql += " AND trigger_type = ?"
+            params.append(trigger_type)
+        if active_only:
+            sql += " AND active = ?"
+            params.append(True)
+        sql += " ORDER BY trigger_type, name"
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_automated_message(automation_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM automated_messages WHERE id = ?",
+            (automation_id,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def upsert_automated_message(academy_id, trigger_type, **kwargs):
+    """Create or update an automation. If automation_id is in kwargs, updates;
+    otherwise creates a new row.
+    """
+    automation_id = kwargs.pop('automation_id', None)
+    fields = {
+        'name': kwargs.get('name', ''),
+        'channel': kwargs.get('channel', 'both'),
+        'subject': kwargs.get('subject', ''),
+        'body': kwargs.get('body', ''),
+        'delay_minutes': int(kwargs.get('delay_minutes', 0) or 0),
+        'active': bool(kwargs.get('active', True)),
+    }
+    conn = get_db()
+    try:
+        if automation_id:
+            conn.execute(
+                """UPDATE automated_messages SET
+                   trigger_type = ?, name = ?, channel = ?, subject = ?, body = ?,
+                   delay_minutes = ?, active = ? WHERE id = ?""",
+                (trigger_type, fields['name'], fields['channel'], fields['subject'],
+                 fields['body'], fields['delay_minutes'], fields['active'], automation_id)
+            )
+            conn.commit()
+            return automation_id
+        cur = conn.execute(
+            """INSERT INTO automated_messages
+               (academy_id, trigger_type, name, channel, subject, body, delay_minutes, active)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (academy_id, trigger_type, fields['name'], fields['channel'],
+             fields['subject'], fields['body'], fields['delay_minutes'], fields['active'])
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def delete_automated_message(automation_id):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM automated_messages WHERE id = ?", (automation_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _record_automation_run(automation_id, recipient_type, recipient_id):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO automated_message_runs (automation_id, recipient_type, recipient_id) VALUES (?, ?, ?)",
+            (automation_id, recipient_type, recipient_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _has_automation_fired(automation_id, recipient_type, recipient_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM automated_message_runs WHERE automation_id = ? AND recipient_type = ? AND recipient_id = ? LIMIT 1",
+            (automation_id, recipient_type, recipient_id)
+        ).fetchone()
+        return bool(row)
+    finally:
+        conn.close()
+
+
+def fire_automation_trigger(trigger_type, member=None, prospect=None, academy_id=None):
+    """Fire all matching automations for a trigger event.
+
+    Looks up active automations for trigger_type, renders tokens, and dispatches
+    via notifications_lib (email + sms). Idempotent — won't re-fire the same
+    automation for the same recipient.
+
+    Returns count of messages actually sent.
+    """
+    if academy_id is None:
+        if member:
+            academy_id = (member.get('academy_id') if isinstance(member, dict) else member['academy_id']) or 1
+        elif prospect:
+            academy_id = (prospect.get('academy_id') if isinstance(prospect, dict) else prospect['academy_id']) or 1
+        else:
+            academy_id = 1
+
+    automations = get_automated_messages(academy_id, trigger_type=trigger_type, active_only=True)
+    if not automations:
+        return 0
+
+    recipient_type = 'member' if member else 'prospect'
+    recipient = member or prospect or {}
+    if not isinstance(recipient, dict):
+        recipient = dict(recipient)
+    recipient_id = recipient.get('id')
+    if not recipient_id:
+        return 0
+
+    try:
+        academy = get_academy_by_id(academy_id)
+        academy = dict(academy) if academy else {}
+    except Exception:
+        academy = {}
+
+    sent = 0
+    for a in automations:
+        # delay_minutes > 0 means "fire later via cron" — skip for immediate hook.
+        if int(a.get('delay_minutes') or 0) > 0:
+            continue
+        if _has_automation_fired(a['id'], recipient_type, recipient_id):
+            continue
+
+        subj = render_message_tokens(a.get('subject') or '', recipient, academy)
+        body = render_message_tokens(a.get('body') or '', recipient, academy)
+        channel = a.get('channel') or 'both'
+
+        try:
+            import notifications_lib
+            if channel in ('email', 'both') and recipient.get('email'):
+                notifications_lib.send_email(recipient['email'], subj or '(no subject)', body)
+            if channel in ('sms', 'both') and recipient.get('phone'):
+                sms_body = (subj + '\n\n' + body) if subj else body
+                notifications_lib.send_sms(recipient['phone'], sms_body[:1500])
+        except Exception as e:
+            print(f"[Automation {a['id']}] send error: {e}")
+            continue
+
+        _record_automation_run(a['id'], recipient_type, recipient_id)
+        sent += 1
+    return sent
+
+
+def run_due_delayed_automations(academy_id=1):
+    """Run automations that need to fire on a schedule (delay_minutes > 0).
+
+    Currently handles:
+    - member_inactive_15d: members with no check-in in 15+ days
+    - payment_failed: skip for now (Stripe webhook will trigger directly)
+
+    Designed to be called from a Railway cron job hitting an authenticated
+    endpoint, OR from a "Run now" button in the /messaging Automations tab.
+    """
+    fired = 0
+    automations = get_automated_messages(academy_id, active_only=True)
+
+    inactive_autos = [a for a in automations if a.get('trigger_type') == 'member_inactive_15d']
+    if inactive_autos:
+        try:
+            members = get_all_members(academy_id) or []
+        except Exception:
+            members = []
+        for m in members:
+            md = m if isinstance(m, dict) else dict(m)
+            if not md.get('active'):
+                continue
+            try:
+                checkins = get_checkins_by_member(md['id'], limit=1) or []
+            except Exception:
+                checkins = []
+            if checkins:
+                last_at = str(checkins[0].get('created_at', ''))[:10]
+                from datetime import date as _date, timedelta as _td
+                try:
+                    from datetime import datetime as _dt
+                    last_dt = _dt.strptime(last_at, '%Y-%m-%d').date()
+                    days_since = (_date.today() - last_dt).days
+                    if days_since < 15:
+                        continue
+                except Exception:
+                    continue
+            for a in inactive_autos:
+                if _has_automation_fired(a['id'], 'member', md['id']):
+                    continue
+                academy = get_academy_by_id(academy_id)
+                academy = dict(academy) if academy else {}
+                subj = render_message_tokens(a.get('subject') or '', md, academy)
+                body = render_message_tokens(a.get('body') or '', md, academy)
+                channel = a.get('channel') or 'both'
+                try:
+                    import notifications_lib
+                    if channel in ('email', 'both') and md.get('email'):
+                        notifications_lib.send_email(md['email'], subj or '(no subject)', body)
+                    if channel in ('sms', 'both') and md.get('phone'):
+                        sms_body = (subj + '\n\n' + body) if subj else body
+                        notifications_lib.send_sms(md['phone'], sms_body[:1500])
+                except Exception as e:
+                    print(f"[Automation inactive {a['id']}] error: {e}")
+                    continue
+                _record_automation_run(a['id'], 'member', md['id'])
+                fired += 1
+    return fired
 
 
 def get_messaging_stats(academy_id=1):

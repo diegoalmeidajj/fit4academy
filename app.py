@@ -6216,6 +6216,73 @@ def messaging_page():
                            templates=templates)
 
 
+@app.route('/messaging/automations')
+@login_required
+def messaging_automations_page():
+    academy_id = _get_academy_id()
+    automations = models.get_automated_messages(academy_id)
+    edit_id = request.args.get('edit', type=int)
+    editing = None
+    if edit_id:
+        editing = models.get_automated_message(edit_id)
+    return render_template('messaging_automations.html',
+                           automations=automations,
+                           editing=editing)
+
+
+@app.route('/messaging/automations/save', methods=['POST'])
+@login_required
+def messaging_automation_save():
+    if not validate_csrf():
+        return redirect(url_for('messaging_automations_page'))
+    academy_id = _get_academy_id()
+    automation_id = request.form.get('automation_id', type=int)
+    payload = {
+        'automation_id': automation_id,
+        'name': request.form.get('name', '').strip(),
+        'channel': request.form.get('channel', 'both'),
+        'subject': request.form.get('subject', ''),
+        'body': request.form.get('body', ''),
+        'delay_minutes': int(request.form.get('delay_minutes', 0) or 0),
+        'active': request.form.get('active') == 'on',
+    }
+    trigger_type = request.form.get('trigger_type', '').strip()
+    valid = ('member_created', 'prospect_created', 'member_inactive_15d', 'payment_failed')
+    if trigger_type not in valid:
+        flash('Invalid trigger type.', 'error')
+        return redirect(url_for('messaging_automations_page'))
+    try:
+        models.upsert_automated_message(academy_id, trigger_type, **payload)
+        flash('Automation saved.', 'success')
+    except Exception as e:
+        flash(f'Could not save: {e}', 'error')
+    return redirect(url_for('messaging_automations_page'))
+
+
+@app.route('/messaging/automations/<int:automation_id>/delete', methods=['POST'])
+@login_required
+def messaging_automation_delete(automation_id):
+    if not validate_csrf():
+        return redirect(url_for('messaging_automations_page'))
+    models.delete_automated_message(automation_id)
+    flash('Automation deleted.', 'success')
+    return redirect(url_for('messaging_automations_page'))
+
+
+@app.route('/messaging/automations/run-now', methods=['POST'])
+@login_required
+def messaging_automations_run_now():
+    """Manually trigger delayed automations (e.g. inactive_15d). Useful for
+    testing — Railway Cron will hit a different endpoint on a schedule.
+    """
+    if not validate_csrf():
+        return redirect(url_for('messaging_automations_page'))
+    academy_id = _get_academy_id()
+    fired = models.run_due_delayed_automations(academy_id)
+    flash(f'{fired} automation message{"s" if fired != 1 else ""} fired.', 'success')
+    return redirect(url_for('messaging_automations_page'))
+
+
 @app.route('/messaging/templates/save', methods=['POST'])
 @login_required
 def messaging_template_save():

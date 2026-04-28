@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Automations{% endblock %}
+{% block content %}
+<style>
+.aut-tabs { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.aut-tab { padding: 10px 16px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; }
+.aut-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.aut-grid { display: grid; grid-template-columns: 320px 1fr; gap: 18px; }
+.trigger-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px;
+}
+.trigger-card.active { border-color: rgba(0,220,130,0.40); background: rgba(0,220,130,0.04); }
+.tr-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.tr-icn { width: 32px; height: 32px; border-radius: 8px; background: rgba(99,102,241,0.15); display: flex; align-items: center; justify-content: center; color: #818cf8; }
+.trigger-card.active .tr-icn { background: rgba(0,220,130,0.18); color: var(--primary); }
+.tr-name { font-family: 'Space Grotesk'; font-weight: 700; font-size: 14px; }
+.tr-trigger { font-size: 10px; color: var(--text-muted); font-family: monospace; letter-spacing: 0.3px; }
+.tr-channels { display: flex; gap: 4px; margin-top: 6px; }
+.tr-ch { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.05); color: var(--text-muted); font-weight: 600; }
+.tr-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+.tr-actions a, .tr-actions button { font-size: 11px; padding: 5px 10px; border-radius: 6px; }
+.empty-aut { text-align: center; padding: 50px 20px; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 12px; }
+.empty-aut i { font-size: 48px; opacity: 0.4; }
+
+.editor {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px;
+}
+.editor label { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 5px; display: block; }
+.editor input[type=text], .editor select, .editor textarea, .editor input[type=number] {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border: 1.5px solid var(--border);
+    color: var(--text); font-size: 14px; margin-bottom: 14px;
+}
+.editor textarea { min-height: 140px; resize: vertical; font-family: inherit; }
+.trigger-pick { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+.trigger-pick label {
+    text-align: left; padding: 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    cursor: pointer; transition: all .15s; margin-bottom: 0;
+}
+.trigger-pick input { display: none; }
+.trigger-pick input:checked + .pick-body { color: var(--primary); }
+.trigger-pick label:has(input:checked) { border-color: var(--primary); background: rgba(0,220,130,0.06); }
+.pick-body { font-size: 12px; line-height: 1.4; text-transform: none; letter-spacing: 0; color: var(--text); }
+.pick-body strong { display: block; font-family: 'Space Grotesk'; font-size: 13px; margin-bottom: 2px; }
+.pick-body small { color: var(--text-muted); font-size: 11px; }
+
+.token-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.token-chips button { font-family: monospace; font-size: 11px; padding: 3px 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 999px; color: var(--text); cursor: pointer; }
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <div>
+        <h1 style="margin:0;font-family:'Space Grotesk';letter-spacing:-0.5px;">Messaging</h1>
+        <div style="color:var(--text-muted);font-size:13px;margin-top:2px;">Send campaigns, set up automations, save templates.</div>
+    </div>
+    <form method="POST" action="/messaging/automations/run-now" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-primary"><i class="bi bi-play-circle"></i> Run delayed automations now</button>
+    </form>
+</div>
+
+<div class="aut-tabs">
+    <a href="/messaging" class="aut-tab"><i class="bi bi-send"></i> Compose &amp; send</a>
+    <a href="/messaging/automations" class="aut-tab active"><i class="bi bi-lightning"></i> Automations</a>
+</div>
+
+<div class="aut-grid">
+    <div>
+        <h4 style="font-family:'Space Grotesk';font-size:12px;color:var(--text-muted);letter-spacing:0.6px;text-transform:uppercase;margin-bottom:10px;">Configured ({{ automations|length }})</h4>
+        {% if automations %}
+            {% for a in automations %}
+            <div class="trigger-card {% if a.active %}active{% endif %}" style="margin-bottom:10px;">
+                <div class="tr-head">
+                    <div class="tr-icn"><i class="bi {% if a.trigger_type == 'member_created' %}bi-person-plus{% elif a.trigger_type == 'prospect_created' %}bi-funnel{% elif a.trigger_type == 'member_inactive_15d' %}bi-person-dash{% else %}bi-credit-card-2-back{% endif %}"></i></div>
+                    <div style="flex:1;">
+                        <div class="tr-name">{{ a.name or '(unnamed)' }}</div>
+                        <div class="tr-trigger">{{ a.trigger_type }}{% if a.delay_minutes %} · +{{ a.delay_minutes }}min{% endif %}</div>
+                    </div>
+                </div>
+                <div class="tr-channels">
+                    {% if a.channel in ['email', 'both'] %}<span class="tr-ch"><i class="bi bi-envelope"></i> Email</span>{% endif %}
+                    {% if a.channel in ['sms', 'both'] %}<span class="tr-ch"><i class="bi bi-phone"></i> SMS</span>{% endif %}
+                    {% if a.active %}<span class="tr-ch" style="background:rgba(0,220,130,0.15);color:var(--primary);">ON</span>{% else %}<span class="tr-ch" style="background:rgba(245,158,11,0.15);color:#f59e0b;">OFF</span>{% endif %}
+                </div>
+                <div class="tr-actions">
+                    <a href="?edit={{ a.id }}" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+                    <form method="POST" action="/messaging/automations/{{ a.id }}/delete" style="margin:0;display:inline;" onsubmit="return confirm('Delete this automation?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-outline-secondary" style="color:#f87171;"><i class="bi bi-trash3"></i></button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-aut">
+                <i class="bi bi-lightning"></i>
+                <p style="margin-top:10px;font-size:13px;">No automations yet.<br>Create one on the right.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="editor">
+        <h3 style="font-family:'Space Grotesk';margin:0 0 4px;">{% if editing %}Edit automation{% else %}New automation{% endif %}</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">{% if editing %}Update the trigger or message content.{% else %}Pick when this should fire, and what to send.{% endif %}</p>
+
+        <form method="POST" action="/messaging/automations/save" id="autoForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if editing %}<input type="hidden" name="automation_id" value="{{ editing.id }}">{% endif %}
+
+            <label>Trigger</label>
+            <div class="trigger-pick">
+                {% set triggers = [
+                    ('member_created', 'New student joined', 'Fires the moment a new member is added.'),
+                    ('prospect_created', 'New lead captured', 'Fires when a prospect/lead is added.'),
+                    ('member_inactive_15d', 'Student inactive 15+ days', 'Fires when a member hasn’t checked in for 15 days. Runs on the “Run delayed” button or via a cron.'),
+                    ('payment_failed', 'Payment failed', 'Fires when a Stripe charge fails.')
+                ] %}
+                {% for tk, label, helpt in triggers %}
+                <label>
+                    <input type="radio" name="trigger_type" value="{{ tk }}" {% if (editing and editing.trigger_type == tk) or (not editing and loop.first) %}checked{% endif %}>
+                    <div class="pick-body">
+                        <strong>{{ label }}</strong>
+                        <small>{{ helpt }}</small>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+
+            <label>Name</label>
+            <input type="text" name="name" placeholder="e.g. Welcome new student" value="{{ editing.name if editing else '' }}" required>
+
+            <label>Channel</label>
+            <select name="channel">
+                <option value="both" {% if editing and editing.channel == 'both' %}selected{% endif %}>Email + SMS</option>
+                <option value="email" {% if editing and editing.channel == 'email' %}selected{% endif %}>Email only</option>
+                <option value="sms" {% if editing and editing.channel == 'sms' %}selected{% endif %}>SMS only</option>
+            </select>
+
+            <label>Subject (email)</label>
+            <input type="text" name="subject" id="autoSubject" placeholder="Welcome to {{ '{{academy_name}}' }}!" value="{{ editing.subject if editing else '' }}">
+
+            <label>Body</label>
+            <div class="token-chips">
+                <span style="font-size:9px;font-weight:700;color:var(--text-muted);align-self:center;letter-spacing:0.5px;">TOKENS:</span>
+                {% for tok in ['{{first_name}}', '{{last_name}}', '{{academy_name}}', '{{belt}}'] %}
+                <button type="button" onclick="insertTokenAuto('{{ tok }}')">{{ tok }}</button>
+                {% endfor %}
+            </div>
+            <textarea name="body" id="autoBody" required>{{ editing.body if editing else 'Hi {{first_name}},\n\nWelcome to {{academy_name}}! We\'re excited to have you on the mats. Check your email for class schedule and gym address.\n\n— Coach' }}</textarea>
+
+            <label>Delay (minutes after trigger)</label>
+            <input type="number" name="delay_minutes" min="0" value="{{ editing.delay_minutes if editing else 0 }}">
+            <small style="color:var(--text-muted);font-size:11px;display:block;margin-top:-10px;margin-bottom:14px;">0 = fire immediately. >0 = fire when "Run delayed" runs (manual button above or a Railway cron).</small>
+
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);">
+                <input type="checkbox" name="active" {% if not editing or editing.active %}checked{% endif %} style="width:auto;margin:0;">
+                Active — start firing this trigger
+            </label>
+
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+                {% if editing %}<a href="/messaging/automations" class="btn btn-outline-secondary">Cancel</a>{% endif %}
+                <button class="btn btn-primary" style="background:var(--primary);color:#0f172a;font-weight:700;"><i class="bi bi-check2"></i> Save automation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function insertTokenAuto(token) {
+    const focused = document.activeElement;
+    const target = (focused && (focused.id === 'autoSubject' || focused.id === 'autoBody'))
+        ? focused : document.getElementById('autoBody');
+    const start = target.selectionStart || 0;
+    const end = target.selectionEnd || 0;
+    target.value = target.value.slice(0, start) + token + target.value.slice(end);
+    target.focus();
+    target.selectionStart = target.selectionEnd = start + token.length;
+}
+</script>
+{% endblock %}
