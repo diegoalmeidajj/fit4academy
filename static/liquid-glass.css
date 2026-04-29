@@ -485,7 +485,10 @@ body {
     font-weight: 600; transition: all 0.25s ease;
     font-size: 13px; border: none; cursor: pointer;
     display: inline-flex; align-items: center; gap: 6px;
+    background: #ffffff; color: #000000;
+    padding: 8px 14px; border-radius: 10px;
 }
+.btn:hover { background: #f1f5f9; }
 .btn-primary {
     background: linear-gradient(135deg, #00DC82, #059669);
     border: none; border-radius: 10px;
